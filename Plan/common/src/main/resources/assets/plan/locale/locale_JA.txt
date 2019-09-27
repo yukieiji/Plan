@@ -140,7 +140,7 @@ HTML - LABEL_MOST_ACTIVE_GAMEMODE               || 最も有効になってい�
 HTML - LABEL_NEW                                || 新しい
 HTML - LABEL_NEW_PLAYERS                        || 新規プレイヤー
 HTML - LABEL_NICKNAME                           || ニックネーム
-HTML - LABEL_ONLINE_FIRST_JOIN                  || Players online on first join
+HTML - LABEL_ONLINE_FIRST_JOIN                  || 初参加時のオンラインのプレイヤー
 HTML - LABEL_OPERATOR                           || 管理者
 HTML - LABEL_PER_PLAYER                         || / プレイヤー(1プレイヤーあたりの)
 HTML - LABEL_PER_REGULAR_PLAYER                 || / 登録済みプレイヤー(1登録済みプレイヤーあたりの)
@@ -182,12 +182,12 @@ HTML - PER_DAY                                  || /日
 HTML - PLAYERS_TEXT                             || プレイヤー
 HTML - SIDE_GEOLOCATIONS                        || 地域
 HTML - SIDE_INFORMATION                         || インフォメーション
-HTML - SIDE_NETWORK_OVERVIEW                    || ネットワーク概要
+HTML - SIDE_NETWORK_OVERVIEW                    || ネットワークの概要
 HTML - SIDE_OVERVIEW                            || 概要
 HTML - SIDE_PERFORMANCE                         || パフォーマンス
 HTML - SIDE_PLAYER_LIST                         || プレイヤー一覧
 HTML - SIDE_PLAYERBASE                          || プレイヤーベース
-HTML - SIDE_PLAYERBASE_OVERVIEW                 || プレイヤーベース概要
+HTML - SIDE_PLAYERBASE_OVERVIEW                 || プレイヤーベースの概要
 HTML - SIDE_PLUGINS                             || プラグイン
 HTML - SIDE_PVP_PVE                             || PvPとPvE
 HTML - SIDE_SERVERS                             || 接続されているサーバー
