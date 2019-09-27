@@ -34,11 +34,11 @@ import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.HtmlLang;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.analysis.PlayerCountQueries;
-import com.djrapitops.plan.storage.database.queries.containers.AllPlayerContainersQuery;
-import com.djrapitops.plan.storage.database.queries.containers.ServerPlayersTableContainersQuery;
 import com.djrapitops.plan.storage.database.queries.objects.*;
 import com.djrapitops.plan.utilities.comparators.SessionStartComparator;
 
@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 public class JSONFactory {
 
     private final PlanConfig config;
+    private final Locale locale;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
     private final Graphs graphs;
@@ -64,12 +65,14 @@ public class JSONFactory {
     @Inject
     public JSONFactory(
             PlanConfig config,
+            Locale locale,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             Graphs graphs,
             Formatters formatters
     ) {
         this.config = config;
+        this.locale = locale;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
         this.graphs = graphs;
@@ -84,10 +87,10 @@ public class JSONFactory {
         Database database = dbSystem.getDatabase();
 
         return new PlayersTableJSONParser(
-                database.query(new ServerPlayersTableContainersQuery(serverUUID)),
+                database.query(new ServerTablePlayersQuery(serverUUID, System.currentTimeMillis(), playtimeThreshold, xMostRecentPlayers)),
                 database.query(new ExtensionServerPlayerDataTableQuery(serverUUID, xMostRecentPlayers)),
-                xMostRecentPlayers, playtimeThreshold, openPlayerLinksInNewTab,
-                formatters
+                openPlayerLinksInNewTab,
+                formatters, locale
         ).toJSONString();
     }
 
@@ -99,10 +102,10 @@ public class JSONFactory {
         Database database = dbSystem.getDatabase();
 
         return new PlayersTableJSONParser(
-                database.query(new AllPlayerContainersQuery()), // TODO Optimize the heck out of this
+                database.query(new NetworkTablePlayersQuery(System.currentTimeMillis(), playtimeThreshold, xMostRecentPlayers)),
                 Collections.emptyMap(),
-                xMostRecentPlayers, playtimeThreshold, openPlayerLinksInNewTab,
-                formatters
+                openPlayerLinksInNewTab,
+                formatters, locale
         ).toJSONString();
     }
 
@@ -202,7 +205,7 @@ public class JSONFactory {
                     server.put("unique_players", uniquePlayerCounts.getOrDefault(serverUUID, 0));
                     TPSMutator tpsWeek = tpsMonth.filterDataBetween(weekAgo, now);
                     double averageTPS = tpsWeek.averageTPS();
-                    server.put("avg_tps", averageTPS != -1 ? decimals.apply(averageTPS) : "No data");
+                    server.put("avg_tps", averageTPS != -1 ? decimals.apply(averageTPS) : locale.get(HtmlLang.UNIT_NO_DATA).toString());
                     server.put("low_tps_spikes", tpsWeek.lowTpsSpikeCount(config.getNumber(DisplaySettings.GRAPH_TPS_THRESHOLD_MED)));
                     server.put("downtime", timeAmount.apply(tpsWeek.serverDownTime()));
 
@@ -210,7 +213,7 @@ public class JSONFactory {
                     server.put("online", online.isPresent() ?
                             online.get().getDate() >= now - TimeUnit.MINUTES.toMillis(3L) ?
                                     online.get().getPlayers() : "Possibly offline"
-                            : "No data");
+                            : locale.get(HtmlLang.UNIT_NO_DATA).toString());
                     servers.add(server);
                 });
         return servers;

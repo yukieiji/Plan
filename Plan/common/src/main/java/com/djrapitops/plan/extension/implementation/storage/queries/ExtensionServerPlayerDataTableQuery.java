@@ -78,8 +78,8 @@ public class ExtensionServerPlayerDataTableQuery implements Query<Map<UUID, Exte
                 SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID +
                 ",MAX(" + SessionsTable.SESSION_END + ") as last_seen" +
                 FROM + SessionsTable.TABLE_NAME +
-                GROUP_BY + SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID + ',' + SessionsTable.SESSION_END +
-                ORDER_BY + SessionsTable.SESSION_END + " DESC LIMIT ?";
+                GROUP_BY + SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID +
+                ORDER_BY + "last_seen DESC LIMIT ?";
 
         String sql = SELECT +
                 "v1." + ExtensionPlayerValueTable.USER_UUID + " as uuid," +
@@ -125,8 +125,8 @@ public class ExtensionServerPlayerDataTableQuery implements Query<Map<UUID, Exte
                 SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID +
                 ",MAX(" + SessionsTable.SESSION_END + ") as last_seen" +
                 FROM + SessionsTable.TABLE_NAME +
-                GROUP_BY + SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID + ',' + SessionsTable.SESSION_END +
-                ORDER_BY + SessionsTable.SESSION_END + " DESC LIMIT ?";
+                GROUP_BY + SessionsTable.TABLE_NAME + '.' + SessionsTable.USER_UUID +
+                ORDER_BY + "last_seen DESC LIMIT ?";
 
         String sql = SELECT +
                 "v1." + ExtensionGroupsTable.USER_UUID + " as uuid," +

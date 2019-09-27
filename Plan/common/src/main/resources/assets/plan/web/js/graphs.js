@@ -57,7 +57,7 @@ function diskChart(id, series) {
         yAxis: {
             labels: {
                 formatter: function () {
-                    return this.value + ' Mb';
+                    return this.value + ' MB';
                 }
             },
             softMax: 2,
@@ -130,6 +130,25 @@ function lineChart(id, series) {
     }));
 }
 
+function dayByDay(id, series) {
+    graphs.push(Highcharts.stockChart(id, {
+        rangeSelector: {
+            selected: 2,
+            buttons: linegraphButtons
+        },
+        yAxis: {
+            softMax: 2,
+            softMin: 0
+        },
+        title: {text: ''},
+        legend: {
+            enabled: true
+        },
+        time: {timezoneOffset: 0},
+        series: series
+    }));
+}
+
 function onlineActivityCalendar(id, events, firstDay) {
     $(id).fullCalendar({
         eventColor: '#2196F3',
@@ -146,8 +165,8 @@ function onlineActivityCalendar(id, events, firstDay) {
 
         events: events,
 
-        height: 490,
-        contentHeight: 485,
+        height: 800,
+        contentHeight: 795,
         header: {
             left: 'title',
             center: '',
@@ -317,7 +336,7 @@ function resourceChart(id, cpuSeries, ramSeries, playersOnlineSeries) {
         }, {
             labels: {
                 formatter: function () {
-                    return this.value + ' Mb';
+                    return this.value + ' MB';
                 }
             }
         }],

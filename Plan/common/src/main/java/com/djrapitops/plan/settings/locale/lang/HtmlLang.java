@@ -177,6 +177,7 @@ public enum HtmlLang implements Lang {
     LABEL_REGISTERED("Registered"),
     TITLE_TITLE_PLAYER_PUNCHCARD("Punchcard"),
     TITLE_ALL_TIME("All Time"),
+    LABEL_NAME("Name"),
     // ----------------------------------
     // OLD
     // ----------------------------------
@@ -185,6 +186,8 @@ public enum HtmlLang implements Lang {
     TOTAL_PLAYERS("Total Players"),
     UNIQUE_CALENDAR("Unique:"),
     NEW_CALENDAR("New:"),
+    SESSION("Session"),
+    KILLED("Killed"),
     LABEL_LOADED_ENTITIES("Loaded Entities"),
     LABEL_LOADED_CHUNKS("Loaded Chunks"),
     LABEL_ENTITIES("Entities"),

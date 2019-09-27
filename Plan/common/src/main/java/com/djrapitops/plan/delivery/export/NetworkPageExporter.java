@@ -72,6 +72,7 @@ public class NetworkPageExporter extends FileExporter {
     }
 
     public void export(Path toDirectory, Server server) throws IOException, NotFoundException, ParseException {
+        exportPaths.put("./players", toRelativePathFromRoot("players"));
         exportRequiredResources(toDirectory);
         exportJSON(toDirectory, server);
         exportHtml(toDirectory);

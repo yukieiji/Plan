@@ -98,7 +98,6 @@ public abstract class BukkitImporter implements Importer {
             @Override
             protected void performOperations() {
                 execute(LargeStoreQueries.storeAllTPSData(Collections.singletonMap(serverUUID.get(), serverImportData.getTpsData())));
-                execute(LargeStoreQueries.storeAllCommandUsageData(Collections.singletonMap(serverUUID.get(), serverImportData.getCommandUsages())));
             }
         });
     }
@@ -200,7 +199,7 @@ public abstract class BukkitImporter implements Importer {
         return userImportData.getIps().parallelStream()
                 .map(ip -> {
                     String geoLoc = geolocationCache.getCountry(ip);
-                    return new GeoInfo(ip, geoLoc, date);
+                    return new GeoInfo(geoLoc, date);
                 }).collect(Collectors.toList());
     }
 }

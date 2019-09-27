@@ -40,6 +40,7 @@ public class SessionCache {
     }
 
     public static Map<UUID, Session> getActiveSessions() {
+        refreshActiveSessionsState();
         return Collections.unmodifiableMap(new HashMap<>(ACTIVE_SESSIONS));
     }
 
@@ -49,7 +50,7 @@ public class SessionCache {
 
     public static void refreshActiveSessionsState() {
         for (Session session : ACTIVE_SESSIONS.values()) {
-            session.getUnsafe(SessionKeys.WORLD_TIMES).updateState(System.currentTimeMillis());
+            session.getValue(SessionKeys.WORLD_TIMES).ifPresent(worldTimes -> worldTimes.updateState(System.currentTimeMillis()));
         }
     }
 
@@ -71,11 +72,12 @@ public class SessionCache {
      * @return Optional: previous session. Recipients of this object should decide if it needs to be saved.
      */
     public Optional<Session> cacheSession(UUID playerUUID, Session session) {
+        Optional<Session> inProgress = Optional.empty();
         if (getCachedSession(playerUUID).isPresent()) {
-            return endSession(playerUUID, session.getUnsafe(SessionKeys.START));
+            inProgress = endSession(playerUUID, session.getUnsafe(SessionKeys.START));
         }
         ACTIVE_SESSIONS.put(playerUUID, session);
-        return Optional.empty();
+        return inProgress;
     }
 
     /**
@@ -90,12 +92,8 @@ public class SessionCache {
         if (session == null || session.getUnsafe(SessionKeys.START) > time) {
             return Optional.empty();
         }
-        removeSessionFromCache(playerUUID);
+        ACTIVE_SESSIONS.remove(playerUUID);
         session.endSession(time);
         return Optional.of(session);
-    }
-
-    protected void removeSessionFromCache(UUID playerUUID) {
-        ACTIVE_SESSIONS.remove(playerUUID);
     }
 }

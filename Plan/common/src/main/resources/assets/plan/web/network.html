@@ -49,7 +49,7 @@
 
         <!-- Nav Item - Dashboard -->
         <li class="nav-item nav-button active">
-            <a class="nav-link" href="javascript:void(0)">
+            <a class="nav-link" href="#tab-network-overview">
                 <i class="fas fa-fw fa-info-circle"></i>
                 <span>Network Overview</span></a>
         </li>
@@ -69,10 +69,10 @@
             </a>
             <div aria-labelledby="headingPages" class="collapse" data-parent="#accordionSidebar" id="serverPages">
                 <div class="bg-white py-2 collapse-inner rounded">
-                    <a class="collapse-item nav-button" href="javascript:void(0)"><i
+                    <a class="collapse-item nav-button" href="#tab-servers"><i
                             class="fas fa-fw fa-network-wired"></i>
                         Overview</a>
-                    <a class="collapse-item nav-button" href="javascript:void(0)"><i
+                    <a class="collapse-item nav-button" href="#tab-sessions-overview"><i
                             class="far fa-fw fa-calendar-alt"></i>
                         Sessions</a>
                 </div>
@@ -89,12 +89,12 @@
             <div aria-labelledby="headingPages" class="collapse" data-parent="#accordionSidebar"
                  id="playerbasePages">
                 <div class="bg-white py-2 collapse-inner rounded">
-                    <a class="collapse-item nav-button" href="javascript:void(0)"><i
+                    <a class="collapse-item nav-button" href="#tab-playerbase-overview"><i
                             class="fas fa-fw fa-chart-line"></i>
                         Overview</a>
                     <a class="collapse-item" href="./players"><i class="fas fa-fw fa-users"></i>
                         Player List</a>
-                    <a class="collapse-item nav-button" href="javascript:void(0)"><i class="fas fa-fw fa-globe"></i>
+                    <a class="collapse-item nav-button" href="#tab-geolocations"><i class="fas fa-fw fa-globe"></i>
                         Geolocations</a>
                 </div>
             </div>
@@ -161,13 +161,13 @@
                                     </li>
                                 </ul>
                                 <div class="tab-content" id="onlineActivityTabContent">
-                                    <div aria-labelledby="online-online-tab" class="tab-pane fade show active"
+                                    <div aria-labelledby="online-online-tab" class="tab-pane show active"
                                          id="online-tab"
                                          role="tabpanel">
                                         <div class="chart-area" id="playersOnlineChart"><span class="loader"></span>
                                         </div>
                                     </div>
-                                    <div aria-labelledby="online-unique-tab" class="tab-pane fade"
+                                    <div aria-labelledby="online-unique-tab" class="tab-pane"
                                          id="unique-tab"
                                          role="tabpanel">
                                         <div class="chart-area" id="uniqueChart"><span class="loader"></span></div>
@@ -215,7 +215,7 @@
                                 <div class="card-body" id="data_numbers">
                                     <p><i class="col-black fa fa-fw fa-users"></i> Total Players<span
                                             class="float-right"><b id="data_total"></b></span></p>
-                                    <p><i class="col-amber fa fa-fw fa-users"></i> Regular Players<span
+                                    <p><i class="col-lime fa fa-fw fa-users"></i> Regular Players<span
                                             class="float-right"><b id="data_regular"></b></span></p>
                                     <p><i class="col-blue fa fa-fw fa-user"></i> Players Online<span
                                             class="float-right"><b id="data_online"></b></span></p>
@@ -274,7 +274,7 @@
                                         <td><span id="data_new_trend"></span></td>
                                     </tr>
                                     <tr>
-                                        <td><i class="col-amber fa fa-fw fa-users"></i> Regular Players</td>
+                                        <td><i class="col-lime fa fa-fw fa-users"></i> Regular Players</td>
                                         <td id="data_regular_before"></td>
                                         <td id="data_regular_after"></td>
                                         <td><span id="data_regular_trend"></span></td>
@@ -307,7 +307,7 @@
                 </div> <!-- /.container-fluid -->
             </div> <!-- End of Network Overview tab -->
             <!-- Begin Servers Overview Tab -->
-            <div class="tab">
+            <div class="tab" id="servers">
                 <div class="container-fluid mt-4">
                     <!-- Page Heading -->
                     <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -490,7 +490,7 @@
                                         <td><span id="data_total_players_trend"></span></td>
                                     </tr>
                                     <tr>
-                                        <td><i class="fa fa-fw fa-users col-amber"></i> Regular Players</td>
+                                        <td><i class="fa fa-fw fa-users col-lime"></i> Regular Players</td>
                                         <td id="data_regular_players_then"></td>
                                         <td id="data_regular_players_now"></td>
                                         <td><span id="data_regular_players_trend"></span></td>
@@ -553,10 +553,10 @@
                                 <div class="card-body" id="data_insights">
                                     <p><i class="fa fa-fw fa-user col-light-green"></i> New <i
                                             class="fa fa-fw fa-long-arrow-alt-right"></i> <i
-                                            class="fa fa-fw fa-user col-amber"></i> Regular<span
+                                            class="fa fa-fw fa-user col-lime"></i> Regular<span
                                             class="float-right"><b><span
                                             id="data_new_to_regular"></span></b></span></p>
-                                    <p><i class="fa fa-fw fa-user col-amber"></i> Regular <i
+                                    <p><i class="fa fa-fw fa-user col-lime"></i> Regular <i
                                             class="fa fa-fw fa-long-arrow-alt-right"></i> <i
                                             class="fa fa-fw fa-user col-blue-grey"></i> Inactive<span
                                             class="float-right"><b><span
@@ -615,8 +615,8 @@
                                         <tr>
                                             <th><i class=" fa fa-fw fa-globe"></i> Country</th>
                                             <th><i class=" fa fa-fw fa-signal"></i> Average Ping</th>
-                                            <th><i class=" fa fa-fw fa-signal"></i> Worst Ping</th>
                                             <th><i class=" fa fa-fw fa-signal"></i> Best Ping</th>
+                                            <th><i class=" fa fa-fw fa-signal"></i> Worst Ping</th>
                                         </tr>
                                         </thead>
                                         <tbody></tbody>
@@ -731,6 +731,7 @@
                     <p>In addition following <span class="col-plan">awesome people</span> have contributed:</p>
                     <ul>
                         <li>Argetan <i class="fa fa-fw fa-code"></i></li>
+                        <li>Aurelien <i class="fa fa-fw fa-code"></i> <i class="fa fa-fw fa-language"></i></li>
                         <li>BrainStone <i class="fa fa-fw fa-code"></i></li>
                         <li>CyanTech <i class="fa fa-fw fa-language"></i></li>
                         <li>DarkPyves <i class="fa fa-fw fa-code"></i></li>
@@ -739,9 +740,15 @@
                         <li>Eyremba <i class="fa fa-fw fa-language"></i></li>
                         <li>f0rb1d (佛壁灯) <i class="fa fa-fw fa-language"></i></li>
                         <li>fuzzlemann <i class="fa fa-fw fa-code"></i> <i class="fa fa-fw fa-language"></i></li>
+                        <li>jvmuller <i class="fa fa-fw fa-language"></i></li>
                         <li>Miclebrick <i class="fa fa-fw fa-code"></i></li>
                         <li>Morsmorse <i class="fa fa-fw fa-language"></i></li>
+                        <li>skmedix <i class="fa fa-fw fa-code"></i></li>
+                        <li>TDJisvan <i class="fa fa-fw fa-language"></i></li>
                         <li>Vankka <i class="fa fa-fw fa-code"></i></li>
+                        <li>yukieji <i class="fa fa-fw fa-language"></i></li>
+                        <li>qsefthuopq <i class="fa fa-fw fa-language"></i></li>
+                        <li>& Bug reporters!</li>
                     </ul>
                     <small><i class="fa fa-fw fa-code"></i> code contributor <i class="fa fa-fw fa-language"></i>
                         translator
@@ -860,12 +867,12 @@
             }
         };
 
-        jsonRequest("../v1/graph?type=playersOnline&server=${serverUUID}", function (data, error) {
-            if (data) {
+        jsonRequest("../v1/graph?type=playersOnline&server=${serverUUID}", function (json, error) {
+            if (json) {
                 var series = {
                     playersOnline: {
                         name: s.name.playersOnline, type: s.type.areaSpline, tooltip: s.tooltip.zeroDecimals,
-                        data: data.playersOnline, color: v.colors.playersOnline, yAxis: 0
+                        data: json.playersOnline, color: v.colors.playersOnline, yAxis: 0
                     }
                 };
                 playersChart('playersOnlineChart', series.playersOnline, 2);
@@ -874,24 +881,24 @@
             }
         });
 
-        jsonRequest("../v1/graph?type=uniqueAndNew", function (data, error) {
-            if (data) {
+        jsonRequest("../v1/graph?type=uniqueAndNew", function (json, error) {
+            if (json) {
                 var uniquePlayers = {
                     name: s.name.uniquePlayers, type: s.type.spline, tooltip: s.tooltip.zeroDecimals,
-                    data: data.uniquePlayers, color: v.colors.playersOnline
+                    data: json.uniquePlayers, color: v.colors.playersOnline
                 };
                 var newPlayers = {
                     name: s.name.newPlayers, type: s.type.spline, tooltip: s.tooltip.zeroDecimals,
-                    data: data.newPlayers, color: v.colors.newPlayers
+                    data: json.newPlayers, color: v.colors.newPlayers
                 };
-                lineChart('uniqueChart', [uniquePlayers, newPlayers]);
+                dayByDay('uniqueChart', [uniquePlayers, newPlayers]);
             } else if (error) {
                 $('#uniqueChart').text("Failed to load graph data: " + error)
             }
         });
 
         jsonRequest("../v1/graph?type=serverPie", function (json, error) {
-            if (data) {
+            if (json) {
                 serverPieSeries = {
                     name: 'Server Playtime',
                     colorByPoint: true,
@@ -953,22 +960,9 @@
         });
 
         setLoadingText('Almost done..');
-        var navButtons = document.getElementsByClassName("nav-button");
-        var tabs = document.getElementsByClassName("tab");
-        var slideIndex = window.sessionStorage.getItem("network_slide_index");
-        if (slideIndex === null) {
-            slideIndex = 0;
-        }
-        var x = document.getElementById("content");
-        x.style.transform = "translate3d(0px,0px,0)";
-        x.style.width = "" + navButtons.length * 100 + "%";
-        for (var i = 0; i < navButtons.length; i++) {
-            navButtons[i].onclick = openFunc(i);
-            tabs[i].style.width = "" + 100 / navButtons.length + "%";
-        }
-        x.style.opacity = "1";
-        openFunc(slideIndex)();
+        openPage();
         setLoadingText('Done.');
+
         setTimeout(function () {
             $('.page-loader').fadeOut();
         }, 50);
@@ -978,33 +972,6 @@
             $('.page-loader').fadeOut();
         }, 10000);
         throw loadingError;
-    }
-
-    function openFunc(i) {
-        return function () {
-            var max = navButtons.length;
-            for (var j = 0; j < max; j++) {
-                if (navButtons[j].classList.contains('active')) {
-                    navButtons[j].classList.remove('active');
-                }
-                if (j == i) {
-                    navButtons[j].classList.add('active');
-                }
-            }
-            var percent = -100 / navButtons.length;
-            slideIndex = i;
-            if (slideIndex > max) {
-                slideIndex = 0
-            }
-            if (slideIndex < 0) {
-                slideIndex = max
-            }
-            window.scrollTo(0, 0);
-            window.sessionStorage.setItem("network_slide_index", slideIndex);
-            var value = slideIndex * percent;
-            x.style.transition = "0.5s";
-            x.style.transform = "translate3d(" + value + "%,0px,0)";
-        };
     }
 
     function setLoadingText(text) {

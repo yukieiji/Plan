@@ -104,6 +104,7 @@ public class PlayerOnlineListener implements Listener {
         long time = System.currentTimeMillis();
 
         Session session = new Session(playerUUID, serverInfo.getServerUUID(), time, null, null);
+        session.putRawData(SessionKeys.NAME, playerName);
         session.putRawData(SessionKeys.SERVER_NAME, "Proxy Server");
         sessionCache.cacheSession(playerUUID, session);
         Database database = dbSystem.getDatabase();
@@ -125,6 +126,7 @@ public class PlayerOnlineListener implements Listener {
         JSONCache.invalidateMatching(DataID.SERVER_OVERVIEW);
         JSONCache.invalidate(DataID.GRAPH_ONLINE, serverUUID);
         JSONCache.invalidate(DataID.SERVERS);
+        JSONCache.invalidate(DataID.SESSIONS);
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -189,6 +191,7 @@ public class PlayerOnlineListener implements Listener {
         long time = System.currentTimeMillis();
         // Replaces the current session in the cache.
         Session session = new Session(playerUUID, serverInfo.getServerUUID(), time, null, null);
+        session.putRawData(SessionKeys.NAME, playerName);
         session.putRawData(SessionKeys.SERVER_NAME, "Proxy Server");
         sessionCache.cacheSession(playerUUID, session);
         if (config.get(ExportSettings.EXPORT_ON_ONLINE_STATUS_CHANGE)) {

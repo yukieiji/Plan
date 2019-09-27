@@ -49,12 +49,12 @@ abstract class FileExporter {
 
     void export(Path to, List<String> content) throws IOException {
         Files.createDirectories(to.getParent());
-        Files.write(to, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE);
+        Files.write(to, content, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
     }
 
     void export(Path to, String content) throws IOException {
         Files.createDirectories(to.getParent());
-        Files.write(to, Arrays.asList(StringUtils.split(content, "\r\n")), StandardCharsets.UTF_8, StandardOpenOption.CREATE);
+        Files.write(to, Arrays.asList(StringUtils.split(content, "\r\n")), StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
     }
 
     void export(Path to, Resource resource) throws IOException {
@@ -62,7 +62,7 @@ abstract class FileExporter {
 
         try (
                 InputStream in = resource.asInputStream();
-                OutputStream out = Files.newOutputStream(to, StandardOpenOption.CREATE)
+                OutputStream out = Files.newOutputStream(to, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE)
         ) {
             copy(in, out);
         }
@@ -70,7 +70,11 @@ abstract class FileExporter {
 
     String toFileName(String resourceName) {
         try {
-            return URLEncoder.encode(resourceName, "UTF-8").replace(".", "%2E");
+            return StringUtils.replaceEach(
+                    URLEncoder.encode(resourceName, "UTF-8"),
+                    new String[]{".", "%2F"},
+                    new String[]{"%2E", "-"}
+            );
         } catch (UnsupportedEncodingException e) {
             throw new IllegalStateException("Unexpected: UTF-8 encoding not supported", e);
         }

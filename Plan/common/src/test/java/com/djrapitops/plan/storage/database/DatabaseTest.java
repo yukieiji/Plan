@@ -20,6 +20,7 @@ import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.data.element.TableContainer;
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.delivery.domain.Nickname;
+import com.djrapitops.plan.delivery.domain.TablePlayer;
 import com.djrapitops.plan.delivery.domain.WebUser;
 import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
 import com.djrapitops.plan.delivery.domain.container.ServerContainer;
@@ -50,7 +51,6 @@ import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.storage.database.queries.*;
 import com.djrapitops.plan.storage.database.queries.analysis.ActivityIndexQueries;
-import com.djrapitops.plan.storage.database.queries.containers.AllPlayerContainersQuery;
 import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQueries;
 import com.djrapitops.plan.storage.database.queries.containers.ServerPlayerContainersQuery;
 import com.djrapitops.plan.storage.database.queries.objects.*;
@@ -147,56 +147,6 @@ public interface DatabaseTest {
     }
 
     @Test
-    default void testSaveCommandUse() {
-        Map<String, Integer> expected = new HashMap<>();
-
-        expected.put("plan", 1);
-        expected.put("tp", 4);
-        expected.put("pla", 7);
-        expected.put("help", 21);
-
-        useCommand("plan");
-        useCommand("tp", 4);
-        useCommand("pla", 7);
-        useCommand("help", 21);
-        useCommand("roiergbnougbierubieugbeigubeigubgierbgeugeg", 3);
-
-        commitTest();
-
-        Map<String, Integer> commandUse = db().query(ServerAggregateQueries.commandUsageCounts(serverUUID()));
-        assertEquals(expected, commandUse);
-    }
-
-    @Test
-    default void commandUsageSavingDoesNotCreateNewEntriesForOldCommands() {
-        Map<String, Integer> expected = new HashMap<>();
-
-        expected.put("plan", 1);
-        expected.put("test", 3);
-        expected.put("tp", 6);
-        expected.put("pla", 7);
-        expected.put("help", 21);
-
-        testSaveCommandUse();
-
-        useCommand("test", 3);
-        useCommand("tp", 2);
-
-        Map<String, Integer> commandUse = db().query(ServerAggregateQueries.commandUsageCounts(serverUUID()));
-        assertEquals(expected, commandUse);
-    }
-
-    default void useCommand(String commandName) {
-        db().executeTransaction(new CommandStoreTransaction(serverUUID(), commandName));
-    }
-
-    default void useCommand(String commandName, int times) {
-        for (int i = 0; i < times; i++) {
-            useCommand(commandName);
-        }
-    }
-
-    @Test
     default void testTPSSaving() {
         Random r = new Random();
 
@@ -228,18 +178,14 @@ public interface DatabaseTest {
     default void geoInformationIsStored() {
         saveUserOne();
 
-        String expectedIP = "1.2.3.4";
-        String expectedGeoLoc = "TestLocation";
         long time = System.currentTimeMillis();
 
-        saveGeoInfo(playerUUID, new GeoInfo(expectedIP, expectedGeoLoc, time));
+        GeoInfo expected = new GeoInfo("TestLocation", time);
+        saveGeoInfo(playerUUID, expected);
         commitTest();
 
-        List<GeoInfo> geolocations = db().query(GeoInfoQueries.fetchAllGeoInformation()).getOrDefault(playerUUID, new ArrayList<>());
-        assertEquals(1, geolocations.size());
-
-        GeoInfo expected = new GeoInfo("1.2.xx.xx", expectedGeoLoc, time);
-        assertEquals(expected, geolocations.get(0));
+        List<GeoInfo> result = db().query(GeoInfoQueries.fetchAllGeoInformation()).getOrDefault(playerUUID, new ArrayList<>());
+        assertEquals(Collections.singletonList(expected), result);
     }
 
     @Test
@@ -474,7 +420,7 @@ public interface DatabaseTest {
 
         execute(DataStoreQueries.storeSession(session));
         db().executeTransaction(new NicknameStoreTransaction(playerUUID, new Nickname("TestNick", System.currentTimeMillis(), serverUUID()), (uuid, name) -> false /* Not cached */));
-        saveGeoInfo(playerUUID, new GeoInfo("1.2.3.4", "TestLoc", 223456789L));
+        saveGeoInfo(playerUUID, new GeoInfo("TestLoc", 223456789L));
 
         assertTrue(db().query(PlayerFetchQueries.isPlayerRegistered(playerUUID)));
 
@@ -498,7 +444,6 @@ public interface DatabaseTest {
         assertQueryIsEmpty(db(), NicknameQueries.fetchAllNicknameData());
         assertQueryIsEmpty(db(), GeoInfoQueries.fetchAllGeoInformation());
         assertTrue(db().query(SessionQueries.fetchAllSessions()).isEmpty());
-        assertQueryIsEmpty(db(), LargeFetchQueries.fetchAllCommandUsageData());
         assertQueryIsEmpty(db(), LargeFetchQueries.fetchAllWorldNames());
         assertQueryIsEmpty(db(), LargeFetchQueries.fetchAllTPSData());
         assertQueryIsEmpty(db(), ServerQueries.fetchPlanServerInformation());
@@ -525,16 +470,9 @@ public interface DatabaseTest {
         db().executeTransaction(
                 new NicknameStoreTransaction(playerUUID, new Nickname("TestNick", System.currentTimeMillis(), serverUUID()), (uuid, name) -> false /* Not cached */)
         );
-        saveGeoInfo(playerUUID, new GeoInfo("1.2.3.4", "TestLoc", 223456789L));
+        saveGeoInfo(playerUUID, new GeoInfo("TestLoc", 223456789L));
 
         assertTrue(db().query(PlayerFetchQueries.isPlayerRegistered(playerUUID)));
-
-        useCommand("plan");
-        useCommand("plan");
-        useCommand("tp");
-        useCommand("help");
-        useCommand("help");
-        useCommand("help");
 
         List<TPS> expected = new ArrayList<>();
         Random r = new Random();
@@ -698,7 +636,6 @@ public interface DatabaseTest {
             assertQueryResultIsEqual(db(), backup, NicknameQueries.fetchAllNicknameData());
             assertQueryResultIsEqual(db(), backup, GeoInfoQueries.fetchAllGeoInformation());
             assertQueryResultIsEqual(db(), backup, SessionQueries.fetchAllSessions());
-            assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllCommandUsageData());
             assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllWorldNames());
             assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllTPSData());
             assertQueryResultIsEqual(db(), backup, ServerQueries.fetchPlanServerInformation());
@@ -726,7 +663,6 @@ public interface DatabaseTest {
             assertQueryResultIsEqual(db(), backup, NicknameQueries.fetchAllNicknameData());
             assertQueryResultIsEqual(db(), backup, GeoInfoQueries.fetchAllGeoInformation());
             assertQueryResultIsEqual(db(), backup, SessionQueries.fetchAllSessions());
-            assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllCommandUsageData());
             assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllWorldNames());
             assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllTPSData());
             assertQueryResultIsEqual(db(), backup, ServerQueries.fetchPlanServerInformation());
@@ -883,7 +819,7 @@ public interface DatabaseTest {
         OptionalAssert.equals(1, container.getValue(PlayerKeys.KICK_COUNT));
 
         List<GeoInfo> expectedGeoInfo =
-                Collections.singletonList(new GeoInfo("", "TestLoc", 223456789));
+                Collections.singletonList(new GeoInfo("TestLoc", 223456789));
         OptionalAssert.equals(expectedGeoInfo, container.getValue(PlayerKeys.GEO_INFO));
 
         List<Nickname> expectedNicknames = Collections.singletonList(new Nickname("TestNick", -1, serverUUID()));
@@ -1072,23 +1008,6 @@ public interface DatabaseTest {
         Collections.sort(expected);
 
         Collection<UUID> result = db().query(new ServerPlayerContainersQuery(TestConstants.SERVER_UUID))
-                .stream().map(player -> player.getUnsafe(PlayerKeys.UUID))
-                .sorted()
-                .collect(Collectors.toList());
-
-        assertEquals(expected, result);
-    }
-
-    @Test
-    default void allPlayerContainersQueryDoesNotReturnDuplicatePlayers() {
-        db().executeTransaction(TestData.storeServers());
-        executeTransactions(TestData.storePlayerOneData());
-        executeTransactions(TestData.storePlayerTwoData());
-
-        List<UUID> expected = Arrays.asList(playerUUID, player2UUID);
-        Collections.sort(expected);
-
-        Collection<UUID> result = db().query(new AllPlayerContainersQuery())
                 .stream().map(player -> player.getUnsafe(PlayerKeys.UUID))
                 .sorted()
                 .collect(Collectors.toList());
@@ -1406,12 +1325,40 @@ public interface DatabaseTest {
     }
 
     @Test
-    default void activeTunredInactiveQueryHasAllParametersSet() {
+    default void activeTurnedInactiveQueryHasAllParametersSet() {
         Integer result = db().query(ActivityIndexQueries.countRegularPlayersTurnedInactive(
                 0, System.currentTimeMillis(), serverUUID(),
                 TimeUnit.HOURS.toMillis(2L)
         ));
         assertNotNull(result);
+    }
+
+    @Test
+    default void serverTablePlayersQueryQueriesAtLeastOnePlayer() {
+        sessionsAreStoredWithAllData();
+
+        List<TablePlayer> result = db().query(new ServerTablePlayersQuery(serverUUID(), System.currentTimeMillis(), 10L, 1));
+        assertNotEquals(Collections.emptyList(), result);
+    }
+
+    @Test
+    default void networkTablePlayersQueryQueriesAtLeastOnePlayer() {
+        sessionsAreStoredWithAllData();
+
+        List<TablePlayer> result = db().query(new NetworkTablePlayersQuery(System.currentTimeMillis(), 10L, 1));
+        assertNotEquals(Collections.emptyList(), result);
+    }
+
+    @Test
+    default void kdrCastAsDoubleDoesNotCauseExceptions() {
+        sessionsAreStoredWithAllData();
+        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, () -> 123456789L, "Test", serverUUID()));
+
+        Long killCount = db().query(KillQueries.playerKillCount(0L, System.currentTimeMillis(), serverUUID()));
+        assertEquals(2, killCount); // Ensure the kills were saved
+
+        Double result = db().query(KillQueries.averageKDR(0L, System.currentTimeMillis(), serverUUID()));
+        assertEquals(1.0, result, 0.1);
     }
 
     @PluginInfo(name = "ConditionalExtension")

@@ -1,10 +1,9 @@
 function loadPlayerOverviewValues(json, error) {
+    tab = $("#player-overview");
     if (error) {
-        $("#player-overview").addClass("forbidden"); // TODO Figure out 403
+        displayError(tab, error);
         return;
     }
-
-    tab = $("#player-overview");
 
     // Player information card
     data = json.info;
@@ -62,12 +61,11 @@ function loadPlayerOverviewValues(json, error) {
 
 /* This function loads PvP & PvE tab */
 function loadPvPPvEValues(json, error) {
+    tab = $('#pvp-pve');
     if (error) {
-        $('#pvp-pve').addClass('forbidden'); // TODO Figure out 403
+        displayError(tab, error);
         return;
     }
-
-    tab = $('#pvp-pve');
 
     // as Numbers
     data = json.kill_data;
@@ -145,17 +143,18 @@ function createConnectionsTableBody(connections) {
 }
 
 function loadServerAccordion(json, error) {
+    tab = $("#server-overview");
     if (error) {
-        $('#server-overview').addClass('forbidden'); // TODO Figure out 403
+        displayError(tab, error);
         return;
     }
 
-    serverTable = $("#server-overview").find("#tableSAccordion").find("tbody");
+    serverTable = tab.find("#tableSAccordion").find("tbody");
 
     var servers = json.servers;
 
     if (!servers.length) {
-        serverTable.append('<tr><td>No Sessions</td><td>-</td><td>-</td><td>-</td></tr>')
+        serverTable.append('<tr><td>No Data</td><td>-</td><td>-</td><td>-</td></tr>')
     }
 
     var serversHtml = '';

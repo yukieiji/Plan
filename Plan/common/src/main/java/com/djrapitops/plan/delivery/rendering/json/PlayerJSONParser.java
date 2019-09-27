@@ -22,7 +22,6 @@ import com.djrapitops.plan.delivery.domain.mutators.*;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.html.Html;
-import com.djrapitops.plan.delivery.rendering.html.structure.ServerAccordion;
 import com.djrapitops.plan.delivery.rendering.json.graphs.Graphs;
 import com.djrapitops.plan.delivery.rendering.json.graphs.pie.WorldPie;
 import com.djrapitops.plan.gathering.cache.SessionCache;
@@ -32,12 +31,15 @@ import com.djrapitops.plan.gathering.domain.WorldTimes;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.GenericLang;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.settings.theme.ThemeVal;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.containers.PlayerContainerQuery;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
+import com.djrapitops.plan.utilities.comparators.DateHolderRecentComparator;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.inject.Inject;
@@ -50,6 +52,7 @@ import java.util.stream.Collectors;
 public class PlayerJSONParser {
 
     private final PlanConfig config;
+    private final Locale locale;
     private final Theme theme;
     private final DBSystem dbSystem;
     private final Graphs graphs;
@@ -62,12 +65,14 @@ public class PlayerJSONParser {
     @Inject
     public PlayerJSONParser(
             PlanConfig config,
+            Locale locale,
             Theme theme,
             DBSystem dbSystem,
             Formatters formatters,
             Graphs graphs
     ) {
         this.config = config;
+        this.locale = locale;
         this.theme = theme;
         this.dbSystem = dbSystem;
 
@@ -87,7 +92,7 @@ public class PlayerJSONParser {
         PlayerContainer player = db.query(new PlayerContainerQuery(playerUUID));
         SessionsMutator sessionsMutator = SessionsMutator.forContainer(player);
         Map<UUID, WorldTimes> worldTimesPerServer = PerServerMutator.forContainer(player).worldTimesPerServer();
-        List<Map<String, Object>> serverAccordion = new ServerAccordion(player, serverNames, graphs, year, timeAmount).asMaps();
+        List<Map<String, Object>> serverAccordion = new ServerAccordion(player, serverNames, graphs, year, timeAmount, locale.get(GenericLang.UNKNOWN).toString()).asMaps();
         List<PlayerKill> kills = player.getValue(PlayerKeys.PLAYER_KILLS).orElse(Collections.emptyList());
         List<PlayerKill> deaths = player.getValue(PlayerKeys.PLAYER_DEATHS_KILLS).orElse(Collections.emptyList());
 
@@ -177,7 +182,7 @@ public class PlayerJSONParser {
         int worstPing = ping.max();
         int bestPing = ping.min();
 
-        String unavailable = "Unavailable";
+        String unavailable = locale.get(GenericLang.UNAVAILABLE).toString();
         info.put("average_ping", averagePing != -1.0 ? decimals.apply(averagePing) + " ms" : unavailable);
         info.put("worst_ping", worstPing != -1.0 ? worstPing + " ms" : unavailable);
         info.put("best_ping", bestPing != -1.0 ? bestPing + " ms" : unavailable);
@@ -275,6 +280,7 @@ public class PlayerJSONParser {
                 Map<UUID, String> serverNames,
                 Formatter<Long> dateFormatter
         ) {
+            nicknames.sort(new DateHolderRecentComparator());
             List<Nickname> mapped = new ArrayList<>();
             for (com.djrapitops.plan.delivery.domain.Nickname nickname : nicknames) {
                 mapped.add(new Nickname(

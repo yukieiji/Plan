@@ -16,11 +16,8 @@
  */
 package com.djrapitops.plan.delivery.rendering.json;
 
-import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
-import com.djrapitops.plan.delivery.domain.keys.PlayerKeys;
+import com.djrapitops.plan.delivery.domain.TablePlayer;
 import com.djrapitops.plan.delivery.domain.mutators.ActivityIndex;
-import com.djrapitops.plan.delivery.domain.mutators.GeoInfoMutator;
-import com.djrapitops.plan.delivery.domain.mutators.SessionsMutator;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.html.Html;
@@ -29,8 +26,8 @@ import com.djrapitops.plan.delivery.rendering.html.icon.Icon;
 import com.djrapitops.plan.extension.FormatType;
 import com.djrapitops.plan.extension.icon.Color;
 import com.djrapitops.plan.extension.implementation.results.*;
-import com.djrapitops.plan.gathering.domain.GeoInfo;
-import com.djrapitops.plan.utilities.comparators.PlayerContainerLastPlayedComparator;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.HtmlLang;
 
 import java.util.*;
 
@@ -43,12 +40,11 @@ import java.util.*;
  */
 public class PlayersTableJSONParser {
 
-    private final List<PlayerContainer> players;
+    private final List<TablePlayer> players;
     private final List<ExtensionDescriptive> extensionDescriptives;
     private final Map<UUID, ExtensionTabData> extensionData;
+    private final Locale locale;
 
-    private final int maxPlayers;
-    private final long activeMsThreshold;
     private final boolean openPlayerPageInNewTab;
 
     private Map<FormatType, Formatter<Long>> numberFormatters;
@@ -56,25 +52,23 @@ public class PlayersTableJSONParser {
     private Formatter<Double> decimalFormatter;
 
     public PlayersTableJSONParser(
-            // Data
-            List<PlayerContainer> players,
+            List<TablePlayer> players,
             Map<UUID, ExtensionTabData> extensionData,
             // Settings
-            int maxPlayers, long activeMsThreshold, boolean openPlayerPageInNewTab,
-            // Formatters
-            Formatters formatters
+            boolean openPlayerPageInNewTab,
+            Formatters formatters,
+            Locale locale
     ) {
         // Data
         this.players = players;
         this.extensionData = extensionData;
+        this.locale = locale;
 
         extensionDescriptives = new ArrayList<>();
         addExtensionDescriptives(extensionData);
         extensionDescriptives.sort((one, two) -> String.CASE_INSENSITIVE_ORDER.compare(one.getName(), two.getName()));
 
         // Settings
-        this.maxPlayers = maxPlayers;
-        this.activeMsThreshold = activeMsThreshold;
         this.openPlayerPageInNewTab = openPlayerPageInNewTab;
         // Formatters
         numberFormatters = new EnumMap<>(FormatType.class);
@@ -107,15 +101,9 @@ public class PlayersTableJSONParser {
     private String parseData() {
         StringBuilder dataJSON = new StringBuilder("[");
 
-        long now = System.currentTimeMillis();
-        players.sort(new PlayerContainerLastPlayedComparator());
-
         int currentPlayerNumber = 0;
-        for (PlayerContainer player : players) {
-            if (currentPlayerNumber >= maxPlayers) {
-                break;
-            }
-            UUID playerUUID = player.getValue(PlayerKeys.UUID).orElse(null);
+        for (TablePlayer player : players) {
+            UUID playerUUID = player.getPlayerUUID();
             if (playerUUID == null) {
                 continue;
             }
@@ -125,7 +113,7 @@ public class PlayersTableJSONParser {
             }
             dataJSON.append('{');           // Start new item
 
-            appendPlayerData(dataJSON, now, player);
+            appendPlayerData(dataJSON, player);
             appendExtensionData(dataJSON, extensionData.getOrDefault(playerUUID, new ExtensionTabData.Factory(null).build()));
 
             dataJSON.append('}');           // Close new item
@@ -135,22 +123,21 @@ public class PlayersTableJSONParser {
         return dataJSON.append(']').toString();
     }
 
-    private void appendPlayerData(StringBuilder dataJSON, long now, PlayerContainer player) {
-        String name = player.getValue(PlayerKeys.NAME).orElse("Unknown");
+    private void appendPlayerData(StringBuilder dataJSON, TablePlayer player) {
+        String name = player.getName().orElse(player.getPlayerUUID().toString());
         String url = "../player/" + name;
 
-        SessionsMutator sessionsMutator = SessionsMutator.forContainer(player);
-        int loginTimes = sessionsMutator.count();
-        long playtime = sessionsMutator.toPlaytime();
-        long registered = player.getValue(PlayerKeys.REGISTERED).orElse(0L);
-        long lastSeen = sessionsMutator.toLastSeen();
+        int loginTimes = player.getSessionCount().orElse(0);
+        long playtime = player.getPlaytime().orElse(-1L);
+        long registered = player.getRegistered().orElse(-1L);
+        long lastSeen = player.getLastSeen().orElse(-1L);
 
-        ActivityIndex activityIndex = player.getActivityIndex(now, activeMsThreshold);
-        boolean isBanned = player.getValue(PlayerKeys.BANNED).orElse(false);
+        ActivityIndex activityIndex = player.getCurrentActivityIndex().orElseGet(() -> new ActivityIndex(0.0, 0));
+        boolean isBanned = player.isBanned();
         String activityString = activityIndex.getFormattedValue(decimalFormatter)
-                + (isBanned ? " (<b>Banned</b>)" : " (" + activityIndex.getGroup() + ")");
+                + (isBanned ? " (<b>" + locale.get(HtmlLang.LABEL_BANNED) + "</b>)" : " (" + activityIndex.getGroup() + ")");
 
-        String geolocation = GeoInfoMutator.forContainer(player).mostRecent().map(GeoInfo::getGeolocation).orElse("-");
+        String geolocation = player.getGeolocation().orElse("-");
 
         Html link = openPlayerPageInNewTab ? Html.LINK_EXTERNAL : Html.LINK;
 
@@ -206,13 +193,13 @@ public class PlayersTableJSONParser {
         // Is the data for the column formatted
 
         columnHeaders
-                .append(makeColumnHeader(Icon.called("user") + " Name", "name")).append(',')
-                .append(makeFColumnHeader(Icon.called("check") + " Activity Index", "index")).append(',')
-                .append(makeFColumnHeader(Icon.called("clock").of(Family.REGULAR) + " Playtime", "playtime")).append(',')
-                .append(makeColumnHeader(Icon.called("calendar-plus").of(Family.REGULAR) + " Sessions", "sessions")).append(',')
-                .append(makeFColumnHeader(Icon.called("user-plus") + " Registered", "registered")).append(',')
-                .append(makeFColumnHeader(Icon.called("calendar-check").of(Family.REGULAR) + " Last Seen", "seen")).append(',')
-                .append(makeColumnHeader(Icon.called("globe") + " Geolocation", "geolocation"));
+                .append(makeColumnHeader(Icon.called("user") + " " + locale.get(HtmlLang.LABEL_NAME), "name")).append(',')
+                .append(makeFColumnHeader(Icon.called("check") + " " + locale.get(HtmlLang.LABEL_ACTIVITY_INDEX), "index")).append(',')
+                .append(makeFColumnHeader(Icon.called("clock").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_PLAYTIME), "playtime")).append(',')
+                .append(makeColumnHeader(Icon.called("calendar-plus").of(Family.REGULAR) + " " + locale.get(HtmlLang.SIDE_SESSIONS), "sessions")).append(',')
+                .append(makeFColumnHeader(Icon.called("user-plus") + " " + locale.get(HtmlLang.LABEL_REGISTERED), "registered")).append(',')
+                .append(makeFColumnHeader(Icon.called("calendar-check").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_LAST_SEEN), "seen")).append(',')
+                .append(makeColumnHeader(Icon.called("globe") + " " + locale.get(HtmlLang.TITLE_COUNTRY), "geolocation"));
 
         appendExtensionHeaders(columnHeaders);
 

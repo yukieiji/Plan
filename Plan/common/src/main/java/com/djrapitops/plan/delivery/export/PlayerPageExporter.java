@@ -72,6 +72,8 @@ public class PlayerPageExporter extends FileExporter {
     }
 
     public void export(Path toDirectory, UUID playerUUID, String playerName) throws IOException, NotFoundException, ParseException {
+        exportPaths.put("../network", toRelativePathFromRoot("network"));
+        exportPaths.put("../server", toRelativePathFromRoot("server"));
         exportRequiredResources(toDirectory);
 
         Path playerDirectory = toDirectory.resolve("player/" + toFileName(playerName));
