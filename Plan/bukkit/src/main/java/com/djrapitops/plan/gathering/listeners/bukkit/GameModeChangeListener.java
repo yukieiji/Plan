@@ -17,14 +17,13 @@
 package com.djrapitops.plan.gathering.listeners.bukkit;
 
 import com.djrapitops.plan.gathering.cache.SessionCache;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.WorldAliasSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.transactions.events.WorldNameStoreTransaction;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -38,7 +37,7 @@ import java.util.UUID;
 /**
  * Event Listener for PlayerGameModeChangeEvents.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class GameModeChangeListener implements Listener {
 
@@ -68,7 +67,7 @@ public class GameModeChangeListener implements Listener {
         try {
             actOnEvent(event);
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event, event.getPlayer().getGameMode() + "->" + event.getNewGameMode()).build());
+            errorLogger.error(e, ErrorContext.builder().related(event, event.getPlayer().getGameMode() + "->" + event.getNewGameMode()).build());
         }
     }
 
@@ -82,7 +81,7 @@ public class GameModeChangeListener implements Listener {
         dbSystem.getDatabase().executeTransaction(new WorldNameStoreTransaction(serverInfo.getServerUUID(), worldName));
         worldAliasSettings.addWorld(worldName);
 
-        Optional<Session> cachedSession = SessionCache.getCachedSession(uuid);
+        Optional<ActiveSession> cachedSession = SessionCache.getCachedSession(uuid);
         cachedSession.ifPresent(session -> session.changeState(worldName, gameMode, time));
     }
 }

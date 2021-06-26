@@ -16,6 +16,10 @@
  */
 package com.djrapitops.plan.extension;
 
+import com.djrapitops.plan.extension.annotation.PluginInfo;
+import com.djrapitops.plan.extension.builder.ExtensionDataBuilder;
+import com.djrapitops.plan.extension.builder.ValueBuilder;
+
 /**
  * Interface to implement data extensions with.
  * <p>
@@ -30,6 +34,9 @@ package com.djrapitops.plan.extension;
  * {@link com.djrapitops.plan.extension.annotation.DoubleProvider} for {@code double} values.
  * {@link com.djrapitops.plan.extension.annotation.PercentageProvider} for {@code double} values that represent a percentage.
  * {@link com.djrapitops.plan.extension.annotation.StringProvider} for {@link String} values.
+ * {@link com.djrapitops.plan.extension.annotation.TableProvider} for {@link com.djrapitops.plan.extension.table.Table}s.
+ * {@link com.djrapitops.plan.extension.annotation.GroupProvider} for Player specific group names, such as permission groups.
+ * {@link com.djrapitops.plan.extension.annotation.DataBuilderProvider} for {@link ExtensionDataBuilder}s.
  * <hr>
  * <p>
  * Methods can have one of the following as method parameters:
@@ -65,7 +72,7 @@ package com.djrapitops.plan.extension;
  * - Annotation variable is over 50 characters (Or 150 if description)
  * - Method name is over 50 characters (Used as an identifier for storage)
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see com.djrapitops.plan.extension.annotation.PluginInfo Required Annotation
  * @see CallEvents for method call event types.
  */
@@ -88,6 +95,43 @@ public interface DataExtension {
                 CallEvents.PLAYER_LEAVE,
                 CallEvents.SERVER_EXTENSION_REGISTER
         };
+    }
+
+    /**
+     * Obtain a new {@link ExtensionDataBuilder}.
+     * <p>
+     * Requires Capability DATA_EXTENSION_BUILDER_API
+     *
+     * @return new builder.
+     */
+    default ExtensionDataBuilder newExtensionDataBuilder() {
+        return ExtensionService.getInstance().newExtensionDataBuilder(this);
+    }
+
+    /**
+     * Obtain a new {@link ValueBuilder} to use with {@link ExtensionDataBuilder}.
+     * <p>
+     * Requires Capability DATA_EXTENSION_BUILDER_API
+     *
+     * @return new builder.
+     */
+    default ValueBuilder valueBuilder(String text) {
+        return newExtensionDataBuilder().valueBuilder(text);
+    }
+
+    /**
+     * Get the name of the plugin from PluginInfo annotation.
+     * <p>
+     * Requires Capability DATA_EXTENSION_BUILDER_API
+     *
+     * @return new builder.
+     */
+    default String getPluginName() {
+        PluginInfo annotation = getClass().getAnnotation(PluginInfo.class);
+        if (annotation == null) {
+            throw new IllegalArgumentException(getClass().getSimpleName() + " did not have @PluginInfo annotation!");
+        }
+        return annotation.name();
     }
 
 }

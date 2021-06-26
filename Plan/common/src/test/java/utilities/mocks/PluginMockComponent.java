@@ -19,6 +19,7 @@ package utilities.mocks;
 import com.djrapitops.plan.PlanPlugin;
 import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.utilities.logging.PluginErrorLogger;
+import net.playeranalytics.plugin.PlatformAbstractionLayer;
 import utilities.dagger.DaggerPlanPluginComponent;
 import utilities.dagger.PlanPluginComponent;
 
@@ -27,7 +28,7 @@ import java.nio.file.Path;
 /**
  * Test utility for creating a dagger PlanComponent using a mocked Plan.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PluginMockComponent {
 
@@ -35,6 +36,7 @@ public class PluginMockComponent {
 
     private PlanPlugin planMock;
     private PlanPluginComponent component;
+    private TestPlatformAbstractionLayer abstractionLayer;
 
     public PluginMockComponent(Path tempDir) {
         this.tempDir = tempDir;
@@ -44,7 +46,6 @@ public class PluginMockComponent {
         if (planMock == null) {
             planMock = PlanPluginMocker.setUp()
                     .withDataFolder(tempDir.toFile())
-                    .withResourceFetchingFromJar()
                     .withLogging().getPlanMock();
         }
         return planMock;
@@ -57,14 +58,28 @@ public class PluginMockComponent {
 
     private void initComponent() throws Exception {
         if (component == null) {
+            PlanPlugin planMock = getPlanMock();
+            abstractionLayer = new TestPlatformAbstractionLayer(planMock);
             component = DaggerPlanPluginComponent.builder()
                     .bindTemporaryDirectory(tempDir)
-                    .plan(getPlanMock()).build();
+                    .plan(planMock)
+                    .abstractionLayer(abstractionLayer)
+                    .build();
         }
     }
 
     public PluginErrorLogger getPluginErrorLogger() throws Exception {
         initComponent();
         return component.pluginErrorLogger();
+    }
+
+    public PlanPluginComponent getComponent() throws Exception {
+        initComponent();
+        return component;
+    }
+
+    public PlatformAbstractionLayer getAbstractionLayer() throws Exception {
+        initComponent();
+        return abstractionLayer;
     }
 }

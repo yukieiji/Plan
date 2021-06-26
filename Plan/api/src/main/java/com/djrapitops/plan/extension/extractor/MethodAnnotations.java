@@ -26,8 +26,10 @@ import java.util.Optional;
 /**
  * Implementation detail, utility class for handling method annotations.
  *
- * @author Rsl1122
+ * @author AuroraLS3
+ * @deprecated Old implementation used this.
  */
+@Deprecated
 public class MethodAnnotations {
 
     private final Map<Class<?>, Map<Method, Annotation>> byAnnotationType;

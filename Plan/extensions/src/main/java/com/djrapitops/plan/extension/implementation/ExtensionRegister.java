@@ -21,7 +21,6 @@ import com.djrapitops.plan.extension.Caller;
 import com.djrapitops.plan.extension.DataExtension;
 import com.djrapitops.plan.extension.ExtensionService;
 import com.djrapitops.plan.extension.NotReadyException;
-import com.djrapitops.plan.extension.extractor.ExtensionExtractor;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -36,7 +35,7 @@ import java.util.function.Predicate;
 /**
  * In charge of registering built in {@link com.djrapitops.plan.extension.DataExtension} implementations.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ExtensionRegister {
@@ -60,6 +59,7 @@ public class ExtensionRegister {
         register(new AdvancedAchievementsExtensionFactory(), AdvancedAchievementsExtensionFactory::createExtension);
         register(new AdvancedBanExtensionFactory(), AdvancedBanExtensionFactory::createExtension, AdvancedBanExtensionFactory::registerListener);
         register(new ASkyBlockExtensionFactory(), ASkyBlockExtensionFactory::createExtension);
+        register(new AuthMeExtensionFactory(), AuthMeExtensionFactory::createExtension);
         register(new BanManagerExtensionFactory(), BanManagerExtensionFactory::createExtension);
         registerBentoBoxExtensions();
         register(new BuycraftExtensionFactory(), BuycraftExtensionFactory::createExtension);
@@ -70,19 +70,30 @@ public class ExtensionRegister {
         register(new EssentialsExtensionFactory(), EssentialsExtensionFactory::createExtension, EssentialsExtensionFactory::registerUpdateListeners);
         register(new FactionsExtensionFactory(), FactionsExtensionFactory::createExtension);
         register(new FactionsUUIDExtensionFactory(), FactionsUUIDExtensionFactory::createExtension, FactionsUUIDExtensionFactory::registerExpansion);
+        register(new FastLoginExtensionFactory(), FastLoginExtensionFactory::createExtension);
         register(new FloodgateExtensionFactory(), FloodgateExtensionFactory::createExtension, FloodgateExtensionFactory::registerListener);
         register(new GriefDefenderExtensionFactory(), GriefDefenderExtensionFactory::createExtension);
         register(new GriefPreventionExtensionFactory(), GriefPreventionExtensionFactory::createExtension);
         register(new GriefPreventionSpongeExtensionFactory(), GriefPreventionSpongeExtensionFactory::createExtension);
-        register(new GriefPreventionPlusExtensionFactory(), GriefPreventionPlusExtensionFactory::createExtension);
+        register(new HeroesExtensionFactory(), HeroesExtensionFactory::createExtension);
+        register(new KingdomsXExtensionFactory(), KingdomsXExtensionFactory::createExtension);
         register(new JobsExtensionFactory(), JobsExtensionFactory::createExtension);
+        register(new LandsExtensionFactory(), LandsExtensionFactory::createExtension);
         register(new LitebansExtensionFactory(), LitebansExtensionFactory::createExtension, LitebansExtensionFactory::registerEvents);
+        register(new LogBlockExtensionFactory(), LogBlockExtensionFactory::createExtension);
         register(new LuckPermsExtensionFactory(), LuckPermsExtensionFactory::createExtension);
+        register(new MarriageMasterExtensionFactory(), MarriageMasterExtensionFactory::createExtension);
         register(new McMMOExtensionFactory(), McMMOExtensionFactory::createExtension, McMMOExtensionFactory::registerExpansion);
         registerMany(new MinigameLibExtensionFactory(), MinigameLibExtensionFactory::createExtensions);
+        register(new MyPetExtensionFactory(), MyPetExtensionFactory::createExtension);
         register(new NucleusExtensionFactory(), NucleusExtensionFactory::createExtension);
         register(new NuVotifierExtensionFactory(), NuVotifierExtensionFactory::createExtension);
+        register(new PlaceholderAPIExtensionFactory(), PlaceholderAPIExtensionFactory::createExtension);
+        register(new PlotSquaredExtensionFactory(), PlotSquaredExtensionFactory::createExtension);
+        register(new ProtectionStonesExtensionFactory(), ProtectionStonesExtensionFactory::createExtension);
         register(new ProtocolSupportExtensionFactory(), ProtocolSupportExtensionFactory::createExtension);
+        register(new QuestsExtensionFactory(), QuestsExtensionFactory::createExtension);
+        register(new ReactExtensionFactory(), ReactExtensionFactory::createExtension);
         register(new RedProtectExtensionFactory(), RedProtectExtensionFactory::createExtension);
         register(new SpongeEconomyExtensionFactory(), SpongeEconomyExtensionFactory::createExtension);
         register(new SuperbVoteExtensionFactory(), SuperbVoteExtensionFactory::createExtension);
@@ -140,7 +151,7 @@ public class ExtensionRegister {
         try {
             // Creates the extension with factory and registers it
             createExtension.apply(factory).ifPresent(this::register);
-        } catch (NotReadyException ignore) {
+        } catch (NotReadyException | UnsupportedOperationException ignore) {
             // This exception signals that the extension can not be registered right now (Intended fail).
         } catch (Exception | NoClassDefFoundError | IncompatibleClassChangeError e) {
             // Places all exceptions to one exception with plugin information so that they can be reported.
@@ -155,7 +166,7 @@ public class ExtensionRegister {
         try {
             // Creates the extension with factory and registers it
             createExtension.apply(factory).forEach(this::register);
-        } catch (NotReadyException ignore) {
+        } catch (NotReadyException | UnsupportedOperationException ignore) {
             // This exception signals that the extension can not be registered right now (Intended fail).
         } catch (Exception | NoClassDefFoundError | IncompatibleClassChangeError e) {
             // Places all exceptions to one exception with plugin information so that they can be reported.
@@ -173,7 +184,7 @@ public class ExtensionRegister {
             createExtension.apply(factory)
                     .flatMap(this::register)
                     .ifPresent(caller -> registerListener.accept(factory, caller));
-        } catch (NotReadyException ignore) {
+        } catch (NotReadyException | UnsupportedOperationException ignore) {
             // This exception signals that the extension can not be registered right now (Intended fail).
         } catch (Exception | NoClassDefFoundError | IncompatibleClassChangeError e) {
             // Places all exceptions to one exception with plugin information so that they can be reported.
@@ -182,7 +193,7 @@ public class ExtensionRegister {
     }
 
     private Optional<Caller> register(DataExtension dataExtension) {
-        String extensionName = ExtensionExtractor.getPluginName(dataExtension.getClass());
+        String extensionName = dataExtension.getPluginName();
         if (disabledExtensions.contains(extensionName)) return Optional.empty();
 
         return extensionService.register(dataExtension);

@@ -24,8 +24,7 @@ import com.djrapitops.plan.settings.locale.lang.*;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -40,7 +39,7 @@ import java.util.stream.Collectors;
 /**
  * System in charge of {@link Locale}.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class LocaleSystem implements SubSystem {
@@ -69,14 +68,15 @@ public class LocaleSystem implements SubSystem {
     public static Map<String, Lang> getIdentifiers() {
         Lang[][] lang = new Lang[][]{
                 CommandLang.values(),
-                HelpLang.values(),
                 DeepHelpLang.values(),
-                PluginLang.values(),
-                GenericLang.values(),
-                HtmlLang.values(),
                 ErrorPageLang.values(),
                 FailReason.values(),
+                FilterLang.values(),
+                GenericLang.values(),
+                HelpLang.values(),
+                HtmlLang.values(),
                 JSLang.values(),
+                PluginLang.values(),
         };
 
         return Arrays.stream(lang)
@@ -112,7 +112,7 @@ public class LocaleSystem implements SubSystem {
             }
             new LocaleFileWriter(writing).writeToFile(localeFile);
         } catch (IOException | IllegalStateException e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().whatToDo("Fix write permissions to " + localeFile.getAbsolutePath()).build());
+            errorLogger.error(e, ErrorContext.builder().whatToDo("Fix write permissions to " + localeFile.getAbsolutePath()).build());
         }
         resetWriteConfigSetting();
     }
@@ -122,7 +122,7 @@ public class LocaleSystem implements SubSystem {
             config.set(PluginSettings.WRITE_NEW_LOCALE, false);
             config.save();
         } catch (IOException | IllegalStateException e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().whatToDo("Fix write permissions to " + config.getConfigFilePath()).build());
+            errorLogger.error(e, ErrorContext.builder().whatToDo("Fix write permissions to " + config.getConfigFilePath()).build());
         }
     }
 

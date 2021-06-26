@@ -26,7 +26,7 @@ import java.nio.file.Path;
 /**
  * Test utility for creating a dagger PlanComponent using a mocked Plan.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class NukkitMockComponent {
 
@@ -44,7 +44,6 @@ public class NukkitMockComponent {
             planMock = PlanNukkitMocker.setUp()
                     .withDataFolder(tempDir.toFile())
                     .withPluginDescription()
-                    .withResourceFetchingFromJar()
                     .withServer()
                     .getPlanMock();
         }
@@ -53,7 +52,11 @@ public class NukkitMockComponent {
 
     public PlanSystem getPlanSystem() throws Exception {
         if (component == null) {
-            component = DaggerPlanNukkitComponent.builder().plan(getPlanMock()).build();
+            PlanNukkit planMock = getPlanMock();
+            component = DaggerPlanNukkitComponent.builder()
+                    .plan(planMock)
+                    .abstractionLayer(new TestPlatformAbstractionLayer(this.planMock))
+                    .build();
         }
         return component.system();
     }

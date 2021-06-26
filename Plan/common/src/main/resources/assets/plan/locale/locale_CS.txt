@@ -1,10 +1,10 @@
-API - css+                                      || Rozšíření: ${0} přidán stylesheet(s) k ${1}, ${2}
-API - js+                                       || Rozšíření: ${0} přidán javascript(s) k ${1}, ${2}
+API - css+                                      || Rozšíření: ${0} přidán stylesheet k ${1}, ${2}
+API - js+                                       || Rozšíření: ${0} přidán javascript k ${1}, ${2}
 Cmd - Click Me                                  || Klikni na mě
-Cmd - Link                                      ||   §2Odkaz: §f
+Cmd - Link                                      || Odkaz
 Cmd - Link Network                              || Stránka sítě: 
 Cmd - Link Player                               || Stránka hráče: 
-Cmd - Link Player JSON                          || Hráč json: 
+Cmd - Link Player JSON                          || JSON hráč:
 Cmd - Link Players                              || Stránka hráčů: 
 Cmd - Link Register                             || Stránka registrace: 
 Cmd - Link Server                               || Stránka serveru: 
@@ -22,7 +22,7 @@ CMD Arg - player identifier remove              || Identifikátor pro hráče, k
 CMD Arg - server identifier                     || Jméno, ID nebo UUID serveru
 CMD Arg - subcommand                            || Použijte příkaz bez sub příkazu k pomoci.
 CMD Arg - username                              || Přezdívka jiného uživatele. Pokud není specifikováno, je použit linknutý uživatel.
-CMD Arg Name - backup-file                      || záloha-soubor
+CMD Arg Name - backup-file                      || záloha
 CMD Arg Name - code                             || ${code}
 CMD Arg Name - export kind                      || druh exportu
 CMD Arg Name - feature                          || funkce
@@ -34,7 +34,7 @@ CMD Arg Name - username                         || uživatel
 Cmd Confirm - accept                            || Přijmout
 Cmd Confirm - cancelled, no data change         || Zrušeno. Žádná data nebyla změněna.
 Cmd Confirm - cancelled, unregister             || Zrušeno. '${0}' nebyl odregistrován
-Cmd Confirm - clearing db                       || Chystáte se smazat všechna Plan-data v ${0}
+Cmd Confirm - clearing db                       || Chystáte se smazat všechna Plan data v ${0}
 Cmd Confirm - confirmation                      || Potvrdit: 
 Cmd Confirm - deny                              || Zrušit
 Cmd Confirm - Expired                           || Potvrzení vypršelo, použijte příkaz znovu
@@ -44,7 +44,7 @@ Cmd Confirm - overwriting db                    || Chystáte se přepsat data v 
 Cmd Confirm - remove player db                  || Chystáte se smazat data ${0} z ${1}
 Cmd Confirm - unregister                        || Chystáte se odregistrovat '${0}' linknutého s ${1}
 Cmd db - creating backup                        || Vytvářím soubor zálohy '${0}.db' s obsahem z ${1}
-Cmd db - removal                                || Mažu Plan-data z ${0}..
+Cmd db - removal                                || Mažu Plan data z ${0}..
 Cmd db - removal player                         || Mažu data ${0} z ${1}..
 Cmd db - server uninstalled                     || §aPokud je server stále nainstalovaný, automaticky se ukáže jako instalovaný v databázi.
 Cmd db - write                                  || Zapisuji do ${0}..
@@ -93,7 +93,7 @@ Cmd Qinspect - AFK Playtime                     ||   §2AFK čas: §f${0}
 Cmd Qinspect - Deaths                           ||   §2Smrti: §f${0}
 Cmd Qinspect - Geolocation                      ||   §2Přihlášen z: §f${0}
 Cmd Qinspect - Last Seen                        ||   §2Naposledy viděn: §f${0}
-Cmd Qinspect - Longest Session                  ||   §2Nejdelší sezení: §f${0}
+Cmd Qinspect - Longest Session                  ||   §2Nejdelší relace: §f${0}
 Cmd Qinspect - Mob Kills                        ||   §2Zabití mobů: §f${0}
 Cmd Qinspect - Player Kills                     ||   §2Zabití hráčů: §f${0}
 Cmd Qinspect - Playtime                         ||   §2Herní čas: §f${0}
@@ -118,26 +118,32 @@ Command Help - /plan import                     || Import dat
 Command Help - /plan info                       || Zjistit verzi Plan
 Command Help - /plan ingame                     || Ukázat Hráčské info ve hře
 Command Help - /plan json                       || Ukázat json Hráčských čistých dat.
+Command Help - /plan logout                     || Log out other users from the panel.
 Command Help - /plan network                    || Ukázat stránku sítě
 Command Help - /plan player                     || Ukázat stránku hráče
 Command Help - /plan players                    || Ukázat stránku hráčů
 Command Help - /plan register                   || Registrovat web uživatele
-Command Help - /plan reload                     || Restart Plan
-Command Help - /plan search                     || Hledat se jménem hráče
+Command Help - /plan reload                     || Restartuje plugin Plan
+Command Help - /plan search                     || Hledat podle jména hráče
 Command Help - /plan server                     || Ukázat stránku serveru
 Command Help - /plan servers                    || Seznam serverů v databázi
 Command Help - /plan unregister                 || Odregistrovat uživatele z Plan webu
-Command Help - /plan users                      || Zobrazit seznam web uživatelů
+Command Help - /plan users                      || Zobrazit seznam uživatelů webu
 Database - Apply Patch                          || Aplikuji patch: ${0}..
-Database - Patches Applied                      || Všechny databáze byly úspěšně patchnuty.
-Database - Patches Applied Already              || Všechny databáze již jsou patchnuty.
+Database - Patches Applied                      || Všechny databáze byly úspěšně aktualizovány.
+Database - Patches Applied Already              || Všechny databáze již jsou aktualizovány.
 Database MySQL - Launch Options Error           || Možnosti spuštění byly chybné, používám defaultní (${0})
 Database Notify - Clean                         || Smazány data ${0} hráčů.
-Database Notify - SQLite No WAL                 || SQLite WAL mód není podporován na verzi tohoto serveru, používám ddefault. Toto může či nemusí ovlivnit výkon.
+Database Notify - SQLite No WAL                 || SQLite WAL mód není podporován na verzi tohoto serveru, používám default. Toto může či nemusí ovlivnit výkon.
 Disable                                         || Player Analytics vypnuty.
 Disable - Processing                            || Zpracovávání kritických nezpracovaných úkonů. (${0})
 Disable - Processing Complete                   || Zpracování dokončeno.
-Disable - Unsaved Session Save                  || Ukládání nedokončeného sezení..
+Disable - Unsaved Session Save                  || Ukládání nedokončené relace.
+Disable - Unsaved Session Save Timeout          || Překročen časový limit, ukládánm nedokončené relace pro příští spojení.
+Disable - Waiting SQLite                        || Čekání na dokončení dotazu, aby se zabránilo pádu JVM SQLite..
+Disable - Waiting SQLite Complete               || Uzavřené připojení SQLite.
+Disable - Waiting Transactions                  || Čekám na nedokončené transakce, aby nedošlo ke ztrátě dat..
+Disable - Waiting Transactions Complete         || Fronta Transakce uzavřena.
 Disable - WebServer                             || Webserver je již vypnutý.
 Enable                                          || Player Analytics zapnuty.
 Enable - Database                               || ${0}-připojení k databázi navázáno.
@@ -146,18 +152,27 @@ Enable - Notify Empty IP                        || IP v server.properties je pr�
 Enable - Notify Geolocations disabled           || Sbírání geolokace není aktivní. (Data.Geolocations: false)
 Enable - Notify Geolocations Internet Required  || Plan potřebuje internetové připojení pro první start ke stažení GeoLite2 Geolocation databáze.
 Enable - Notify Webserver disabled              || WebServer nebyl inicializován. (WebServer.DisableWebServer: true)
-Enable - WebServer                              || Webserver běží na PORTU ${0} (${1})
+Enable - Storing preserved sessions             || Uložení relace, které byly zachovalé před předchozím spojením.
+Enable - WebServer                              || Webserver běží na PORTU ${0} ( ${1} )
 Enable FAIL - Database                          || ${0}-Připojení k databázi selhalo: ${1}
 Enable FAIL - Database Patch                    || Patch databáze selhal, plugin musí být vypnut. Prosíme nahlašte tento problém
 Enable FAIL - GeoDB Write                       || Něco se pokazilo při ukládání stažené GeoLite2 Geolocation databáze
 Enable FAIL - WebServer (Proxy)                 || WebServer se nespustil!
 Enable FAIL - Wrong Database Type               || ${0} není podporovaná databáze
-HTML - COMPARING_15_DAYS                        || Srovnání 15 dnů
-HTML - COMPARING_60_DAYS                        || Srovnání 30d zpět do Dnes
-HTML - COMPARING_7_DAYS                         || Srovnání 7 dnů
-HTML - DATABASE_NOT_OPEN                        || Databáze není otevřené, ověřte status databáze s /plan info
+HTML - AND_BUG_REPORTERS                        || & Nahlášení bugu!
+HTML - BANNED (Filters)                         || Zabanovaní
+HTML - COMPARING_15_DAYS                        || Srovnání posledních 15 dní
+HTML - COMPARING_60_DAYS                        || Srovnání posledních 60 dní
+HTML - COMPARING_7_DAYS                         || Srovnání posledních 7 dní
+HTML - DATABASE_NOT_OPEN                        || Databáze není otevřená, ověřte status databáze s /plan info
+HTML - DESCRIBE_RETENTION_PREDICTION            || This value is a prediction based on previous players.
 HTML - ERROR                                    || Autentifikace neuspěšná kvůli chybě
 HTML - EXPIRED_COOKIE                           || Uživatelské cookie expirovalo
+HTML - FILTER_ACTIVITY_INDEX_NOW                || Aktuální skupina aktivit
+HTML - FILTER_ALL_PLAYERS                       || Všichni hráči
+HTML - FILTER_BANNED                            || Ban status
+HTML - FILTER_GROUP                             || Skupina: 
+HTML - FILTER_OPS                               || OP status
 HTML - INDEX_ACTIVE                             || Aktivní
 HTML - INDEX_INACTIVE                           || Neaktivní
 HTML - INDEX_IRREGULAR                          || Nepravidelný
@@ -167,49 +182,55 @@ HTML - KILLED                                   || Zabit
 HTML - LABEL_1ST_WEAPON                         || Nejsmrtelnější PvP zbraň
 HTML - LABEL_2ND_WEAPON                         || 2. PvP Zbraň
 HTML - LABEL_3RD_WEAPON                         || 3. PvP Zbraň
+HTML - LABEL_ACTIVE_PLAYTIME                    || Aktivní herní čas
 HTML - LABEL_ACTIVITY_INDEX                     || Index aktivity
 HTML - LABEL_AFK                                || AFK
 HTML - LABEL_AFK_TIME                           || AFK čas
 HTML - LABEL_AVG                                || Průměr
+HTML - LABEL_AVG_ACTIVE_PLAYTIME                || Průměrná herní aktivita
+HTML - LABEL_AVG_AFK_TIME                       || Průměrný AFK čas
+HTML - LABEL_AVG_CHUNKS                         || Průměr chunků
+HTML - LABEL_AVG_ENTITIES                       || Průměr entit
 HTML - LABEL_AVG_KDR                            || Průměr KDR
 HTML - LABEL_AVG_MOB_KDR                        || Průměr Mob KDR
 HTML - LABEL_AVG_PLAYTIME                       || Průměr herní doby
-HTML - LABEL_AVG_SESSION_LENGTH                 || Průměr délky sezení
+HTML - LABEL_AVG_SESSION_LENGTH                 || Průměrná délka relace
+HTML - LABEL_AVG_SESSIONS                       || Průměrná relace
 HTML - LABEL_AVG_TPS                            || Průměr TPS
 HTML - LABEL_BANNED                             || Zabanován
-HTML - LABEL_BEST_PEAK                          || Celková špička
+HTML - LABEL_BEST_PEAK                          || Nejvíce hráčů
 HTML - LABEL_DAY_OF_WEEK                        || Den týdne
 HTML - LABEL_DEATHS                             || Smrti
 HTML - LABEL_DOWNTIME                           || Offline doba
-HTML - LABEL_DURING_LOW_TPS                     || Při nízkých TPS spičkách:
+HTML - LABEL_DURING_LOW_TPS                     || Při nízkých TPS:
 HTML - LABEL_ENTITIES                           || Entity
 HTML - LABEL_FAVORITE_SERVER                    || Oblíbený server
-HTML - LABEL_FIRST_SESSION_LENGTH               || Délka prvního sezení
+HTML - LABEL_FIRST_SESSION_LENGTH               || Délka první relace
 HTML - LABEL_FREE_DISK_SPACE                    || Volné místo na disku
 HTML - LABEL_INACTIVE                           || Neaktivní
-HTML - LABEL_LAST_PEAK                          || Poslední špička
+HTML - LABEL_LAST_PEAK                          || Naposledy nejvíce hráčů
 HTML - LABEL_LAST_SEEN                          || Naposledy viděn
 HTML - LABEL_LOADED_CHUNKS                      || Načtené chunky
 HTML - LABEL_LOADED_ENTITIES                    || Načtené entity
 HTML - LABEL_LONE_JOINS                         || Samotná připojení
 HTML - LABEL_LONE_NEW_JOINS                     || Samotná připojení nováčků
-HTML - LABEL_LONGEST_SESSION                    || Nejdelší sezení
-HTML - LABEL_LOW_TPS                            || Nízké TPS špičky
-HTML - LABEL_MAX_FREE_DISK                      || Max volného disku
-HTML - LABEL_MIN_FREE_DISK                      || Min volného disku
+HTML - LABEL_LONGEST_SESSION                    || Nejdelší relace
+HTML - LABEL_LOW_TPS                            || Nejnižší TPS
+HTML - LABEL_MAX_FREE_DISK                      || Max. volného disku
+HTML - LABEL_MIN_FREE_DISK                      || Min. volného disku
 HTML - LABEL_MOB_DEATHS                         || Smrti způsobené moby
 HTML - LABEL_MOB_KDR                            || Mob KDR
-HTML - LABEL_MOB_KILLS                          || Mob zabití
+HTML - LABEL_MOB_KILLS                          || Zabití mobové
 HTML - LABEL_MOST_ACTIVE_GAMEMODE               || Nejvíce aktivní mód
 HTML - LABEL_NAME                               || Jméno
 HTML - LABEL_NEW                                || Nový
 HTML - LABEL_NEW_PLAYERS                        || Noví hráči
 HTML - LABEL_NICKNAME                           || Přezdívka
 HTML - LABEL_NO_SESSION_KILLS                   || Žádný
-HTML - LABEL_ONLINE_FIRST_JOIN                  || Hráči online při prvním připojení
-HTML - LABEL_OPERATOR                           || Operator
-HTML - LABEL_PER_PLAYER                         || / Hráč
-HTML - LABEL_PER_REGULAR_PLAYER                 || / Pravidelný hráč
+HTML - LABEL_ONLINE_FIRST_JOIN                  || Online hráči při prvním připojení
+HTML - LABEL_OPERATOR                           || Operátor
+HTML - LABEL_PER_PLAYER                         || na hráče
+HTML - LABEL_PER_REGULAR_PLAYER                 || na pravidelného hráče
 HTML - LABEL_PLAYER_DEATHS                      || Smrti způsobené hráči
 HTML - LABEL_PLAYER_KILLS                       || Zabití hráči
 HTML - LABEL_PLAYERS_ONLINE                     || Hráči online
@@ -223,7 +244,7 @@ HTML - LABEL_RETENTION                          || Udržení nových hráčů
 HTML - LABEL_SERVER_DOWNTIME                    || Server offline
 HTML - LABEL_SERVER_OCCUPIED                    || Server plný
 HTML - LABEL_SESSION_ENDED                      ||  Ukončeno
-HTML - LABEL_SESSION_MEDIAN                     || Průměr sezení
+HTML - LABEL_SESSION_MEDIAN                     || Střední hodnota relací
 HTML - LABEL_TIMES_KICKED                       || Počet vykopnutí
 HTML - LABEL_TOTAL_PLAYERS                      || Hráčů celkem
 HTML - LABEL_TOTAL_PLAYTIME                     || Herní doba celkem
@@ -241,51 +262,106 @@ HTML - LINK_QUICK_VIEW                          || Rychlé zobrazení
 HTML - LINK_SERVER_ANALYSIS                     || Analýza serveru
 HTML - LINK_WIKI                                || Plan Wiki, Tutoriály & Dokumentace
 HTML - LOCAL_MACHINE                            || Lokální stroj
+HTML - LOGIN_CREATE_ACCOUNT                     || Vytvořte si účet!
+HTML - LOGIN_FAILED                             || Přihlašování selhalo: 
+HTML - LOGIN_FORGOT_PASSWORD                    || Zapomněl jste heslo?
+HTML - LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_1     || Zapomněl jste heslo? Odregistruj se a registruj se znovu.
+HTML - LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_2     || Pro odstranění aktuálního uživatele použij následující příkaz ve hře:
+HTML - LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_3     || Nebo použij konzoli:
+HTML - LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_4     || Po vykonání příkazu, 
+HTML - LOGIN_LOGIN                              || Přihlásit se
+HTML - LOGIN_LOGOUT                             || Odhlásit se
+HTML - LOGIN_PASSWORD                           || "Heslo"
+HTML - LOGIN_USERNAME                           || "Uživatelské jméno"
 HTML - NAV_PLUGINS                              || Pluginy
 HTML - NEW_CALENDAR                             || Nové:
 HTML - NO_KILLS                                 || Žádné zabití
-HTML - NO_USER_PRESENT                          || User cookie not present
+HTML - NO_USER_PRESENT                          || Cookies uživatele nejsou k dispozici.
+HTML - NON_OPERATORS (Filters)                  || Bez OP
+HTML - NOT_BANNED (Filters)                     || Nezabanovaní
 HTML - OFFLINE                                  ||  Offline
 HTML - ONLINE                                   ||  Online
+HTML - OPERATORS (Filters)                      || Operátoři
 HTML - PER_DAY                                  || / Den
 HTML - PLAYERS_TEXT                             || Hráči
-HTML - SESSION                                  || Sezení
+HTML - QUERY                                    || Dotaz<
+HTML - QUERY_ACTIVITY_OF_MATCHED_PLAYERS        || Aktivita dotyčných hráčů
+HTML - QUERY_ACTIVITY_ON                        || Aktivita <span id="activity-date"></span>
+HTML - QUERY_ADD_FILTER                         || Přidat filtr..
+HTML - QUERY_AND                                || a 
+HTML - QUERY_ARE                                || ` jsou`
+HTML - QUERY_ARE_ACTIVITY_GROUP                 || jsou ve skupinách aktivit
+HTML - QUERY_ARE_PLUGIN_GROUP                   || jsou v ${plugin}'s ${group} Skupiny
+HTML - QUERY_JOINED_WITH_ADDRESS                || joined with address
+HTML - QUERY_LOADING_FILTERS                    || Načítání filtrů..
+HTML - QUERY_MAKE                               || Vytvořit dotaz
+HTML - QUERY_MAKE_ANOTHER                       || Vytvořit další dotaz
+HTML - QUERY_OF_PLAYERS                         || hráčů, kteří
+HTML - QUERY_PERFORM_QUERY                      || Provést dotaz!
+HTML - QUERY_PLAYED_BETWEEN                     || Hrál mezi
+HTML - QUERY_REGISTERED_BETWEEN                 || Registrován mezi
+HTML - QUERY_RESULTS                            || Výsledky dotazu
+HTML - QUERY_RESULTS_MATCH                      || nalezeno ${resultCount} hráčů
+HTML - QUERY_SESSIONS_WITHIN_VIEW               || Relace v rámci pohledu
+HTML - QUERY_SHOW_VIEW                          || Zobrazit pohled
+HTML - QUERY_TIME_FROM                          || >od</label>
+HTML - QUERY_TIME_TO                            || >do</label>
+HTML - QUERY_VIEW                               ||   Pohled:
+HTML - QUERY_ZERO_RESULTS                       || Nebyla nalezena žádná data.
+HTML - REGISTER                                 || Registrovat
+HTML - REGISTER_CHECK_FAILED                    || Kontrola registrace neúspěšná: 
+HTML - REGISTER_COMPLETE                        || Dokončit registraci
+HTML - REGISTER_COMPLETE_INSTRUCTIONS_1         || Nyní můžete dokončit registraci uživatele.
+HTML - REGISTER_COMPLETE_INSTRUCTIONS_2         || Kód vyprší za 15 minut.
+HTML - REGISTER_COMPLETE_INSTRUCTIONS_3         || Pro dokončení registrace použijte následující příkaz ve hře:
+HTML - REGISTER_COMPLETE_INSTRUCTIONS_4         || Nebo použijte příkaz v konzoli:
+HTML - REGISTER_CREATE_USER                     || Vytvořit nového uživatele
+HTML - REGISTER_FAILED                          || Registrace se nezdařila: 
+HTML - REGISTER_HAVE_ACCOUNT                    || Máte již účet? Přihlaste se!
+HTML - REGISTER_PASSWORD_TIP                    || Heslo by mělo být dlouhé alespoň 8 znaků bez omezení.
+HTML - REGISTER_SPECIFY_PASSWORD                || Napište heslo
+HTML - REGISTER_SPECIFY_USERNAME                || Zvolte uživatelské jméno
+HTML - REGISTER_USERNAME_LENGTH                 || Uživatelské jméno může být dlouhé maximálně 50 znaků. Vaše má 
+HTML - REGISTER_USERNAME_TIP                    || Uživatelské jméno může být dlouhé 50 znaků.
+HTML - SESSION                                  || Relace
 HTML - SIDE_GEOLOCATIONS                        || Geolokace
 HTML - SIDE_INFORMATION                         || INFORMACE
-HTML - SIDE_NETWORK_OVERVIEW                    || Přehled sítě
+HTML - SIDE_LINKS                               || ODKAZY
+HTML - SIDE_NETWORK_OVERVIEW                    || Přehled proxy
 HTML - SIDE_OVERVIEW                            || Přehled
 HTML - SIDE_PERFORMANCE                         || Výkon
 HTML - SIDE_PLAYER_LIST                         || Seznam hráčů
-HTML - SIDE_PLAYERBASE                          || Základna hráčů
+HTML - SIDE_PLAYERBASE                          || Hráči
 HTML - SIDE_PLAYERBASE_OVERVIEW                 || Překled základny hráčů
 HTML - SIDE_PLUGINS                             || PLUGINY
 HTML - SIDE_PVP_PVE                             || PvP & PvE
 HTML - SIDE_SERVERS                             || Servery
 HTML - SIDE_SERVERS_TITLE                       || SERVERY
-HTML - SIDE_SESSIONS                            || Sezení
-HTML - SIDE_TO_MAIN_PAGE                        || na hlavní stránku
+HTML - SIDE_SESSIONS                            || Relace
+HTML - SIDE_TO_MAIN_PAGE                        || Zpět na hlavní stránku
 HTML - TEXT_CLICK_TO_EXPAND                     || Klikněte pro rozbalení
 HTML - TEXT_CONTRIBUTORS_CODE                   || přispěvatel kódu
 HTML - TEXT_CONTRIBUTORS_LOCALE                 || překladač
 HTML - TEXT_CONTRIBUTORS_MONEY                  || Extra speciální poděkování těm, kteří peněžně pomohli vývoji.
-HTML - TEXT_CONTRIBUTORS_THANKS                 || Nadále následující <span class="col-plan">skvělí lidi</span>, kteří přispěli:
-HTML - TEXT_DEV_VERSION                         || Tato verze je DEV vydání.
+HTML - TEXT_CONTRIBUTORS_THANKS                 || Nadále následující <span class="col-plan">skvělí lidé</span>, kteří přispěli:
+HTML - TEXT_DEV_VERSION                         || Toto je vývojářská verze.
 HTML - TEXT_DEVELOPED_BY                        || je vyvíjena od
-HTML - TEXT_FIRST_SESSION                       || První sezení
-HTML - TEXT_LICENSED_UNDER                      || Player Analytics je vyvíjeno a licensováno pod
+HTML - TEXT_FIRST_SESSION                       || První relace
+HTML - TEXT_LICENSED_UNDER                      || Player Analytics je vyvíjeno a licencováno pod
 HTML - TEXT_METRICS                             || bStats Metrics
 HTML - TEXT_NO_EXTENSION_DATA                   || Žádná data rozšíření
-HTML - TEXT_NO_LOW_TPS                          || Žádné nízké tps špičky
+HTML - TEXT_NO_LOW_TPS                          || Žádné nízké TPS rekordy
 HTML - TEXT_NO_SERVER                           || Žádný server pro který lze ukázat online aktivitu
 HTML - TEXT_NO_SERVERS                          || Žádné servery nenalezeny v databázi
 HTML - TEXT_PLUGIN_INFORMATION                  || Informace o pluginu
 HTML - TEXT_PREDICTED_RETENTION                 || Tato hodnota je odhad založený na předchozích hráčích
+HTML - TEXT_SERVER_INSTRUCTIONS                 || Vypadá to, že plugin není nainstalován na žádném serveru nebo není propojen s databází. Podívejte se na tutoriál na <a href="https://github.com/plan-player-analytics/Plan/wiki">wiki</a>.
 HTML - TEXT_VERSION                             || Byla vydána nová verze a je dostupná ke stažení.
 HTML - TITLE_30_DAYS                            || 30 dní
 HTML - TITLE_30_DAYS_AGO                        || před 30 dny
 HTML - TITLE_ALL                                || Vše
 HTML - TITLE_ALL_TIME                           || Celkově
-HTML - TITLE_AS_NUMBERS                         || jako čísla
+HTML - TITLE_AS_NUMBERS                         || statistiky
 HTML - TITLE_AVG_PING                           || Průměrný ping
 HTML - TITLE_BEST_PING                          || Nejlepší ping
 HTML - TITLE_CALENDAR                           ||  Kalendář
@@ -295,46 +371,48 @@ HTML - TITLE_CPU_RAM                            || CPU & RAM
 HTML - TITLE_CURRENT_PLAYERBASE                 || Aktuální základna hráčů
 HTML - TITLE_DISK                               || Místo na disku
 HTML - TITLE_GRAPH_DAY_BY_DAY                   || Den po dni
-HTML - TITLE_GRAPH_NETWORK_ONLINE_ACTIVITY      || Síťová online aktivita
+HTML - TITLE_GRAPH_HOUR_BY_HOUR                 || Hodina po hodině
+HTML - TITLE_GRAPH_NETWORK_ONLINE_ACTIVITY      || Online aktivita na proxy
 HTML - TITLE_GRAPH_PUNCHCARD                    || Štítek pro 30 dní
 HTML - TITLE_INSIGHTS                           || Postřehy za 30 dní
 HTML - TITLE_IS_AVAILABLE                       || je dostupný
+HTML - TITLE_JOIN_ADDRESSES                     || Připojovací IP
 HTML - TITLE_LAST_24_HOURS                      || Posledních 24 hodin
 HTML - TITLE_LAST_30_DAYS                       || Posledních 30 dní
 HTML - TITLE_LAST_7_DAYS                        || Posledních 7 dní
 HTML - TITLE_LAST_CONNECTED                     || Poslední připojení
 HTML - TITLE_LENGTH                             ||  Délka
 HTML - TITLE_MOST_PLAYED_WORLD                  || Nejvíc hraný svět
-HTML - TITLE_NETWORK                            || Síť
-HTML - TITLE_NETWORK_AS_NUMBERS                 || Síť v číslech
+HTML - TITLE_NETWORK                            || Proxy
+HTML - TITLE_NETWORK_AS_NUMBERS                 || Statistiky proxy
 HTML - TITLE_NOW                                || Nyní
 HTML - TITLE_ONLINE_ACTIVITY                    || Online aktivita
 HTML - TITLE_ONLINE_ACTIVITY_AS_NUMBERS         || Online aktivita v číslech
 HTML - TITLE_ONLINE_ACTIVITY_OVERVIEW           || Přehled online aktivity
-HTML - TITLE_PERFORMANCE_AS_NUMBERS             || Výkon v číslech
+HTML - TITLE_PERFORMANCE_AS_NUMBERS             || Statistiky výkonu
 HTML - TITLE_PING                               || Ping
 HTML - TITLE_PLAYER                             || Hráč
 HTML - TITLE_PLAYER_OVERVIEW                    || Přehled hráče
-HTML - TITLE_PLAYERBASE_DEVELOPMENT             || Vývoj základny hráčů
+HTML - TITLE_PLAYERBASE_DEVELOPMENT             || Vývoj aktivity hráčů
 HTML - TITLE_PVP_DEATHS                         || Poslední PvP smrti
 HTML - TITLE_PVP_KILLS                          || Poslední PvP zabití
 HTML - TITLE_PVP_PVE_NUMBERS                    || PvP & PvE v číslech
 HTML - TITLE_RECENT_KILLS                       || Poslední zabití
-HTML - TITLE_RECENT_SESSIONS                    || Poslední sezení
+HTML - TITLE_RECENT_SESSIONS                    || Poslední relace
 HTML - TITLE_SEEN_NICKNAMES                     || Viděné přezdívky
 HTML - TITLE_SERVER                             || Server
-HTML - TITLE_SERVER_AS_NUMBERS                  || Server v číslech
+HTML - TITLE_SERVER_AS_NUMBERS                  || Statistiky serveru
 HTML - TITLE_SERVER_OVERVIEW                    || Přehled serveru
 HTML - TITLE_SERVER_PLAYTIME                    || Herní čas serveru
 HTML - TITLE_SERVER_PLAYTIME_30                 || Herní čas serveru za 30 dní
-HTML - TITLE_SESSION_START                      || Začnutá sezení
+HTML - TITLE_SESSION_START                      || Započatá relace
 HTML - TITLE_THEME_SELECT                       || Zvolené téma
 HTML - TITLE_TITLE_PLAYER_PUNCHCARD             || Štítky
 HTML - TITLE_TPS                                || TPS
 HTML - TITLE_TREND                              || Trend
 HTML - TITLE_TRENDS                             || Trendy za 30 dní
 HTML - TITLE_VERSION                            || Verze
-HTML - TITLE_WEEK_COMPARISON                    || Porovnání týdne
+HTML - TITLE_WEEK_COMPARISON                    || Týdenní srovnání
 HTML - TITLE_WORLD                              || Načtení světa
 HTML - TITLE_WORLD_PLAYTIME                     || Herní čas světa
 HTML - TITLE_WORST_PING                         || Nejhorší ping
@@ -342,13 +420,24 @@ HTML - TOTAL_ACTIVE_TEXT                        || Celková aktivita
 HTML - TOTAL_AFK                                || Celkem AFK
 HTML - TOTAL_PLAYERS                            || Celkem hráčů
 HTML - UNIQUE_CALENDAR                          || Unikátní:
-HTML - UNIT_CHUNKS                              || Chunky
-HTML - UNIT_ENTITIES                            || Entity
+HTML - UNIT_CHUNKS                              || Chunků
+HTML - UNIT_ENTITIES                            || Entit
 HTML - UNIT_NO_DATA                             || Žádná data
-HTML - UNIT_THE_PLAYERS                         || Hráči
+HTML - UNIT_THE_PLAYERS                         || hráčů
 HTML - USER_AND_PASS_NOT_SPECIFIED              || Uživatel a heslo nespecifikováno
 HTML - USER_DOES_NOT_EXIST                      || Uživatel neexistuje
-HTML - USER_PASS_MISMATCH                       || Uživatel a heslo nesouhlasí
+HTML - USER_INFORMATION_NOT_FOUND               || Registrace selhala, zkuste to znovu. (Kód expiruje za 15 minut)
+HTML - USER_PASS_MISMATCH                       || Uživatel nebo heslo nesouhlasí
+HTML - Version Change log                       || Zobrazit změny
+HTML - Version Current                          || Verze ${0}
+HTML - Version Download                         || Stáhnout verzi Plan-${0}.jar
+HTML - Version Update                           || Aktualizovat
+HTML - Version Update Available                 || Nová verze ${0} je dostupná!
+HTML - Version Update Dev                       || Toto je vývojářská verze.
+HTML - Version Update Info                      || Nová verze je dostupná ke stažení.
+HTML - WARNING_NO_GAME_SERVERS                  || Některá data vyžadují, aby byla na herní servery nainstalována aplikace Plan.
+HTML - WARNING_NO_GEOLOCATIONS                  || V konfiguraci je třeba povolit shromažďování geolokací (Přijměte GeoLite2 EULA).
+HTML - WARNING_NO_SPONGE_CHUNKS                 || Chunky nejsou na Sponge dostupné
 HTML - WITH                                     || <th>S
 HTML ERRORS - ACCESS_DENIED_403                 || Přístup zamítnut
 HTML ERRORS - AUTH_FAIL_TIPS_401                || - Ujistěte se, že jste zaregistrovaní s uživatelem s <b>/plan register</b><br>- Zkontrolujte zda je jméno a heslo správné<br>- Jméno a heslo jsou citlivá na velká/malá písmena<br><br>Pokud jste zapomněli heslo, zeptejte se člena týmu ke smazání vašeho starého uživatele či nové registraci.
@@ -356,25 +445,26 @@ HTML ERRORS - AUTHENTICATION_FAILED_401         || Ověření selhalo.
 HTML ERRORS - FORBIDDEN_403                     || Zakázáno
 HTML ERRORS - NO_SERVERS_404                    || Žádné online servery k vykonání žádosti.
 HTML ERRORS - NOT_FOUND_404                     || Nenalezeno
-HTML ERRORS - NOT_PLAYED_404                    || Plan neviděl tohoto hráče.
+HTML ERRORS - NOT_PLAYED_404                    || Hráč nebyl nenalezen.
 HTML ERRORS - PAGE_NOT_FOUND_404                || Stránka neexistuje.
 HTML ERRORS - UNAUTHORIZED_401                  || Neautorizováno
-HTML ERRORS - UNKNOWN_PAGE_404                  || Ujistěte se, že přistupujete na odkaz poskytnutý příkazem, Příklad:</p><p>/player/PlayerName<br>/server/ServerName</p>
+HTML ERRORS - UNKNOWN_PAGE_404                  || Ujistěte se, že přistupujete na odkaz poskytnutý příkazem, Příklad:</p><p>/player/{uuid/name}<br>/server/{uuid/name/id}</p>
 HTML ERRORS - UUID_404                          || Hráčské UUID nebylo nalezeno v databázi.
-In Depth Help - /plan db                        || Použít jiné subpříkazy databáze k změně dat
+In Depth Help - /plan db                        || Použít jiné subpříkazy databáze ke změně dat
 In Depth Help - /plan db backup                 || Použití SQLite k zálohování cílové databáze do souboru.
 In Depth Help - /plan db clear                  || Smaže všechny tabulky Plan, čímž smaže všechna Plan-data v procesu.
 In Depth Help - /plan db hotswap                || Reload pluginu s ostatní databází a změní config pro správnost.
-In Depth Help - /plan db move                   || Nahradí obsah v databázi obsahem z jiné databáze.
+In Depth Help - /plan db move                   || Náhradí obsah v databázi s obsahem z jiné databáze.
 In Depth Help - /plan db remove                 || Smaže všechna data spojená s hráčem z Aktuální databáze.
 In Depth Help - /plan db restore                || Použije SQLite soubor zálohu k přepsání dat cílové databáze.
 In Depth Help - /plan db uninstalled            || Označí server v Plan databázi jako odinstalovaný, takže se neukáže v server žádostech.
-In Depth Help - /plan disable                   || Vypne plugin či jeho část do dalšího reload/restart.
-In Depth Help - /plan export                    || Vykoná export k export lokaci definované v configu.
+In Depth Help - /plan disable                   || Vypne plugin či jeho část do dalšího reloadu/restartu.
+In Depth Help - /plan export                    || Vykoná export k lokaci definované v configu.
 In Depth Help - /plan import                    || Vykoná import k načtení dat z databáze.
 In Depth Help - /plan info                      || Zobrazí aktuální status pluginu.
 In Depth Help - /plan ingame                    || Ukáže některé informace o hráči ve hře.
 In Depth Help - /plan json                      || Dovolí stáhnout hráčská data v json formátu. Všechna.
+In Depth Help - /plan logout                    || Give username argument to log out another user from the panel, give * as argument to log out everyone.
 In Depth Help - /plan network                   || Získání odkazu k /network page, pouze na sítích.
 In Depth Help - /plan player                    || Získání odkazu k /player page specifického hráče, či aktuálního.
 In Depth Help - /plan players                   || Získání odkazu k /players page k zobrazení seznamu hráčů.
@@ -383,8 +473,8 @@ In Depth Help - /plan reload                    || Vypnout a zapnout plugin k ob
 In Depth Help - /plan search                    || Zobrazit seznam všech hráčů souhlasísích s daným jménem.
 In Depth Help - /plan server                    || Získat odkaz k /server page specifického serveru, či aktuálního serveru, pokud nebyly dány argumenty.
 In Depth Help - /plan servers                   || Seznam id, jmen a uuid serverů v databázi.
-In Depth Help - /plan unregister                || Použijte bez argumentů k odregistraci hráče linknutého s uživatele, či s určitým uživatelským jménem k odregistraci jiného uživatele.
-In Depth Help - /plan users                     || Seznam web uživatelů jako tabulka.
+In Depth Help - /plan unregister                || Použijte bez argumentů k odregistraci sebe, nebo zadejte jméno jiného uživatele.
+In Depth Help - /plan users                     || Tabulka uživatelů webu.
 Manage - Confirm Overwrite                      || Data v ${0} budou přepsána!
 Manage - Confirm Removal                        || Data v ${0} budou smazána!
 Manage - Fail                                   || > §cNěco se pokazilo: ${0}
@@ -398,7 +488,7 @@ Manage - Fail Same server                       || Nelze označit tento server j
 Manage - Fail, Confirmation                     || > §cPřidejte '-a' argument k potvrzení provedení: ${0}
 Manage - List Importers                         || Importery:
 Manage - Progress                               || ${0} / ${1} zpracovávání..
-Manage - Remind HotSwap                         || §eNezapomeňte přehodit na novou databázi (/plan m hotswap ${0}) & reload pluginu.
+Manage - Remind HotSwap                         || §eNezapomeňte přehodit na novou databázi (/plan db hotswap ${0}) & reload pluginu.
 Manage - Start                                  || > §2Zpracovávám data..
 Manage - Success                                || > §aÚspěch!
 Negative                                        || Ne
@@ -406,12 +496,12 @@ Positive                                        || Ano
 Today                                           || 'Dnes'
 Unavailable                                     || Nedostupné
 Unknown                                         || Neznámé
-Version - DEV                                   ||  Toto je DEV vydání.
+Version - DEV                                   ||  Toto je vývojářská verze.
 Version - Latest                                || Používáte poslední verzi.
 Version - New                                   || Nové vydání (${0}) je dostupné ${1}
 Version - New (old)                             || Nová verze je dostupná na ${0}
 Version FAIL - Read info (old)                  || Selhalo zjištění čísla nejnovější verze
-Version FAIL - Read versions.txt                || Verze informací nemůže být nalezena z Github/versions.txt
+Version FAIL - Read versions.txt                || Informace o verzi z Github/versions.txt nemůže být nalezena.
 Web User Listing                                ||   §2${0} §7: §f${1}
 WebServer - Notify HTTP                         || WebServer: Není certifikát -> Používám HTTP-server pro visualizaci.
 WebServer - Notify HTTP User Auth               || WebServer: Autorizace uživatelů vypnutá! (Není bezpečné skrz HTTP)
@@ -419,7 +509,7 @@ WebServer - Notify HTTPS User Auth              || WebServer: Autorizace uživat
 Webserver - Notify IP Whitelist                 || Webserver: IP Whitelist je zapnutý.
 Webserver - Notify IP Whitelist Block           || Webserver: ${0} byl odmítnut přístup na '${1}'. (není na whitelistu)
 WebServer - Notify no Cert file                 || WebServer: Certifikační KeyStore soubor nenalezen: ${0}
-WebServer - Notify Using Proxy                  || WebServer: Proxy-mode HTTPS zapnut, ujistěte se, že reverse-proxy je funkčí s HTTPS a Plan Alternative_IP.Link míří na proxy
+WebServer - Notify Using Proxy                  || WebServer: Proxy-mode HTTPS zapnut, ujistěte se, že reverse-proxy je funkčí s HTTPS a Plan Alternative_IP.Address míří na proxy
 WebServer FAIL - EOF                            || WebServer: EOF při čtení souboru Certifikátu. (Zkontrolujte, zda soubor není prázdný)
 WebServer FAIL - Port Bind                      || WebServer nebyl úspěšně spuštěn. Je port (${0}) již používán?
 WebServer FAIL - SSL Context                    || WebServer: SSL Context spuštění selhalo.

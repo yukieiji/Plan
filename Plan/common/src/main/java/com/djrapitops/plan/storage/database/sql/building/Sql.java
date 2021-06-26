@@ -49,9 +49,20 @@ public abstract class Sql {
     public static final String IS_NULL = " IS NULL";
     public static final String IS_NOT_NULL = " IS NOT NULL";
 
+    private static final String FLOOR = "FLOOR(";
+    private static final String MIN = "MIN(";
+    private static final String MAX = "MAX(";
+    private static final String VARCHAR = "varchar(";
+
     public static String varchar(int length) {
-        return "varchar(" + length + ')';
+        return VARCHAR + length + ')';
     }
+
+    public static String floor(String expression) {return FLOOR + expression + ')';}
+
+    public static String min(String expression) {return MIN + expression + ')';}
+
+    public static String max(String expression) {return MAX + expression + ')';}
 
     /**
      * Turn day of week to epoch ms.
@@ -116,35 +127,6 @@ public abstract class Sql {
         @Override
         public String dateToHour(String sql) {
             return "HOUR(" + sql + ") % 24";
-        }
-    }
-
-    // https://h2database.com/html/functions.html
-    public static class H2 extends MySQL {
-
-        @Override
-        public String epochSecondToDate(String sql) {
-            return "DATEADD('SECOND', " + sql + ", DATE '1970-01-01')";
-        }
-
-        @Override
-        public String dateToEpochSecond(String sql) {
-            return "DATEDIFF('SECOND', DATE '1970-01-01', " + sql + ')';
-        }
-
-        @Override
-        public String dateToDayOfWeek(String sql) {
-            return "DAY_OF_WEEK(" + sql + ')';
-        }
-
-        @Override
-        public String dateToHourStamp(String sql) {
-            return "DATE_FORMAT(" + sql + ",'yyyy-MM-dd HH:00:00')";
-        }
-
-        @Override
-        public String dateToHour(String sql) {
-            return "HOUR(" + sql + ')';
         }
     }
 

@@ -1,4 +1,4 @@
-var linegraphButtons = [{
+const linegraphButtons = [{
     type: 'hour',
     count: 12,
     text: '12h'
@@ -19,7 +19,7 @@ var linegraphButtons = [{
     text: 'All'
 }];
 
-var graphs = [];
+const graphs = [];
 window.calendars = {};
 
 function activityPie(id, activitySeries) {
@@ -151,6 +151,7 @@ function dayByDay(id, series) {
 
 function onlineActivityCalendar(id, event_data, firstDay) {
     window.calendars.online_activity = new FullCalendar.Calendar(document.querySelector(id), {
+        timeZone: "UTC",
         themeSystem: 'bootstrap',
         eventColor: '#2196F3',
         firstDay: firstDay,
@@ -179,6 +180,43 @@ function onlineActivityCalendar(id, event_data, firstDay) {
     });
 
     window.calendars.online_activity.render();
+}
+
+function mapToDataSeries(performanceData) {
+    const playersOnline = [];
+    const tps = [];
+    const cpu = [];
+    const ram = [];
+    const entities = [];
+    const chunks = [];
+    const disk = [];
+
+    return new Promise((resolve => {
+        let i = 0;
+        const length = performanceData.length;
+
+        function processNextThousand() {
+            const to = Math.min(i + 1000, length);
+            for (i; i < to; i++) {
+                const entry = performanceData[i];
+                const date = entry[0];
+                playersOnline[i] = [date, entry[1]];
+                tps[i] = [date, entry[2]];
+                cpu[i] = [date, entry[3]];
+                ram[i] = [date, entry[4]];
+                entities[i] = [date, entry[5]];
+                chunks[i] = [date, entry[6]];
+                disk[i] = [date, entry[7]];
+            }
+            if (i >= length) {
+                resolve({playersOnline, tps, cpu, ram, entities, chunks, disk})
+            } else {
+                setTimeout(processNextThousand, 10);
+            }
+        }
+
+        processNextThousand();
+    }))
 }
 
 function performanceChart(id, playersOnlineSeries, tpsSeries, cpuSeries, ramSeries, entitySeries, chunkSeries) {
@@ -380,16 +418,56 @@ function serverPie(id, serverSeries) {
     }));
 }
 
+function joinAddressPie(id, joinAddresses) {
+    if (joinAddresses.data.length < 2) {
+        document.getElementById(id).innerHTML = '<div class="card-body"><p></p></div>'
+        document.getElementById(id).classList.remove('chart-area');
+
+        // XSS danger appending join addresses directly, using innerText is safe.
+        for (let slice of joinAddresses.data) {
+            document.querySelector(`#${id} p`).innerText = `${slice.name}: ${slice.y}`;
+        }
+    } else {
+        document.getElementById(id).innerHTML = '';
+        document.getElementById(id).classList.add('chart-area');
+        graphs.push(Highcharts.chart(id, {
+            chart: {
+                plotBackgroundColor: null,
+                plotBorderWidth: null,
+                plotShadow: false,
+                type: 'pie'
+            },
+            title: {text: ''},
+            plotOptions: {
+                pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: false
+                    },
+                    showInLegend: true
+                }
+            },
+            tooltip: {
+                formatter: function () {
+                    return '<b>' + this.point.name + ':</b> ' + this.y + ' (' + this.percentage.toFixed(2) + '%)';
+                }
+            },
+            series: [joinAddresses]
+        }));
+    }
+}
+
 function formatTimeAmount(ms) {
-    var out = "";
+    let out = "";
 
-    var seconds = Math.floor(ms / 1000);
+    let seconds = Math.floor(ms / 1000);
 
-    var dd = Math.floor(seconds / 86400);
+    const dd = Math.floor(seconds / 86400);
     seconds -= (dd * 86400);
-    var dh = Math.floor(seconds / 3600);
+    const dh = Math.floor(seconds / 3600);
     seconds -= (dh * 3600);
-    var dm = Math.floor(seconds / 60);
+    const dm = Math.floor(seconds / 60);
     seconds -= (dm * 60);
     seconds = Math.floor(seconds);
     if (dd !== 0) {
@@ -407,7 +485,9 @@ function formatTimeAmount(ms) {
 }
 
 function sessionCalendar(id, event_data, firstDay) {
+    document.querySelector(id + " .loader").remove();
     window.calendars.sessions = new FullCalendar.Calendar(document.querySelector(id), {
+        timeZone: "UTC",
         themeSystem: 'bootstrap',
         eventColor: '#009688',
         dayMaxEventRows: 4,
@@ -584,9 +664,9 @@ function worldMap(id, colorMin, colorMax, mapSeries) {
 }
 
 function worldPie(id, worldSeries, gmSeries) {
-    var defaultTitle = '';
-    var defaultSubtitle = 'Click to expand';
-    var chart = Highcharts.chart(id, {
+    const defaultTitle = '';
+    const defaultSubtitle = 'Click to expand';
+    const chart = Highcharts.chart(id, {
         chart: {
             plotBackgroundColor: null,
             plotBorderWidth: null,
@@ -631,7 +711,23 @@ function worldPie(id, worldSeries, gmSeries) {
 }
 
 function updateGraphs() {
-    for (let graph of graphs) {
+    // HighCharts nukes the scrollbar variable from the given parameter
+    // If the graph doesn't support srollbars (bar, pie and map charts for example)
+    // This workaround stores a copy of the scrollbar so that it can be set
+    const scrollbar = {...Highcharts.theme.scrollbar};
+
+    function updateGraph(graph, index, array) {
+        // Empty objects can be left in the array if existing graph is re-rendered
+        if (Object.keys(graph).length === 0) {
+            array.splice(index, 1);
+            return;
+        }
+
+        // scrollbar workaround
+        if (!Highcharts.theme["scrollbar"]) Highcharts.theme["scrollbar"] = {...scrollbar};
+
         graph.update(Highcharts.theme);
     }
+
+    graphs.forEach(updateGraph);
 }

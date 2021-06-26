@@ -16,7 +16,6 @@
  */
 package com.djrapitops.plan.delivery.rendering.json;
 
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
 import com.djrapitops.plan.delivery.domain.mutators.PlayersOnlineResolver;
 import com.djrapitops.plan.delivery.domain.mutators.RetentionData;
 import com.djrapitops.plan.delivery.domain.mutators.SessionsMutator;
@@ -24,6 +23,7 @@ import com.djrapitops.plan.delivery.domain.mutators.TPSMutator;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.gathering.domain.TPS;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
@@ -34,6 +34,7 @@ import com.djrapitops.plan.storage.database.queries.analysis.PlayerCountQueries;
 import com.djrapitops.plan.storage.database.queries.objects.SessionQueries;
 import com.djrapitops.plan.storage.database.queries.objects.TPSQueries;
 import com.djrapitops.plan.storage.database.queries.objects.UserInfoQueries;
+import com.djrapitops.plan.utilities.analysis.Percentage;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -46,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Creates JSON payload for /server-page Online Activity Overview tab.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class OnlineActivityOverviewJSONCreator implements ServerTabJSONCreator<Map<String, Object>> {
@@ -72,14 +73,14 @@ public class OnlineActivityOverviewJSONCreator implements ServerTabJSONCreator<M
         percentageFormatter = formatters.percentage();
     }
 
-    public Map<String, Object> createJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> createJSONAsMap(ServerUUID serverUUID) {
         Map<String, Object> serverOverview = new HashMap<>();
         serverOverview.put("numbers", createNumbersMap(serverUUID));
         serverOverview.put("insights", createInsightsMap(serverUUID));
         return serverOverview;
     }
 
-    private Map<String, Object> createNumbersMap(UUID serverUUID) {
+    private Map<String, Object> createNumbersMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long dayAgo = now - TimeUnit.DAYS.toMillis(1L);
@@ -132,21 +133,21 @@ public class OnlineActivityOverviewJSONCreator implements ServerTabJSONCreator<M
 
         int retained30d = db.query(PlayerCountQueries.retainedPlayerCount(monthAgo, now, serverUUID));
         int retained7d = db.query(PlayerCountQueries.retainedPlayerCount(weekAgo, now, serverUUID));
-        double retentionPerc30d = new30d != 0 ? (double) retained30d / new30d : -1;
-        double retentionPerc7d = new7d != 0 ? (double) retained7d / new7d : -1;
+        double retentionPercentage30d = Percentage.calculate(retained30d, new30d, -1);
+        double retentionPercentage7d = Percentage.calculate(retained7d, new7d, -1);
         numbers.put("new_players_retention_30d", retained30d);
-        numbers.put("new_players_retention_30d_perc", percentageFormatter.apply(retentionPerc30d));
+        numbers.put("new_players_retention_30d_perc", percentageFormatter.apply(retentionPercentage30d));
         numbers.put("new_players_retention_7d", retained7d);
-        numbers.put("new_players_retention_7d_perc", percentageFormatter.apply(retentionPerc7d));
+        numbers.put("new_players_retention_7d_perc", percentageFormatter.apply(retentionPercentage7d));
 
         int prediction1d = RetentionData.countRetentionPrediction(
                 db.query(ActivityIndexQueries.activityIndexForNewPlayers(dayAgo, now, serverUUID, playThreshold)),
                 db.query(ActivityIndexQueries.averageActivityIndexForRetainedPlayers(monthAgo, now, serverUUID, playThreshold)),
                 db.query(ActivityIndexQueries.averageActivityIndexForNonRetainedPlayers(monthAgo, now, serverUUID, playThreshold))
         );
-        double retentionPerc1d = new1d != 0 ? (double) prediction1d / new1d : -1;
+        double retentionPercentage1d = Percentage.calculate(prediction1d, new1d, -1);
         numbers.put("new_players_retention_24h", prediction1d);
-        numbers.put("new_players_retention_24h_perc", percentageFormatter.apply(retentionPerc1d));
+        numbers.put("new_players_retention_24h_perc", percentageFormatter.apply(retentionPercentage1d));
 
         Long playtimeMonth = db.query(SessionQueries.playtime(monthAgo, now, serverUUID));
         Long playtimeWeek = db.query(SessionQueries.playtime(weekAgo, now, serverUUID));
@@ -199,7 +200,7 @@ public class OnlineActivityOverviewJSONCreator implements ServerTabJSONCreator<M
         return numbers;
     }
 
-    private Map<String, Object> createInsightsMap(UUID serverUUID) {
+    private Map<String, Object> createInsightsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long halfMonthAgo = now - TimeUnit.DAYS.toMillis(15L);
@@ -213,7 +214,7 @@ public class OnlineActivityOverviewJSONCreator implements ServerTabJSONCreator<M
 
         PlayersOnlineResolver playersOnlineResolver = new PlayersOnlineResolver(new TPSMutator(tpsData));
         SessionsMutator firstSessions = sessions.filterBy(session -> {
-            long registered = registerDates.getOrDefault(session.getValue(SessionKeys.UUID).orElse(null), -501L);
+            long registered = registerDates.getOrDefault(session.getPlayerUUID(), -501L);
             long start = session.getDate();
             return Math.abs(registered - start) < 500L;
         });

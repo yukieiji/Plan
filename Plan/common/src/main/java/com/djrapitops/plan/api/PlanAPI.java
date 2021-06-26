@@ -22,7 +22,7 @@ import com.djrapitops.plan.data.plugin.PluginData;
 import com.djrapitops.plan.identification.UUIDUtility;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -34,23 +34,23 @@ import java.util.UUID;
 /**
  * Interface for PlanAPI methods.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @deprecated Plan API v4 has been deprecated, use the APIv5 instead (https://github.com/plan-player-analytics/Plan/wiki/APIv5).
  */
 @Deprecated
 public interface PlanAPI {
 
     static PlanAPI getInstance() {
-        return Optional.ofNullable(PlanAPIHolder.API)
+        return Optional.ofNullable(PlanAPIHolder.api)
                 .orElseThrow(() -> new IllegalStateException("PlanAPI has not been initialised yet."));
     }
 
     @Singleton
     class PlanAPIHolder {
-        static PlanAPI API;
+        static PlanAPI api;
 
         static void set(PlanAPI api) {
-            PlanAPIHolder.API = api;
+            PlanAPIHolder.api = api;
         }
 
         @Inject

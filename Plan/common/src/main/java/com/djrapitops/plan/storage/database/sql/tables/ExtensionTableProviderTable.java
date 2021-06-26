@@ -17,20 +17,20 @@
 package com.djrapitops.plan.storage.database.sql.tables;
 
 import com.djrapitops.plan.extension.icon.Color;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.DBType;
 import com.djrapitops.plan.storage.database.sql.building.CreateTableBuilder;
 import com.djrapitops.plan.storage.database.sql.building.Sql;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
  * Table information about 'plan_extension_tables'.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionTableProviderTable {
 
@@ -39,6 +39,7 @@ public class ExtensionTableProviderTable {
     public static final String ID = "id";
     public static final String PROVIDER_NAME = "name";
     public static final String COLOR = "color";
+    public static final String VALUES_FOR = "values_for";
     public static final String CONDITION = "condition_name"; // Can be null, related to @Conditional
     public static final String PLUGIN_ID = "plugin_id";
     public static final String TAB_ID = "tab_id"; // Can be null, related to @Tab
@@ -57,6 +58,9 @@ public class ExtensionTableProviderTable {
     public static final String ICON_4_ID = "icon_4_id";
     public static final String ICON_5_ID = "icon_5_id";
 
+    public static final int VALUES_FOR_PLAYER = 0;
+    public static final int VALUES_FOR_SERVER = 1;
+
     public static final String STATEMENT_SELECT_TABLE_ID = '(' + SELECT + ID + FROM + TABLE_NAME +
             WHERE + PROVIDER_NAME + "=?" +
             AND + PLUGIN_ID + "=" + ExtensionPluginTable.STATEMENT_SELECT_PLUGIN_ID + " LIMIT 1)";
@@ -65,7 +69,7 @@ public class ExtensionTableProviderTable {
         /* Static information class */
     }
 
-    public static void set3PluginValuesToStatement(PreparedStatement statement, int parameterIndex, String providerName, String pluginName, UUID serverUUID) throws SQLException {
+    public static void set3PluginValuesToStatement(PreparedStatement statement, int parameterIndex, String providerName, String pluginName, ServerUUID serverUUID) throws SQLException {
         statement.setString(parameterIndex, providerName);
         ExtensionPluginTable.set2PluginValuesToStatement(statement, parameterIndex + 1, pluginName, serverUUID);
     }
@@ -75,6 +79,7 @@ public class ExtensionTableProviderTable {
                 .column(ID, INT).primaryKey()
                 .column(PROVIDER_NAME, Sql.varchar(50)).notNull()
                 .column(COLOR, Sql.varchar(25)).notNull().defaultValue("'" + Color.NONE.name() + "'")
+                .column(VALUES_FOR, INT).defaultValue("0")
                 .column(CONDITION, Sql.varchar(54)) // 50 + 4 for "not_"
                 .column(COL_1, Sql.varchar(50))
                 .column(COL_2, Sql.varchar(50))

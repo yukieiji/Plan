@@ -25,23 +25,25 @@ import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.PluginLang;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.RunnableFactory;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
 import dagger.Lazy;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Enumeration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class MySQLDB extends SQLDB {
@@ -75,7 +77,7 @@ public class MySQLDB extends SQLDB {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
-            errorLogger.log(L.CRITICAL, e, ErrorContext.builder().whatToDo("Install MySQL Driver to the server").build());
+            errorLogger.critical(e, ErrorContext.builder().whatToDo("Install MySQL Driver to the server").build());
         }
     }
 
@@ -94,7 +96,7 @@ public class MySQLDB extends SQLDB {
             String database = config.get(DatabaseSettings.MYSQL_DATABASE);
             String launchOptions = config.get(DatabaseSettings.MYSQL_LAUNCH_OPTIONS);
             // REGEX: match "?", match "word=word&" *-times, match "word=word"
-            if (launchOptions.isEmpty() || !launchOptions.matches("\\?((\\w*=\\w*)&)*(\\w*=\\w*)")) {
+            if (launchOptions.isEmpty() || !launchOptions.matches("\\?(((\\w|[-])+=.+)&)*((\\w|[-])+=.+)")) {
                 launchOptions = "?rewriteBatchedStatements=true&useSSL=false";
                 logger.error(locale.getString(PluginLang.DB_MYSQL_LAUNCH_OPTIONS_FAIL, launchOptions));
             }
@@ -112,13 +114,35 @@ public class MySQLDB extends SQLDB {
             increment();
 
             hikariConfig.setAutoCommit(true);
-            hikariConfig.setMaximumPoolSize(8);
+            try {
+                hikariConfig.setMaximumPoolSize(config.get(DatabaseSettings.MAX_CONNECTIONS));
+            } catch (IllegalStateException e) {
+                logger.warn(e.getMessage() + ", using 1 as maximum for now.");
+                hikariConfig.setMaximumPoolSize(1);
+            }
             hikariConfig.setMaxLifetime(TimeUnit.MINUTES.toMillis(25L));
             hikariConfig.setLeakDetectionThreshold(TimeUnit.MINUTES.toMillis(10L));
 
             this.dataSource = new HikariDataSource(hikariConfig);
         } catch (HikariPool.PoolInitializationException e) {
             throw new DBInitException("Failed to set-up HikariCP Datasource: " + e.getMessage(), e);
+        } finally {
+            unloadMySQLDriver();
+        }
+    }
+
+    private void unloadMySQLDriver() {
+        // Avoid issues with other plugins by removing the mysql driver from driver manager
+        Enumeration<Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            Driver driver = drivers.nextElement();
+            if ("com.mysql.cj.jdbc.Driver".equals(driver.getClass().getName())) {
+                try {
+                    DriverManager.deregisterDriver(driver);
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -127,13 +151,10 @@ public class MySQLDB extends SQLDB {
         Connection connection = dataSource.getConnection();
         if (!connection.isValid(5)) {
             connection.close();
-            dataSource.close();
             try {
-                setupDataSource();
-                // get new connection after restarting pool
-                connection = dataSource.getConnection();
-            } catch (DBInitException e) {
-                throw new DBOpException("Failed to restart DataSource after a connection was invalid: " + e.getMessage(), e);
+                return getConnection();
+            } catch (StackOverflowError databaseHasGoneDown) {
+                throw new DBOpException("Valid connection could not be fetched (Is MySQL down?) - attempted until StackOverflowError occurred.", databaseHasGoneDown);
             }
         }
         if (connection.getAutoCommit()) connection.setAutoCommit(false);
@@ -154,7 +175,7 @@ public class MySQLDB extends SQLDB {
                 connection.close();
             }
         } catch (SQLException e) {
-            errorLogger.log(L.CRITICAL, e, ErrorContext.builder().related("Closing connection").build());
+            errorLogger.critical(e, ErrorContext.builder().related("Closing connection").build());
         }
     }
 

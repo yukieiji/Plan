@@ -20,6 +20,7 @@ import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.delivery.domain.Nickname;
 import com.djrapitops.plan.delivery.rendering.json.graphs.line.Point;
 import com.djrapitops.plan.gathering.domain.*;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.KillsTable;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -56,11 +57,11 @@ public class RandomData {
         return RandomStringUtils.randomAlphanumeric(size);
     }
 
-    public static List<Nickname> randomNicknames(UUID serverUUID) {
+    public static List<Nickname> randomNicknames(ServerUUID serverUUID) {
         return pickMultiple(randomInt(15, 30), () -> randomNickname(serverUUID));
     }
 
-    public static Nickname randomNickname(UUID serverUUID) {
+    public static Nickname randomNickname(ServerUUID serverUUID) {
         return new Nickname(randomString(randomInt(50, 100)), randomTime(), serverUUID);
     }
 
@@ -74,7 +75,7 @@ public class RandomData {
         return test;
     }
 
-    public static List<Session> randomSessions() {
+    public static List<FinishedSession> randomSessions() {
         return pickMultiple(randomInt(15, 30),
                 () -> randomSession(
                         TestConstants.SERVER_UUID,
@@ -100,30 +101,44 @@ public class RandomData {
         return picked;
     }
 
-    public static List<Session> randomSessions(UUID serverUUID, String[] worlds, UUID... uuids) {
+    public static List<FinishedSession> randomSessions(ServerUUID serverUUID, String[] worlds, UUID... uuids) {
         return pickMultiple(randomInt(5, 50), () -> randomSession(serverUUID, worlds, uuids));
     }
 
-    public static Session randomSession(UUID serverUUID, String[] worlds, UUID... uuids) {
-        Session session = new Session(uuids[0], serverUUID, RandomData.randomTime(), pickAtRandom(worlds), randomGameMode());
-        session.endSession(RandomData.randomTimeAfter(session.getDate()));
-        session.setWorldTimes(RandomData.randomWorldTimes(worlds));
+    public static FinishedSession randomSession(ServerUUID serverUUID, String[] worlds, UUID... uuids) {
+        DataMap extraData = new DataMap();
+        extraData.put(WorldTimes.class, RandomData.randomWorldTimes(worlds));
+        long start = RandomData.randomTime();
+        long end = RandomData.randomTimeAfter(start);
+
         if (uuids.length >= 2) {
-            session.setPlayerKills(RandomData.randomKills(pickAtRandom(Arrays.copyOfRange(uuids, 1, uuids.length))));
+            List<PlayerKill> kills = RandomData.randomKills(uuids[0], pickAtRandom(Arrays.copyOfRange(uuids, 1, uuids.length)));
+            extraData.put(PlayerKills.class, new PlayerKills(kills));
         }
-        return session;
+        extraData.put(MobKillCounter.class, new MobKillCounter());
+        extraData.put(DeathCounter.class, new DeathCounter());
+        return new FinishedSession(
+                uuids[0], serverUUID,
+                start, end, RandomData.randomLong(0, end - start),
+                extraData
+        );
     }
 
-    public static List<Session> randomUnfinishedSessions(UUID serverUUID, String[] worlds, UUID... uuids) {
+    public static List<ActiveSession> randomUnfinishedSessions(ServerUUID serverUUID, String[] worlds, UUID... uuids) {
         return pickMultiple(randomInt(5, 50), () -> randomUnfinishedSession(serverUUID, worlds, uuids));
     }
 
-    public static Session randomUnfinishedSession(UUID serverUUID, String[] worlds, UUID... uuids) {
-        Session session = new Session(uuids[0], serverUUID, RandomData.randomTime(), pickAtRandom(worlds), randomGameMode());
-        session.setWorldTimes(RandomData.randomWorldTimes(worlds));
+    public static ActiveSession randomUnfinishedSession(ServerUUID serverUUID, String[] worlds, UUID... uuids) {
+        ActiveSession session = new ActiveSession(uuids[0], serverUUID, RandomData.randomTime(), pickAtRandom(worlds), randomGameMode());
+
+        session.getExtraData().get(WorldTimes.class)
+                .ifPresent(worldTimes -> worldTimes.setAll(RandomData.randomWorldTimes(worlds)));
+
         if (uuids.length >= 2) {
-            session.setPlayerKills(RandomData.randomKills(pickAtRandom(Arrays.copyOfRange(uuids, 1, uuids.length))));
+            List<PlayerKill> randomKills = RandomData.randomKills(uuids[0], pickAtRandom(Arrays.copyOfRange(uuids, 1, uuids.length)));
+            session.getExtraData().get(PlayerKills.class).ifPresent(kills -> kills.addAll(randomKills));
         }
+
         return session;
     }
 
@@ -151,21 +166,21 @@ public class RandomData {
         return new WorldTimes(times);
     }
 
-    public static List<PlayerKill> randomKills(UUID... victimUUIDs) {
+    public static List<PlayerKill> randomKills(UUID killer, UUID... victimUUIDs) {
         if (victimUUIDs == null || victimUUIDs.length == 1 && victimUUIDs[0] == null) return Collections.emptyList();
 
         return pickMultiple(randomInt(3, 15), () -> new PlayerKill(
-                pickAtRandom(victimUUIDs),
+                killer, pickAtRandom(victimUUIDs),
                 randomString(randomInt(10, KillsTable.WEAPON_COLUMN_LENGTH)),
                 randomTime()
         ));
     }
 
-    public static List<Ping> randomPings(UUID serverUUID) {
+    public static List<Ping> randomPings(ServerUUID serverUUID) {
         return pickMultiple(randomInt(15, 30), () -> randomPing(serverUUID));
     }
 
-    public static Ping randomPing(UUID serverUUID) {
+    public static Ping randomPing(ServerUUID serverUUID) {
         int r1 = randomInt(1, 200);
         int r2 = randomInt(1, 200);
         return new Ping(randomTime(), serverUUID, Math.min(r1, r2), Math.max(r1, r2), (r1 + r2) / 2.0);
@@ -177,5 +192,9 @@ public class RandomData {
 
     public static DateObj<Integer> randomIntDateObject() {
         return new DateObj<>(randomTime(), randomInt(0, 500));
+    }
+
+    public static double randomDouble() {
+        return ThreadLocalRandom.current().nextDouble();
     }
 }

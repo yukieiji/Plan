@@ -23,7 +23,7 @@ import java.util.function.Predicate;
 /**
  * Setting implementation for String value settings.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StringSetting extends Setting<String> {
 
@@ -33,6 +33,14 @@ public class StringSetting extends Setting<String> {
 
     public StringSetting(String path, Predicate<String> validator) {
         super(path, String.class, validator);
+    }
+
+    public StringSetting(String path, String defaultValue) {
+        super(path, defaultValue);
+    }
+
+    public StringSetting(String path, Predicate<String> validator, String defaultValue) {
+        super(path, validator, defaultValue);
     }
 
     @Override

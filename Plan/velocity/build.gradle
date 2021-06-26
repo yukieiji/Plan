@@ -1,5 +1,5 @@
 plugins {
-    id "net.kyori.blossom" version "1.1.0"
+    id "net.kyori.blossom" version "1.3.0"
 }
 
 blossom {
@@ -9,21 +9,20 @@ blossom {
 
 dependencies {
     compileOnly project(":common")
-    compile project(path: ":common", configuration: 'shadow')
+    implementation project(path: ":common", configuration: 'shadow')
     compileOnly project(":api")
 
-    compile "com.djrapitops:AbstractPluginFramework-velocity:$abstractPluginFrameworkVersion"
+    implementation "net.playeranalytics:platform-abstraction-layer-velocity:$palVersion"
+    implementation "org.bstats:bstats-velocity:$bstatsVersion"
 
     compileOnly "com.velocitypowered:velocity-api:$velocityVersion"
-    testCompile "com.velocitypowered:velocity-api:$velocityVersion"
+    testImplementation "com.velocitypowered:velocity-api:$velocityVersion"
 
     annotationProcessor "com.velocitypowered:velocity-api:$velocityVersion"
 
-    testCompile project(path: ":common", configuration: 'testArtifacts')
+    testImplementation project(path: ":common", configuration: 'testArtifacts')
 }
 
 shadowJar {
-    dependsOn blossomSourceReplacementJava
-
-    configurations = [project.configurations.compile]
+    relocate 'org.bstats', 'com.djrapitops.plan.utilities.metrics'
 }

@@ -27,6 +27,7 @@ import com.djrapitops.plan.delivery.webserver.resolver.json.RootJSONResolver;
 import com.djrapitops.plan.exceptions.connection.WebException;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
@@ -41,12 +42,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Handles exporting of /server page html, data and resources.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ServerPageExporter extends FileExporter {
@@ -99,13 +99,27 @@ public class ServerPageExporter extends FileExporter {
     }
 
     private void exportHtml(Path toDirectory, Server server) throws IOException {
-        UUID serverUUID = server.getUuid();
+        ServerUUID serverUUID = server.getUuid();
         Path to = toDirectory
                 .resolve(serverInfo.getServer().isProxy() ? "server/" + toFileName(server.getName()) : "server")
                 .resolve("index.html");
 
         Page page = pageFactory.serverPage(serverUUID);
-        export(to, exportPaths.resolveExportPaths(page.toHtml()));
+
+        // Fixes refreshingJsonRequest ignoring old data of export
+        String html = StringUtils.replaceEach(page.toHtml(),
+                new String[]{
+                        "loadOptimizedPerformanceGraph, 'performance', true);",
+                        "loadServerCalendar, 'online-activity-overview', true);",
+                        "}, 'playerlist', true);"
+                },
+                new String[]{
+                        "loadOptimizedPerformanceGraph, 'performance');",
+                        "loadServerCalendar, 'online-activity-overview');",
+                        "}, 'playerlist');"
+                });
+
+        export(to, exportPaths.resolveExportPaths(html));
     }
 
     /**
@@ -126,12 +140,14 @@ public class ServerPageExporter extends FileExporter {
                 "playerVersus?server=" + serverUUID,
                 "playerbaseOverview?server=" + serverUUID,
                 "performanceOverview?server=" + serverUUID,
-                "graph?type=performance&server=" + serverUUID,
+                "graph?type=optimizedPerformance&server=" + serverUUID,
                 "graph?type=aggregatedPing&server=" + serverUUID,
                 "graph?type=worldPie&server=" + serverUUID,
                 "graph?type=activity&server=" + serverUUID,
                 "graph?type=geolocation&server=" + serverUUID,
                 "graph?type=uniqueAndNew&server=" + serverUUID,
+                "graph?type=hourlyUniqueAndNew&server=" + serverUUID,
+                "graph?type=joinAddressPie&server=" + serverUUID,
                 "graph?type=serverCalendar&server=" + serverUUID,
                 "graph?type=punchCard&server=" + serverUUID,
                 "players?server=" + serverUUID,
@@ -185,10 +201,8 @@ public class ServerPageExporter extends FileExporter {
                 "../img/Flaticon_circle.png",
                 "../css/sb-admin-2.css",
                 "../css/style.css",
-                "../vendor/jquery/jquery.min.js",
-                "../vendor/bootstrap/js/bootstrap.bundle.min.js",
-                "../vendor/datatables/jquery.dataTables.min.js",
-                "../vendor/datatables/dataTables.bootstrap4.min.js",
+                "../vendor/datatables/datatables.min.js",
+                "../vendor/datatables/datatables.min.css",
                 "../vendor/highcharts/highstock.js",
                 "../vendor/highcharts/map.js",
                 "../vendor/highcharts/world.js",
@@ -197,6 +211,7 @@ public class ServerPageExporter extends FileExporter {
                 "../vendor/highcharts/no-data-to-display.js",
                 "../vendor/fullcalendar/fullcalendar.min.css",
                 "../vendor/momentjs/moment.js",
+                "../vendor/masonry/masonry.pkgd.min.js",
                 "../vendor/fullcalendar/fullcalendar.min.js",
                 "../vendor/fontawesome-free/css/all.min.css",
                 "../vendor/fontawesome-free/webfonts/fa-brands-400.eot",
@@ -211,6 +226,7 @@ public class ServerPageExporter extends FileExporter {
                 "../vendor/fontawesome-free/webfonts/fa-solid-900.ttf",
                 "../vendor/fontawesome-free/webfonts/fa-solid-900.woff",
                 "../vendor/fontawesome-free/webfonts/fa-solid-900.woff2",
+                "../js/domUtils.js",
                 "../js/sb-admin-2.js",
                 "../js/xmlhttprequests.js",
                 "../js/color-selector.js",
@@ -234,7 +250,7 @@ public class ServerPageExporter extends FileExporter {
                 () -> files.getResourceFromJar("web/" + resourceName).asWebResource());
         Path to = toDirectory.resolve(resourceName);
 
-        if (resourceName.endsWith(".css")) {
+        if (resourceName.endsWith(".css") || resourceName.endsWith("color-selector.js")) {
             export(to, theme.replaceThemeColors(resource.asString()));
         } else if (Resource.isTextResource(resourceName)) {
             export(to, resource.asString());

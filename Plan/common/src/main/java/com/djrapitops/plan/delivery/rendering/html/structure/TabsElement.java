@@ -16,12 +16,13 @@
  */
 package com.djrapitops.plan.delivery.rendering.html.structure;
 
-import com.djrapitops.plugin.utilities.Format;
+import com.djrapitops.plan.delivery.rendering.html.icon.Icon;
+import org.apache.commons.lang3.RegExUtils;
 
 /**
  * Represents a structural HTML element that has Tabs on the top.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class TabsElement {
 
@@ -45,12 +46,12 @@ public class TabsElement {
         boolean first = true;
         for (Tab tab : tabs) {
             String id = tab.getId();
-            String navText = tab.getNavText();
+            String navHtml = tab.getNavHtml();
             String contentHtml = tab.getContentHtml();
 
             nav.append("<li role=\"presentation\" class=\"nav-item col-black\"")
-                    .append("><a href=\"#").append(id).append("\" class=\"nav-link col-black").append(first ? " active" : "").append('"').append(" data-toggle=\"tab\">")
-                    .append(navText).append("</a></li>");
+                    .append("><a href=\"#").append(id).append("\" class=\"nav-link col-black").append(first ? " active" : "").append('"').append(" data-bs-toggle=\"tab\">")
+                    .append(navHtml).append("</a></li>");
             content.append("<div role=\"tabpanel\" class=\"tab-pane fade").append(first ? " in active show" : "")
                     .append("\" id=\"").append(id).append("\">")
                     .append(contentHtml).append("</div>");
@@ -64,16 +65,18 @@ public class TabsElement {
 
     public static class Tab {
 
-        private final String navText;
+        private final Icon icon;
+        private final String title;
         private final String contentHtml;
 
-        public Tab(String navText, String contentHtml) {
-            this.navText = navText;
+        public Tab(Icon icon, String title, String contentHtml) {
+            this.icon = icon;
+            this.title = title;
             this.contentHtml = contentHtml;
         }
 
-        public String getNavText() {
-            return navText;
+        public String getNavHtml() {
+            return icon.toHtml() + ' ' + title;
         }
 
         public String getContentHtml() {
@@ -81,7 +84,7 @@ public class TabsElement {
         }
 
         public String getId() {
-            return "tab_" + new Format(navText).removeSymbols().removeWhitespace().lowerCase().toString();
+            return "tab_" + RegExUtils.removeAll(title, "[^a-zA-Z0-9]*").toLowerCase();
         }
     }
 }

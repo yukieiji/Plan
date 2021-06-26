@@ -16,6 +16,8 @@
  */
 package com.djrapitops.plan.gathering.domain;
 
+import com.djrapitops.plan.identification.ServerUUID;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -25,30 +27,36 @@ import java.util.UUID;
  * Unlike {@link BaseUser} one instance is stored per server for a single player.
  * Proxy servers are an exception, and UserInfo is not stored for them.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class UserInfo {
 
     private final UUID playerUUID;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final long registered;
     private final boolean banned;
     private final boolean opped;
+    private final String joinAddress;
 
-    public UserInfo(UUID playerUUID, UUID serverUUID, long registered, boolean opped, boolean banned) {
+    public UserInfo(UUID playerUUID, ServerUUID serverUUID, long registered, boolean opped, String joinAddress, boolean banned) {
         this.playerUUID = playerUUID;
         this.serverUUID = serverUUID;
         this.registered = registered;
         this.opped = opped;
         this.banned = banned;
+        this.joinAddress = joinAddress;
     }
 
     public UUID getPlayerUuid() {
         return playerUUID;
     }
 
-    public UUID getServerUUID() {
+    public ServerUUID getServerUUID() {
         return serverUUID;
+    }
+
+    public String getJoinAddress() {
+        return joinAddress;
     }
 
     public long getRegistered() {
@@ -66,18 +74,19 @@ public class UserInfo {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof UserInfo)) return false;
+        if (o == null || getClass() != o.getClass()) return false;
         UserInfo userInfo = (UserInfo) o;
-        return registered == userInfo.registered &&
-                banned == userInfo.banned &&
-                opped == userInfo.opped &&
-                playerUUID.equals(userInfo.playerUUID) &&
-                serverUUID.equals(userInfo.serverUUID);
+        return registered == userInfo.registered
+                && banned == userInfo.banned
+                && opped == userInfo.opped
+                && Objects.equals(playerUUID, userInfo.playerUUID)
+                && Objects.equals(serverUUID, userInfo.serverUUID)
+                && Objects.equals(joinAddress, userInfo.joinAddress);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(playerUUID, serverUUID, registered, banned, opped);
+        return Objects.hash(playerUUID, serverUUID, registered, banned, joinAddress, opped);
     }
 
     @Override
@@ -88,6 +97,7 @@ public class UserInfo {
                 ", registered=" + registered +
                 ", banned=" + banned +
                 ", opped=" + opped +
+                ", joinAddress=" + joinAddress +
                 '}';
     }
 }

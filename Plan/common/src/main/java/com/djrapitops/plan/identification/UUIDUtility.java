@@ -20,8 +20,7 @@ import com.djrapitops.plan.exceptions.database.DBOpException;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.api.utility.UUIDFetcher;
-import com.djrapitops.plugin.logging.L;
+import net.playeranalytics.plugin.player.UUIDFetcher;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -36,7 +35,7 @@ import java.util.UUID;
  * - Find an UUID from the database matching the player name
  * - Find an UUID from Mojang API that matches the player name
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class UUIDUtility {
@@ -56,6 +55,19 @@ public class UUIDUtility {
         } catch (IllegalArgumentException malformedUUIDException) {
             return Optional.empty();
         }
+    }
+
+    public Optional<String> getNameOf(String possiblePlayerUUID) {
+        try {
+            return getNameOf(UUID.fromString(possiblePlayerUUID));
+        } catch (IllegalArgumentException notUUID) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<String> getNameOf(UUID playerUUID) {
+        if (playerUUID == null) throw new IllegalArgumentException("Player uuid can not be null!");
+        return dbSystem.getDatabase().query(UserIdentifierQueries.fetchPlayerNameOf(playerUUID));
     }
 
     /**
@@ -93,7 +105,7 @@ public class UUIDUtility {
         try {
             return dbSystem.getDatabase().query(UserIdentifierQueries.fetchPlayerUUIDOf(playerName));
         } catch (DBOpException e) {
-            errorLogger.log(L.ERROR, e);
+            errorLogger.error(e);
             return Optional.empty();
         }
     }

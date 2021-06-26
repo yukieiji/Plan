@@ -17,6 +17,7 @@
 package com.djrapitops.plan.storage.database.transactions.init;
 
 import com.djrapitops.plan.delivery.domain.DateObj;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.objects.TPSQueries;
 import com.djrapitops.plan.storage.database.sql.tables.PingTable;
 import com.djrapitops.plan.storage.database.sql.tables.ServerTable;
@@ -28,23 +29,22 @@ import com.djrapitops.plan.storage.database.transactions.ThrowawayTransaction;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
  * Transaction for cleaning up old data from the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class RemoveOldSampledDataTransaction extends ThrowawayTransaction {
 
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final long deleteTPSOlderThanMs;
     private final long deletePingOlderThanMs;
 
     public RemoveOldSampledDataTransaction(
-            UUID serverUUID,
+            ServerUUID serverUUID,
             long deleteTPSOlderThanMs,
             long deletePingOlderThanMs
     ) {

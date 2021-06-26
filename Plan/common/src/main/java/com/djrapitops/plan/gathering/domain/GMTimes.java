@@ -16,15 +16,13 @@
  */
 package com.djrapitops.plan.gathering.domain;
 
-import com.djrapitops.plugin.utilities.Verify;
-
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * TimeKeeper class that tracks the time spent in each GameMode based on Playtime.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class GMTimes extends TimeKeeper {
 
@@ -92,7 +90,7 @@ public class GMTimes extends TimeKeeper {
      * @throws IllegalArgumentException If any parameter is null.
      */
     public void setAllGMTimes(long... times) {
-        Verify.nullCheck(times);
+        if (times == null) throw new IllegalArgumentException("'times' should not be null!");
         String[] gms = getGMKeyArray();
         int size = times.length;
         for (int i = 0; i < 4; i++) {
@@ -115,5 +113,14 @@ public class GMTimes extends TimeKeeper {
     public String getState() {
         String state = super.getState();
         return state != null ? state : SURVIVAL;
+    }
+
+    @Override
+    public String toString() {
+        return "GMTimes{" +
+                "times=" + times +
+                ", state='" + state + '\'' +
+                ", lastStateChange=" + lastStateChange +
+                '}';
     }
 }

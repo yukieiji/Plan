@@ -17,10 +17,7 @@
 package com.djrapitops.plan.commands;
 
 import com.djrapitops.plan.commands.subcommands.*;
-import com.djrapitops.plan.commands.use.Arguments;
-import com.djrapitops.plan.commands.use.CMDSender;
-import com.djrapitops.plan.commands.use.CommandWithSubcommands;
-import com.djrapitops.plan.commands.use.Subcommand;
+import com.djrapitops.plan.commands.use.*;
 import com.djrapitops.plan.gathering.importing.ImportSystem;
 import com.djrapitops.plan.settings.Permissions;
 import com.djrapitops.plan.settings.locale.Locale;
@@ -29,8 +26,6 @@ import com.djrapitops.plan.settings.locale.lang.HelpLang;
 import com.djrapitops.plan.storage.database.DBType;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.command.ColorScheme;
-import com.djrapitops.plugin.logging.L;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -57,6 +52,8 @@ public class PlanCommand {
     private final Locale locale;
     private final ImportSystem importSystem;
     private final ErrorLogger errorLogger;
+
+    private static final String DB_ARG_OPTIONS = "MySQL/SQLite";
 
     @Inject
     public PlanCommand(
@@ -91,7 +88,7 @@ public class PlanCommand {
         if (error instanceof IllegalArgumentException) {
             sender.send("§c" + error.getMessage());
         } else {
-            errorLogger.log(L.WARN, error, ErrorContext.builder().related(sender, arguments).build());
+            errorLogger.warn(error, ErrorContext.builder().related(sender, arguments).build());
         }
     }
 
@@ -110,6 +107,7 @@ public class PlanCommand {
 
                 .subcommand(registerCommand())
                 .subcommand(unregisterCommand())
+                .subcommand(logoutCommand())
                 .subcommand(webUsersCommand())
 
                 .subcommand(acceptCommand())
@@ -244,6 +242,18 @@ public class PlanCommand {
                 .build();
     }
 
+    private Subcommand logoutCommand() {
+        return Subcommand.builder()
+                .aliases("logout")
+                .requirePermission(Permissions.LOGOUT_OTHER)
+                .requiredArgument(locale.getString(HelpLang.ARG_USERNAME), locale.getString(HelpLang.DESC_ARG_USERNAME))
+                .description(locale.getString(HelpLang.LOGOUT))
+                .inDepthDescription(locale.getString(DeepHelpLang.LOGOUT))
+                .onCommand(registrationCommands::onLogoutCommand)
+                .onTabComplete(this::webUserNames)
+                .build();
+    }
+
     private List<String> webUserNames(CMDSender sender, Arguments arguments) {
         if (!sender.hasPermission(Permissions.UNREGISTER_OTHER)) {
             return Collections.emptyList();
@@ -332,7 +342,7 @@ public class PlanCommand {
         return Subcommand.builder()
                 .aliases("backup")
                 .requirePermission(Permissions.DATA_BACKUP)
-                .optionalArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_BACKUP))
+                .optionalArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_BACKUP))
                 .description(locale.getString(HelpLang.DB_BACKUP))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_BACKUP))
                 .onCommand(databaseCommands::onBackup)
@@ -346,7 +356,7 @@ public class PlanCommand {
                 .aliases("restore")
                 .requirePermission(Permissions.DATA_RESTORE)
                 .requiredArgument(locale.getString(HelpLang.ARG_BACKUP_FILE), locale.getString(HelpLang.DESC_ARG_BACKUP_FILE))
-                .optionalArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_RESTORE))
+                .optionalArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_RESTORE))
                 .description(locale.getString(HelpLang.DB_RESTORE))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_RESTORE))
                 .onCommand((sender, arguments) -> databaseCommands.onRestore(commandName, sender, arguments))
@@ -370,8 +380,8 @@ public class PlanCommand {
         return Subcommand.builder()
                 .aliases("move")
                 .requirePermission(Permissions.DATA_MOVE)
-                .requiredArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_MOVE_FROM))
-                .requiredArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_MOVE_TO))
+                .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_MOVE_FROM))
+                .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_MOVE_TO))
                 .description(locale.getString(HelpLang.DB_MOVE))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_MOVE))
                 .onCommand((sender, arguments) -> databaseCommands.onMove(commandName, sender, arguments))
@@ -383,7 +393,7 @@ public class PlanCommand {
         return Subcommand.builder()
                 .aliases("hotswap")
                 .requirePermission(Permissions.DATA_HOTSWAP)
-                .requiredArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_HOTSWAP))
+                .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_HOTSWAP))
                 .description(locale.getString(HelpLang.DB_HOTSWAP))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_HOTSWAP))
                 .onCommand(databaseCommands::onHotswap)
@@ -396,7 +406,7 @@ public class PlanCommand {
         return Subcommand.builder()
                 .aliases("clear")
                 .requirePermission(Permissions.DATA_CLEAR)
-                .requiredArgument("MySQL/SQlite/H2", locale.getString(HelpLang.DESC_ARG_DB_REMOVE))
+                .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_REMOVE))
                 .description(locale.getString(HelpLang.DB_CLEAR))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_CLEAR))
                 .onCommand((sender, arguments) -> databaseCommands.onClear(commandName, sender, arguments))

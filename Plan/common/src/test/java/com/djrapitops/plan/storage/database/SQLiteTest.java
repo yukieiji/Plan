@@ -18,8 +18,10 @@ package com.djrapitops.plan.storage.database;
 
 import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.delivery.DeliveryUtilities;
+import com.djrapitops.plan.extension.ExtensionSvc;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.database.queries.*;
 import com.djrapitops.plan.storage.database.transactions.StoreServerInformationTransaction;
@@ -35,9 +37,9 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import utilities.DBPreparer;
 import utilities.RandomData;
+import utilities.TestErrorLogger;
 
 import java.nio.file.Path;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
@@ -45,14 +47,14 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for SQLite Database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see DatabaseTest
  * @see ExtensionsDatabaseTest
  */
 @ExtendWith(MockitoExtension.class)
 public class SQLiteTest implements DatabaseTest,
         DatabaseBackupTest,
-        //ExtensionsDatabaseTest, TODO Test hangs forever for some reason, investigate later.
+        ExtensionsDatabaseTest,
         ActivityIndexQueriesTest,
         GeolocationQueriesTest,
         NicknameQueriesTest,
@@ -81,6 +83,7 @@ public class SQLiteTest implements DatabaseTest,
 
     @BeforeEach
     void setUp() {
+        TestErrorLogger.throwErrors(true);
         db().executeTransaction(new Patch() {
             @Override
             public boolean hasBeenApplied() {
@@ -115,7 +118,7 @@ public class SQLiteTest implements DatabaseTest,
     }
 
     @Override
-    public UUID serverUUID() {
+    public ServerUUID serverUUID() {
         return component.serverInfo().getServerUUID();
     }
 
@@ -137,6 +140,11 @@ public class SQLiteTest implements DatabaseTest,
     @Override
     public DeliveryUtilities deliveryUtilities() {
         return component.deliveryUtilities();
+    }
+
+    @Override
+    public ExtensionSvc extensionService() {
+        return component.extensionService();
     }
 
     @Override

@@ -17,8 +17,6 @@
 package com.djrapitops.plan.data.element;
 
 import com.djrapitops.plan.delivery.formatting.Formatter;
-import com.djrapitops.plan.delivery.rendering.html.icon.Icon;
-import com.djrapitops.plugin.utilities.ArrayUtil;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -27,7 +25,7 @@ import java.util.List;
 /**
  * Container used for creating Html tables.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @deprecated PluginData API has been deprecated - see https://github.com/plan-player-analytics/Plan/wiki/APIv5---DataExtension-API for new API.
  */
 @Deprecated
@@ -53,9 +51,7 @@ public class TableContainer {
     }
 
     public TableContainer(boolean players, String... header) {
-        this(
-                ArrayUtil.merge(new String[]{Icon.called("user").build() + " Player"}, header)
-        );
+        this(header);
     }
 
     public final void addRow(Serializable... values) {
@@ -155,10 +151,7 @@ public class TableContainer {
 
     private String getTableHeader() {
         if (jqueryDatatable != null) {
-            return "<div class=\"table-responsive\">" +
-                    "<table class=\"table table-bordered table-striped table-hover " +
-                    jqueryDatatable +
-                    " dataTable\">";
+            return "<table class=\"table table-bordered table-striped table-hover " + jqueryDatatable + "\" style=\"width: 100%\">";
         } else {
             return "<div class=\"scrollbar\"><table class=\"table table-striped\">";
         }

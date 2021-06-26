@@ -16,7 +16,6 @@
  */
 package com.djrapitops.plan.gathering.importing.importers;
 
-import com.djrapitops.plan.Plan;
 import com.djrapitops.plan.delivery.domain.Nickname;
 import com.djrapitops.plan.gathering.domain.*;
 import com.djrapitops.plan.gathering.geolocation.GeolocationCache;
@@ -24,12 +23,12 @@ import com.djrapitops.plan.gathering.importing.data.BukkitUserImportRefiner;
 import com.djrapitops.plan.gathering.importing.data.ServerImportData;
 import com.djrapitops.plan.gathering.importing.data.UserImportData;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.LargeStoreQueries;
 import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
-import com.djrapitops.plugin.utilities.Verify;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -45,14 +44,12 @@ import java.util.stream.Collectors;
  */
 public abstract class BukkitImporter implements Importer {
 
-    protected final Supplier<UUID> serverUUID;
+    protected final Supplier<ServerUUID> serverUUID;
     private final GeolocationCache geolocationCache;
     private final DBSystem dbSystem;
     private final String name;
-    private final Plan plugin;
 
     protected BukkitImporter(
-            Plan plugin,
             GeolocationCache geolocationCache,
             DBSystem dbSystem,
             ServerInfo serverInfo,
@@ -63,7 +60,6 @@ public abstract class BukkitImporter implements Importer {
         this.serverUUID = serverInfo::getServerUUID;
 
         this.name = name;
-        this.plugin = plugin;
     }
 
     @Override
@@ -105,11 +101,11 @@ public abstract class BukkitImporter implements Importer {
     private void processUserData() {
         List<UserImportData> userImportData = getUserImportData();
 
-        if (Verify.isEmpty(userImportData)) {
+        if (userImportData == null || userImportData.isEmpty()) {
             return;
         }
 
-        BukkitUserImportRefiner userImportRefiner = new BukkitUserImportRefiner(plugin, userImportData);
+        BukkitUserImportRefiner userImportRefiner = new BukkitUserImportRefiner(userImportData);
         userImportData = userImportRefiner.refineData();
 
         Database db = dbSystem.getDatabase();
@@ -120,7 +116,7 @@ public abstract class BukkitImporter implements Importer {
         Map<UUID, BaseUser> users = new HashMap<>();
         List<UserInfo> userInfo = new ArrayList<>();
         Map<UUID, List<Nickname>> nickNames = new HashMap<>();
-        List<Session> sessions = new ArrayList<>();
+        List<FinishedSession> sessions = new ArrayList<>();
         Map<UUID, List<GeoInfo>> geoInfo = new HashMap<>();
 
         userImportData.parallelStream().forEach(data -> {
@@ -144,7 +140,7 @@ public abstract class BukkitImporter implements Importer {
             protected void performOperations() {
                 execute(LargeStoreQueries.storeAllCommonUserInformation(users.values()));
                 execute(LargeStoreQueries.storeAllSessionsWithKillAndWorldData(sessions));
-                Map<UUID, List<UserInfo>> userInformation = Collections.singletonMap(serverUUID.get(), userInfo);
+                Map<ServerUUID, List<UserInfo>> userInformation = Collections.singletonMap(serverUUID.get(), userInfo);
                 execute(LargeStoreQueries.storePerServerUserInformation(userInformation));
                 execute(LargeStoreQueries.storeAllNicknameData(Collections.singletonMap(serverUUID.get(), nickNames)));
                 execute(LargeStoreQueries.storeAllGeoInformation(geoInfo));
@@ -177,20 +173,22 @@ public abstract class BukkitImporter implements Importer {
         long registered = userImportData.getRegistered();
         boolean op = userImportData.isOp();
         boolean banned = userImportData.isBanned();
+        String joinAddress = userImportData.getJoinAddress();
 
-        return new UserInfo(uuid, serverUUID.get(), registered, op, banned);
+        return new UserInfo(uuid, serverUUID.get(), registered, op, joinAddress, banned);
     }
 
-    private Session toSession(UserImportData userImportData) {
+    private FinishedSession toSession(UserImportData userImportData) {
         int mobKills = userImportData.getMobKills();
         int deaths = userImportData.getDeaths();
 
-        Session session = new Session(0, userImportData.getUuid(), serverUUID.get(), 0L, 0L, mobKills, deaths, 0);
+        DataMap extraData = new DataMap();
+        extraData.put(MobKillCounter.class, new MobKillCounter(mobKills));
+        extraData.put(DeathCounter.class, new DeathCounter(deaths));
+        extraData.put(WorldTimes.class, new WorldTimes(userImportData.getWorldTimes()));
+        extraData.put(PlayerKills.class, new PlayerKills(userImportData.getKills()));
 
-        session.setPlayerKills(userImportData.getKills());
-        session.setWorldTimes(new WorldTimes(userImportData.getWorldTimes()));
-
-        return session;
+        return new FinishedSession(userImportData.getUuid(), serverUUID.get(), 0L, 0L, 0, extraData);
     }
 
     private List<GeoInfo> convertGeoInfo(UserImportData userImportData) {

@@ -18,7 +18,7 @@ package com.djrapitops.plan.delivery.webserver;
 
 import com.djrapitops.plan.SubSystem;
 import com.djrapitops.plan.delivery.web.ResourceService;
-import com.djrapitops.plan.delivery.webserver.cache.JSONCache;
+import com.djrapitops.plan.delivery.webserver.auth.ActiveCookieStore;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -26,25 +26,29 @@ import javax.inject.Singleton;
 /**
  * WebServer subsystem for managing WebServer initialization.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class WebServerSystem implements SubSystem {
 
     private final Addresses addresses;
+    private final ActiveCookieStore activeCookieStore;
     private final WebServer webServer;
 
     @Inject
     public WebServerSystem(
             Addresses addresses,
+            ActiveCookieStore activeCookieStore,
             WebServer webServer
     ) {
         this.addresses = addresses;
+        this.activeCookieStore = activeCookieStore;
         this.webServer = webServer;
     }
 
     @Override
     public void enable() {
+        activeCookieStore.enable();
         webServer.enable();
         if (!webServer.isAuthRequired()) {
             ResourceService.getInstance().addStylesToResource("Plan", "error.html", ResourceService.Position.PRE_CONTENT, "./css/noauth.css");
@@ -52,14 +56,19 @@ public class WebServerSystem implements SubSystem {
             ResourceService.getInstance().addStylesToResource("Plan", "player.html", ResourceService.Position.PRE_CONTENT, "../css/noauth.css");
             ResourceService.getInstance().addStylesToResource("Plan", "players.html", ResourceService.Position.PRE_CONTENT, "./css/noauth.css");
             ResourceService.getInstance().addStylesToResource("Plan", "network.html", ResourceService.Position.PRE_CONTENT, "./css/noauth.css");
+            ResourceService.getInstance().addStylesToResource("Plan", "query.html", ResourceService.Position.PRE_CONTENT, "./css/noauth.css");
+        }
+        if (webServer.isEnabled()) {
+            ResourceService.getInstance().addStylesToResource("Plan", "server.html", ResourceService.Position.PRE_CONTENT, "../css/querybutton.css");
+            ResourceService.getInstance().addStylesToResource("Plan", "players.html", ResourceService.Position.PRE_CONTENT, "./css/querybutton.css");
+            ResourceService.getInstance().addStylesToResource("Plan", "network.html", ResourceService.Position.PRE_CONTENT, "./css/querybutton.css");
         }
     }
 
     @Override
     public void disable() {
         webServer.disable();
-        JSONCache.invalidateAll();
-        JSONCache.cleanUp();
+        activeCookieStore.disable();
     }
 
     public WebServer getWebServer() {

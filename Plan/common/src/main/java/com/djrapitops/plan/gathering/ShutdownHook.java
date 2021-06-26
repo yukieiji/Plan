@@ -16,30 +16,29 @@
  */
 package com.djrapitops.plan.gathering;
 
+import com.djrapitops.plan.TaskSystem;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Thread that is run when JVM shuts down.
  * <p>
  * Saves active sessions to the Database (PlayerQuitEvent is not called)
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ShutdownHook extends Thread {
 
     private static ShutdownHook activated;
 
-    private final ServerShutdownSave serverShutdownSave;
+    private final ShutdownDataPreservation dataPreservation;
 
     @Inject
-    public ShutdownHook(ServerShutdownSave serverShutdownSave) {
-        this.serverShutdownSave = serverShutdownSave;
+    public ShutdownHook(ShutdownDataPreservation dataPreservation) {
+        this.dataPreservation = dataPreservation;
     }
 
     private static boolean isActivated() {
@@ -65,17 +64,24 @@ public class ShutdownHook extends Thread {
 
     @Override
     public void run() {
-        serverShutdownSave.serverIsKnownToBeShuttingDown();
-        serverShutdownSave.performSave().ifPresent(this::waitForSave);
+        dataPreservation.preserveSessionsInCache();
     }
 
-    private void waitForSave(Future<?> sessionsAreSavedFuture) {
-        try {
-            sessionsAreSavedFuture.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (ExecutionException e) {
-            Logger.getGlobal().log(Level.SEVERE, "Plan failed to save sessions on JVM shutdown.", e);
+    @Singleton
+    public static class Registrar extends TaskSystem.Task {
+        private final ShutdownHook shutdownHook;
+
+        @Inject
+        public Registrar(ShutdownHook shutdownHook) {this.shutdownHook = shutdownHook;}
+
+        @Override
+        public void run() {
+            shutdownHook.register();
+        }
+
+        @Override
+        public void register(RunnableFactory runnableFactory) {
+            runnableFactory.create(this).runTaskAsynchronously();
         }
     }
 }

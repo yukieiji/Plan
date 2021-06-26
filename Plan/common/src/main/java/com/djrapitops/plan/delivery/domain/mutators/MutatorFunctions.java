@@ -16,9 +16,9 @@
  */
 package com.djrapitops.plan.delivery.domain.mutators;
 
+import com.djrapitops.plan.delivery.rendering.json.graphs.line.LineGraph;
 import com.djrapitops.plan.delivery.rendering.json.graphs.line.Point;
 import com.djrapitops.plan.utilities.java.Lists;
-import com.djrapitops.plugin.utilities.Verify;
 
 import java.util.*;
 
@@ -29,7 +29,7 @@ public class MutatorFunctions {
     }
 
     public static NavigableMap<Long, Integer> addMissing(NavigableMap<Long, Integer> points, long accuracy, Integer replacement) {
-        if (Verify.isEmpty(points)) return points;
+        if (points == null || points.isEmpty()) return points;
 
         NavigableMap<Long, Integer> filled = new TreeMap<>();
         Long lastX = null;
@@ -44,7 +44,7 @@ public class MutatorFunctions {
         }
 
         long now = System.currentTimeMillis();
-        if (lastX != null && now - lastX > accuracy) {
+        if (now - lastX > accuracy) {
             addMissing(lastX, now, filled, accuracy, replacement);
         }
 
@@ -59,16 +59,16 @@ public class MutatorFunctions {
         }
     }
 
-    public static List<Point> addMissing(List<Point> points, long accuracy, Integer replacement) {
-        if (Verify.isEmpty(points)) return points;
+    public static List<Point> addMissing(List<Point> points, LineGraph.GapStrategy gapStrategy) {
+        if (points == null || points.isEmpty()) return points;
 
         List<Point> filled = new ArrayList<>();
         Long lastX = null;
         for (Point point : points) {
             long date = (long) point.getX();
 
-            if (lastX != null && date - lastX > accuracy) {
-                addMissing(lastX, date, filled, accuracy, replacement);
+            if (lastX != null && date - lastX > gapStrategy.acceptableGapMs) {
+                addMissing(lastX, date, filled, gapStrategy);
             }
             lastX = date;
             filled.add(point);
@@ -77,11 +77,11 @@ public class MutatorFunctions {
         return filled;
     }
 
-    private static void addMissing(long from, long to, List<Point> points, long accuracy, Integer replacement) {
-        long iterate = from;
+    private static void addMissing(long from, long to, List<Point> points, LineGraph.GapStrategy gapStrategy) {
+        long iterate = from + gapStrategy.diffToFirstGapPointMs;
         while (iterate < to) {
-            points.add(new Point(iterate, replacement));
-            iterate += accuracy;
+            points.add(new Point(iterate, gapStrategy.fillWith));
+            iterate += gapStrategy.fillFrequencyMs;
         }
     }
 

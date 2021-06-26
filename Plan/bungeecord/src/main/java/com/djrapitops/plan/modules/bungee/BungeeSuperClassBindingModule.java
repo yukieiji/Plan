@@ -16,8 +16,6 @@
  */
 package com.djrapitops.plan.modules.bungee;
 
-import com.djrapitops.plan.BungeeTaskSystem;
-import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.gathering.BungeeSensor;
 import com.djrapitops.plan.gathering.ServerSensor;
 import com.djrapitops.plan.gathering.listeners.BungeeListenerSystem;
@@ -30,16 +28,13 @@ import dagger.Module;
 /**
  * Module for binding Bungee specific classes as interface implementations.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Module
 public interface BungeeSuperClassBindingModule {
 
     @Binds
     ServerInfo bindServerInfo(BungeeServerInfo serverInfo);
-
-    @Binds
-    TaskSystem bindTaskSystem(BungeeTaskSystem taskSystem);
 
     @Binds
     ListenerSystem bindListenerSystem(BungeeListenerSystem listenerSystem);

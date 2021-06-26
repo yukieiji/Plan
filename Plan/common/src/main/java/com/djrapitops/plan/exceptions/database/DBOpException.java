@@ -25,7 +25,7 @@ import java.util.Optional;
 /**
  * Runtime exception for wrapping database errors.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class DBOpException extends IllegalStateException implements ExceptionWithContext {
 
@@ -63,15 +63,6 @@ public class DBOpException extends IllegalStateException implements ExceptionWit
             case 1054: // MySQL
             case 1064:
             case 1146:
-            case 42000: // H2
-            case 42001:
-            case 42101:
-            case 42102:
-            case 42111:
-            case 42112:
-            case 42121:
-            case 42122:
-            case 42132:
                 context.related("SQL Grammar error")
                         .whatToDo("Report this, there is an SQL grammar error.");
                 break;
@@ -110,17 +101,6 @@ public class DBOpException extends IllegalStateException implements ExceptionWit
             case 1364:
             case 1451:
             case 1557:
-            case 22001: // H2
-            case 22003:
-            case 22012:
-            case 22018:
-            case 22025:
-            case 23000:
-            case 23002:
-            case 23502:
-            case 23506:
-            case 23507:
-            case 23513:
                 context.related("Constraint Violation")
                         .whatToDo("Report this, there is an SQL Constraint Violation.");
                 break;
@@ -128,7 +108,11 @@ public class DBOpException extends IllegalStateException implements ExceptionWit
             case 11:
             case 14:
                 context.related("SQLite file is corrupt.")
-                        .whatToDo("SQLite database is corrupt, restore database.db, .db-shm & .db-wal files from a backup, or repair the database: https://wordpress.semnaitik.com/repair-sqlite-database/.");
+                        .whatToDo("SQLite database is corrupt, restore database.db, .db-shm & .db-wal files from a backup, or repair the database: See https://wordpress.semnaitik.com/repair-sqlite-database/.");
+                break;
+            case 13:
+                context.related("Disk or temporary directory is full.")
+                        .whatToDo("Disk or temporary directory is full, attempt to clear space in the temporary directory. See https://sqlite.org/rescode.html#full");
                 break;
             case 1104:
                 context.whatToDo("MySQL has too small query limits for the query. SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# (higher number)");
@@ -143,7 +127,7 @@ public class DBOpException extends IllegalStateException implements ExceptionWit
             case 1267:
             case 1366:
                 context.related("Incorrect character encoding in MySQL")
-                        .whatToDo("Convert your MySQL database and tables to use uft8mb4: https://www.a2hosting.com/kb/developer-corner/mysql/convert-mysql-database-utf-8");
+                        .whatToDo("Convert your MySQL database and tables to use utf8mb4: https://www.a2hosting.com/kb/developer-corner/mysql/convert-mysql-database-utf-8");
                 break;
             default:
                 context.related("Unknown SQL Error code");

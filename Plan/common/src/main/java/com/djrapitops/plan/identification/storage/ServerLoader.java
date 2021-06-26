@@ -17,25 +17,25 @@
 package com.djrapitops.plan.identification.storage;
 
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerUUID;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Interface for operating on server information.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface ServerLoader {
 
     /**
      * Load the server information.
      *
-     * @param serverUUID
+     * @param serverUUID UUID of the server, null if not known
      * @return Optional of the saved information or empty if it has not been stored.
      * @throws com.djrapitops.plan.exceptions.EnableException When the loading fails
      */
-    Optional<Server> load(UUID serverUUID);
+    Optional<Server> load(ServerUUID serverUUID);
 
     /**
      * Save the server information.

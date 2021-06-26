@@ -16,7 +16,6 @@
  */
 package com.djrapitops.plan.delivery.formatting;
 
-import com.djrapitops.plugin.utilities.Format;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.TextStringBuilder;
 
@@ -25,7 +24,7 @@ import java.util.Arrays;
 /**
  * Formatter for Item names, that capitalizes each part and separates them with spaces instead of underscores.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ItemNameFormatter implements Formatter<String> {
 
@@ -33,7 +32,10 @@ public class ItemNameFormatter implements Formatter<String> {
     public String apply(String name) {
         String[] parts = StringUtils.split(name, '_');
         TextStringBuilder builder = new TextStringBuilder();
-        builder.appendWithSeparators(Arrays.stream(parts).map(part -> new Format(part).capitalize()).iterator(), " ");
+        builder.appendWithSeparators(Arrays.stream(parts)
+                .map(StringUtils::lowerCase)
+                .map(StringUtils::capitalize)
+                .iterator(), " ");
         return builder.toString();
     }
 }

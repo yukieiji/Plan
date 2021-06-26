@@ -19,6 +19,8 @@ package com.djrapitops.plan.extension.implementation.storage.transactions.provid
 import com.djrapitops.plan.extension.FormatType;
 import com.djrapitops.plan.extension.implementation.ProviderInformation;
 import com.djrapitops.plan.extension.implementation.providers.DataProvider;
+import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.building.Sql;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionIconTable;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionPluginTable;
@@ -29,7 +31,6 @@ import com.djrapitops.plan.storage.database.transactions.ThrowawayTransaction;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.AND;
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
@@ -38,16 +39,24 @@ import static com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderT
 /**
  * Transaction to store information about a simple {@link DataProvider}.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StoreProviderTransaction extends ThrowawayTransaction {
 
-    private final DataProvider<?> provider;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
+    private final ProviderInformation info;
 
-    public StoreProviderTransaction(DataProvider<?> provider, UUID serverUUID) {
-        this.provider = provider;
+    public StoreProviderTransaction(DataProvider<?> provider, ServerUUID serverUUID) {
+        this(provider.getProviderInformation(), serverUUID);
+    }
+
+    public StoreProviderTransaction(ProviderInformation info, Parameters parameters) {
+        this(info, parameters.getServerUUID());
+    }
+
+    public StoreProviderTransaction(ProviderInformation info, ServerUUID serverUUID) {
         this.serverUUID = serverUUID;
+        this.info = info;
     }
 
     @Override
@@ -84,8 +93,6 @@ public class StoreProviderTransaction extends ThrowawayTransaction {
         return new ExecStatement(sql) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                ProviderInformation info = provider.getProviderInformation();
-
                 // Found for all providers
                 statement.setString(1, info.getText());
                 Sql.setStringOrNull(statement, 2, info.getDescription().orElse(null));
@@ -130,8 +137,6 @@ public class StoreProviderTransaction extends ThrowawayTransaction {
         return new ExecStatement(sql) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                ProviderInformation info = provider.getProviderInformation();
-
                 // Found for all providers
                 statement.setString(1, info.getName());
                 statement.setString(2, info.getText());

@@ -16,23 +16,25 @@
  */
 package com.djrapitops.plan.version;
 
-import com.djrapitops.plugin.api.utility.Version;
-
 import java.util.Objects;
 
 /**
- * Data class for reading version.txt in https://github.com/Rsl1122/Plan-PlayerAnalytics.
+ * Data class for reading version.txt in https://github.com/AuroraLS3/Plan-PlayerAnalytics.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class VersionInfo implements Comparable<VersionInfo> {
 
     private final boolean release;
-    private final Version version;
+    private final VersionNumber version;
     private final String downloadUrl;
     private final String changeLogUrl;
 
-    public VersionInfo(boolean release, Version version, String downloadUrl, String changeLogUrl) {
+    public VersionInfo(boolean release, String version, String downloadUrl, String changeLogUrl) {
+        this(release, new VersionNumber(version), downloadUrl, changeLogUrl);
+    }
+
+    public VersionInfo(boolean release, VersionNumber version, String downloadUrl, String changeLogUrl) {
         this.release = release;
         this.version = version;
         this.downloadUrl = downloadUrl;
@@ -43,7 +45,7 @@ public class VersionInfo implements Comparable<VersionInfo> {
         return release;
     }
 
-    public Version getVersion() {
+    public VersionNumber getVersion() {
         return version;
     }
 
@@ -71,6 +73,6 @@ public class VersionInfo implements Comparable<VersionInfo> {
 
     @Override
     public int compareTo(VersionInfo o) {
-        return o.version.compareTo(this.version);
+        return this.version.compareTo(o.version);
     }
 }

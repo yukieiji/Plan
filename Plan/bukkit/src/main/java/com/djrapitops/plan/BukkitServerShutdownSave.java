@@ -21,7 +21,7 @@ import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.utilities.java.Reflection;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -29,7 +29,7 @@ import javax.inject.Singleton;
 /**
  * ServerShutdownSave implementation for Bukkit based servers.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class BukkitServerShutdownSave extends ServerShutdownSave {
@@ -49,14 +49,13 @@ public class BukkitServerShutdownSave extends ServerShutdownSave {
         try {
             return performCheck();
         } catch (Exception | NoClassDefFoundError | NoSuchFieldError e) {
-            logger.debug("Server shutdown check failed, using JVM ShutdownHook instead. Error: " + e.toString());
             return false; // ShutdownHook handles save in case this fails upon plugin disable.
         }
     }
 
     private boolean performCheck() {
         // Special thanks to Fuzzlemann for figuring out the methods required for this check.
-        // https://github.com/Rsl1122/Plan-PlayerAnalytics/issues/769#issuecomment-433898242
+        // https://github.com/plan-player-analytics/Plan/issues/769#issuecomment-433898242
         Class<?> minecraftServerClass = Reflection.getMinecraftClass("MinecraftServer");
         Object minecraftServer = Reflection.getField(minecraftServerClass, "SERVER", minecraftServerClass).get(null);
 

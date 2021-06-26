@@ -21,15 +21,14 @@ import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.config.paths.WebserverSettings;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import java.io.IOException;
 
 /**
  * In charge of disabling Webserver if a Proxy server is detected in the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class NonProxyWebserverDisableChecker implements Runnable {
 
@@ -75,7 +74,7 @@ public class NonProxyWebserverDisableChecker implements Runnable {
             config.save();
             logger.warn("Note: Set '" + WebserverSettings.DISABLED.getPath() + "' to true");
         } catch (IOException e) {
-            errorLogger.log(L.WARN, e, ErrorContext.builder()
+            errorLogger.warn(e, ErrorContext.builder()
                     .whatToDo("Set '" + WebserverSettings.DISABLED.getPath() + "' to true manually.")
                     .related("Disabling webserver in config setting", WebserverSettings.DISABLED.getPath()).build());
         }

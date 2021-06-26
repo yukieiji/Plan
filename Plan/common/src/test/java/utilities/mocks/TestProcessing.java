@@ -19,9 +19,9 @@ package utilities.mocks;
 import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.console.PluginLogger;
 import com.google.common.util.concurrent.MoreExecutors;
 import dagger.Lazy;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutorService;
 /**
  * Directly executing version of Processing for Tests to avoid concurrency issues during tests.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class TestProcessing extends Processing {

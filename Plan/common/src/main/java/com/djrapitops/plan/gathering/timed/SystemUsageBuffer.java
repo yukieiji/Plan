@@ -16,22 +16,24 @@
  */
 package com.djrapitops.plan.gathering.timed;
 
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.gathering.SystemUsage;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Task for performing system resource usage checks asynchronously
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class SystemUsageBuffer {
@@ -64,7 +66,7 @@ public class SystemUsageBuffer {
     }
 
     @Singleton
-    public static class RamAndCpuTask extends AbsRunnable {
+    public static class RamAndCpuTask extends TaskSystem.Task {
         private final SystemUsageBuffer buffer;
         private final PluginLogger logger;
 
@@ -84,10 +86,17 @@ public class SystemUsageBuffer {
                 cancel();
             }
         }
+
+        @Override
+        public void register(RunnableFactory runnableFactory) {
+            long delay = TimeAmount.toTicks(1, TimeUnit.MINUTES) - TimeAmount.toTicks(500, TimeUnit.MILLISECONDS);
+            long period = TimeAmount.toTicks(1, TimeUnit.SECONDS);
+            runnableFactory.create(this).runTaskTimerAsynchronously(delay, period);
+        }
     }
 
     @Singleton
-    public static class DiskTask extends AbsRunnable {
+    public static class DiskTask extends TaskSystem.Task {
         private final PlanConfig config;
         private final SystemUsageBuffer buffer;
         private final PluginLogger logger;
@@ -112,7 +121,7 @@ public class SystemUsageBuffer {
                 buffer.freeDiskSpace = SystemUsage.getFreeDiskSpace();
             } catch (SecurityException noPermission) {
                 if (!diskErrored) {
-                    errorLogger.log(L.WARN, noPermission, ErrorContext.builder()
+                    errorLogger.warn(noPermission, ErrorContext.builder()
                             .whatToDo("Resolve " + noPermission.getMessage() + " via OS or JVM permissions").build());
                 }
                 diskErrored = true;
@@ -120,6 +129,13 @@ public class SystemUsageBuffer {
                 logger.error("Free Disk sampling task had to be stopped due to error: " + e.toString());
                 cancel();
             }
+        }
+
+        @Override
+        public void register(RunnableFactory runnableFactory) {
+            long delay = TimeAmount.toTicks(50, TimeUnit.SECONDS);
+            long period = TimeAmount.toTicks(1, TimeUnit.SECONDS);
+            runnableFactory.create(this).runTaskTimerAsynchronously(delay, period);
         }
     }
 

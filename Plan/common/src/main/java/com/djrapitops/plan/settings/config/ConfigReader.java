@@ -16,8 +16,6 @@
  */
 package com.djrapitops.plan.settings.config;
 
-import com.djrapitops.plugin.utilities.Verify;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,7 +29,7 @@ import java.util.Scanner;
  * <p>
  * ConfigReader can read a single file at a time, so it is NOT thread safe.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ConfigReader implements Closeable {
 
@@ -93,7 +91,7 @@ public class ConfigReader implements Closeable {
      * @throws IllegalStateException If the configReader is closed by calling {@link ConfigReader#close()}
      */
     public Config read() {
-        Verify.isFalse(closed, () -> new IllegalStateException("ConfigReader has been closed."));
+        if (closed) throw new IllegalStateException("ConfigReader has been closed.");
 
         Config config = new Config();
 
@@ -120,11 +118,11 @@ public class ConfigReader implements Closeable {
 
             int currentDepth = findCurrentDepth(line);
             parent = findParent(lastDepth, currentDepth);
-            Verify.nullCheck(parent, () -> new IllegalStateException("Could not determine parent on line: \"" + line + "\""));
+            if (parent == null) throw new IllegalStateException("Could not determine parent on line: \"" + line + "\"");
 
             // Get the node the line belongs to
             previousNode = parseNode(trimmed);
-            Verify.nullCheck(previousNode, () -> new IllegalStateException("Could not parse node on line: \"" + line + "\""));
+            if (previousNode == null) throw new IllegalStateException("Could not parse node on line: \"" + line + "\"");
 
             lastDepth = currentDepth;
             handleUnboundComments();

@@ -21,8 +21,9 @@ import com.djrapitops.plan.delivery.domain.container.PerServerContainer;
 import com.djrapitops.plan.delivery.domain.container.SupplierDataContainer;
 import com.djrapitops.plan.delivery.domain.keys.Key;
 import com.djrapitops.plan.delivery.domain.keys.PerServerKeys;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.UserInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.SQLDB;
 import com.djrapitops.plan.storage.database.queries.PerServerAggregateQueries;
 import com.djrapitops.plan.storage.database.queries.Query;
@@ -32,12 +33,13 @@ import com.djrapitops.plan.storage.database.queries.objects.WorldTimesQueries;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Used to get a PerServerContainer for a specific player.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PerServerContainerQuery implements Query<PerServerContainer> {
 
@@ -58,10 +60,10 @@ public class PerServerContainerQuery implements Query<PerServerContainer> {
         totalDeathCount(db, perServerContainer);
         worldTimes(db, perServerContainer);
 
-        Map<UUID, List<Session>> sessions = db.query(SessionQueries.fetchSessionsOfPlayer(playerUUID));
-        for (Map.Entry<UUID, List<Session>> entry : sessions.entrySet()) {
-            UUID serverUUID = entry.getKey();
-            List<Session> serverSessions = entry.getValue();
+        Map<ServerUUID, List<FinishedSession>> sessions = db.query(SessionQueries.fetchSessionsOfPlayer(playerUUID));
+        for (Map.Entry<ServerUUID, List<FinishedSession>> entry : sessions.entrySet()) {
+            ServerUUID serverUUID = entry.getKey();
+            List<FinishedSession> serverSessions = entry.getValue();
 
             DataContainer serverContainer = perServerContainer.getOrDefault(serverUUID, new SupplierDataContainer());
             serverContainer.putRawData(PerServerKeys.SESSIONS, serverSessions);
@@ -93,12 +95,12 @@ public class PerServerContainerQuery implements Query<PerServerContainer> {
     }
 
     private void userInformation(SQLDB db, PerServerContainer container) {
-        List<UserInfo> userInformation = db.query(UserInfoQueries.fetchUserInformationOfUser(playerUUID));
+        Set<UserInfo> userInformation = db.query(UserInfoQueries.fetchUserInformationOfUser(playerUUID));
         container.putUserInfo(userInformation);
     }
 
-    private <T> void matchingEntrySet(Key<T> key, Query<Map<UUID, T>> map, SQLDB db, PerServerContainer container) {
-        for (Map.Entry<UUID, T> entry : db.query(map).entrySet()) {
+    private <T> void matchingEntrySet(Key<T> key, Query<Map<ServerUUID, T>> map, SQLDB db, PerServerContainer container) {
+        for (Map.Entry<ServerUUID, T> entry : db.query(map).entrySet()) {
             container.putToContainerOfServer(entry.getKey(), key, entry.getValue());
         }
     }

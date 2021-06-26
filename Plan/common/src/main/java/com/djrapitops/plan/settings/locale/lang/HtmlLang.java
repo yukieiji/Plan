@@ -19,7 +19,7 @@ package com.djrapitops.plan.settings.locale.lang;
 /**
  * Lang enum for all text included in the html files.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public enum HtmlLang implements Lang {
 
@@ -35,6 +35,7 @@ public enum HtmlLang implements Lang {
     SIDE_PLAYERBASE_OVERVIEW("Playerbase Overview"),
     SIDE_GEOLOCATIONS("Geolocations"),
     SIDE_PLUGINS("PLUGINS"), // Nav group title
+    SIDE_LINKS("LINKS"),
     UNIT_NO_DATA("No Data"), // Generic
     // Modals
     TITLE_THEME_SELECT("Theme Select"),
@@ -44,6 +45,7 @@ public enum HtmlLang implements Lang {
     LINK_WIKI("Plan Wiki, Tutorials & Documentation"),
     LINK_ISSUES("Report Issues"),
     LINK_DISCORD("General Support on Discord"),
+    AND_BUG_REPORTERS("& Bug reporters!"),
     TEXT_DEVELOPED_BY("is developed by"),
     TEXT_CONTRIBUTORS_THANKS("In addition following <span class=\"col-plan\">awesome people</span> have contributed:"),
     TEXT_CONTRIBUTORS_CODE("code contributor"),
@@ -59,6 +61,7 @@ public enum HtmlLang implements Lang {
     // Network overview tab
     TITLE_GRAPH_NETWORK_ONLINE_ACTIVITY("Network Online Activity"),
     TITLE_GRAPH_DAY_BY_DAY("Day by Day"),
+    TITLE_GRAPH_HOUR_BY_HOUR("Hour by Hour"),
     UNIT_THE_PLAYERS("Players"),
     TITLE_LAST_24_HOURS("Last 24 hours"),
     TITLE_LAST_7_DAYS("Last 7 days"),
@@ -71,9 +74,13 @@ public enum HtmlLang implements Lang {
     LABEL_PLAYERS_ONLINE("Players Online"),
     LABEL_TOTAL_PLAYTIME("Total Playtime"),
     LABEL_PLAYTIME("Playtime"),
+    LABEL_ACTIVE_PLAYTIME("Active Playtime"),
     LABEL_LAST_PEAK("Last Peak"),
     LABEL_BEST_PEAK("Best Peak"),
     LABEL_AVG_PLAYTIME("Average Playtime"),
+    LABEL_AVG_SESSIONS("Average Sessions"),
+    LABEL_AVG_ACTIVE_PLAYTIME("Average Active Playtime"),
+    LABEL_AVG_AFK_TIME("Average AFK Time"),
     LABEL_PER_PLAYER("/ Player"),
     LABEL_AVG_SESSION_LENGTH("Average Session Length"),
     TITLE_WEEK_COMPARISON("Week Comparison"),
@@ -85,6 +92,8 @@ public enum HtmlLang implements Lang {
     TITLE_30_DAYS("30 days"),
     TITLE_AS_NUMBERS("as Numbers"),
     LABEL_AVG_TPS("Average TPS"),
+    LABEL_AVG_ENTITIES("Average Entities"),
+    LABEL_AVG_CHUNKS("Average Chunks"),
     LABEL_LOW_TPS("Low TPS Spikes"),
     LABEL_DOWNTIME("Downtime"),
     // Sessions tab
@@ -92,7 +101,7 @@ public enum HtmlLang implements Lang {
     TITLE_PLAYER("Player"),
     TITLE_SESSION_START("Session Started"),
     TITLE_LENGTH(" Length"),
-    TITLE_SERVER("Server"), // Can cause issue with jquery.dataTables.js
+    TITLE_SERVER("Server"), // Can cause issue with datatables.js
     TITLE_MOST_PLAYED_WORLD("Most played World"),
     TEXT_CLICK_TO_EXPAND("Click to expand"),
     TITLE_SERVER_PLAYTIME_30("Server Playtime for 30 days"),
@@ -102,6 +111,7 @@ public enum HtmlLang implements Lang {
     // Playerbase overview tab
     TITLE_PLAYERBASE_DEVELOPMENT("Playerbase development"),
     TITLE_CURRENT_PLAYERBASE("Current Playerbase"),
+    TITLE_JOIN_ADDRESSES("Join Addresses"),
     COMPARING_60_DAYS("Comparing 30d ago to Now"),
     TITLE_30_DAYS_AGO("30 days ago"),
     TITLE_NOW("Now"),
@@ -122,6 +132,7 @@ public enum HtmlLang implements Lang {
     SIDE_PVP_PVE("PvP & PvE"),
     SIDE_PERFORMANCE("Performance"),
     LABEL_RETENTION("New Player Retention"),
+    DESCRIBE_RETENTION_PREDICTION("This value is a prediction based on previous players."),
     TITLE_SERVER_AS_NUMBERS("Server as Numbers"),
     TITLE_ONLINE_ACTIVITY_AS_NUMBERS("Online Activity as Numbers"),
     COMPARING_15_DAYS("Comparing 15 days"),
@@ -211,7 +222,48 @@ public enum HtmlLang implements Lang {
     WITH("<th>With"),
     NO_KILLS("No Kills"),
     LABEL_MAX_FREE_DISK("Max Free Disk"),
-    LABEL_MIN_FREE_DISK("Min Free Disk")
+    LABEL_MIN_FREE_DISK("Min Free Disk"),
+
+    LOGIN_LOGIN("Login"),
+    LOGIN_LOGOUT("Logout"),
+    LOGIN_USERNAME("\"Username\""),
+    LOGIN_PASSWORD("\"Password\""),
+    LOGIN_FORGOT_PASSWORD("Forgot Password?"),
+    LOGIN_CREATE_ACCOUNT("Create an Account!"),
+    LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_1("Forgot password? Unregister and register again."),
+    LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_2("Use the following command in game to remove your current user:"),
+    LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_3("Or using console:"),
+    LOGIN_FORGOT_PASSWORD_INSTRUCTIONS_4("After using the command, "),
+    LOGIN_FAILED("Login failed: "),
+    REGISTER("Register"),
+    REGISTER_CREATE_USER("Create a new user"),
+    REGISTER_USERNAME_TIP("Username can be up to 50 characters."),
+    REGISTER_PASSWORD_TIP("Password should be more than 8 characters, but there are no limitations."),
+    REGISTER_HAVE_ACCOUNT("Already have an account? Login!"),
+    REGISTER_USERNAME_LENGTH("Username can be up to 50 characters, yours is "),
+    REGISTER_SPECIFY_USERNAME("You need to specify a Username"),
+    REGISTER_SPECIFY_PASSWORD("You need to specify a Password"),
+    REGISTER_COMPLETE("Complete Registration"),
+    REGISTER_COMPLETE_INSTRUCTIONS_1("You can now finish registering the user."),
+    REGISTER_COMPLETE_INSTRUCTIONS_2("Code expires in 15 minutes"),
+    REGISTER_COMPLETE_INSTRUCTIONS_3("Use the following command in game to finish registration:"),
+    REGISTER_COMPLETE_INSTRUCTIONS_4("Or using console:"),
+    REGISTER_FAILED("Registration failed: "),
+    REGISTER_CHECK_FAILED("Checking registration status failed: "),
+
+    QUERY_PERFORM_QUERY("Perform Query!"),
+    QUERY_LOADING_FILTERS("Loading filters.."),
+    QUERY_ADD_FILTER("Add a filter.."),
+    QUERY_TIME_TO(">to</label>"),
+    QUERY_TIME_FROM(">from</label>"),
+    QUERY_SHOW_VIEW("Show a view"),
+    QUERY("Query<"),
+    QUERY_MAKE_ANOTHER("Make another query"),
+    QUERY_MAKE("Make a query"),
+
+    WARNING_NO_GAME_SERVERS("Some data requires Plan to be installed on game servers."),
+    WARNING_NO_GEOLOCATIONS("Geolocation gathering needs to be enabled in the config (Accept GeoLite2 EULA)."),
+    WARNING_NO_SPONGE_CHUNKS("Chunks unavailable on Sponge"),
     ;
 
     private final String defaultValue;

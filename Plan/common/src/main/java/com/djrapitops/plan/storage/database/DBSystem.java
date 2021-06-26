@@ -21,7 +21,7 @@ import com.djrapitops.plan.exceptions.EnableException;
 import com.djrapitops.plan.exceptions.database.DBInitException;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.PluginLang;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Singleton;
 import java.util.HashSet;
@@ -30,14 +30,13 @@ import java.util.Set;
 /**
  * System that holds the active databases.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class DBSystem implements SubSystem {
 
     protected final Locale locale;
     private final SQLiteDB.Factory sqLiteFactory;
-    private final H2DB.Factory h2Factory;
     protected final PluginLogger logger;
 
     protected Database db;
@@ -46,17 +45,18 @@ public class DBSystem implements SubSystem {
     public DBSystem(
             Locale locale,
             SQLiteDB.Factory sqLiteDB,
-            H2DB.Factory h2Factory,
             PluginLogger logger
     ) {
         this.locale = locale;
         this.sqLiteFactory = sqLiteDB;
-        this.h2Factory = h2Factory;
         this.logger = logger;
         databases = new HashSet<>();
     }
 
     public Database getActiveDatabaseByName(String dbName) {
+        if ("h2".equalsIgnoreCase(dbName)) {
+            throw new EnableException("H2 database is NO LONGER SUPPORTED. Downgrade to 5.3 build 1284 and migrate to SQLite or MySQL using '/plan db move h2 <db>' command");
+        }
         return DBType.getForName(dbName)
                 .map(this::getActiveDatabaseByType)
                 .orElseThrow(() -> new IllegalArgumentException(locale.getString(PluginLang.ENABLE_FAIL_WRONG_DB, dbName)));
@@ -107,7 +107,4 @@ public class DBSystem implements SubSystem {
         return sqLiteFactory;
     }
 
-    public H2DB.Factory getH2Factory() {
-        return h2Factory;
-    }
 }

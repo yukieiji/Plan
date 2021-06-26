@@ -19,15 +19,16 @@ package com.djrapitops.plan.settings.locale.lang;
 /**
  * {@link Lang} implementation for Language that is logged when the plugin enables or disables.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public enum PluginLang implements Lang {
     ENABLED("Enable", "Player Analytics Enabled."),
-    ENABLED_WEB_SERVER("Enable - WebServer", "Webserver running on PORT ${0} (${1})"),
+    ENABLED_WEB_SERVER("Enable - WebServer", "Webserver running on PORT ${0} ( ${1} )"),
     ENABLED_DATABASE("Enable - Database", "${0}-database connection established."),
     API_ADD_RESOURCE_JS("API - js+", "PageExtension: ${0} added javascript(s) to ${1}, ${2}"),
     API_ADD_RESOURCE_CSS("API - css+", "PageExtension: ${0} added stylesheet(s) to ${1}, ${2}"),
 
+    ENABLE_NOTIFY_STORING_PRESERVED_SESSIONS("Enable - Storing preserved sessions", "Storing sessions that were preserved before previous shutdown."),
     ENABLE_NOTIFY_EMPTY_IP("Enable - Notify Empty IP", "IP in server.properties is empty & Alternative_IP is not in use. Incorrect links might be given!"),
     ENABLE_NOTIFY_BAD_IP("Enable - Notify Bad IP", "0.0.0.0 is not a valid address, set up Alternative_IP settings. Incorrect links might be given!"),
     ENABLE_NOTIFY_WEB_SERVER_DISABLED("Enable - Notify Webserver disabled", "WebServer was not initialized. (WebServer.DisableWebServer: true)"),
@@ -45,7 +46,7 @@ public enum PluginLang implements Lang {
     WEB_SERVER_FAIL_EMPTY_FILE("WebServer FAIL - EOF", "WebServer: EOF when reading Certificate file. (Check that the file is not empty)"),
     WEB_SERVER_NOTIFY_NO_CERT_FILE("WebServer - Notify no Cert file", "WebServer: Certificate KeyStore File not Found: ${0}"),
     WEB_SERVER_NOTIFY_HTTP("WebServer - Notify HTTP", "WebServer: No Certificate -> Using HTTP-server for Visualization."),
-    WEB_SERVER_NOTIFY_USING_PROXY_MODE("WebServer - Notify Using Proxy", "WebServer: Proxy-mode HTTPS enabled, make sure that your reverse-proxy is routing using HTTPS and Plan Alternative_IP.Link points to the Proxy"),
+    WEB_SERVER_NOTIFY_USING_PROXY_MODE("WebServer - Notify Using Proxy", "WebServer: Proxy-mode HTTPS enabled, make sure that your reverse-proxy is routing using HTTPS and Plan Alternative_IP.Address points to the Proxy"),
     WEB_SERVER_NOTIFY_HTTP_USER_AUTH("WebServer - Notify HTTP User Auth", "WebServer: User Authorization Disabled! (Not secure over HTTP)"),
     WEB_SERVER_NOTIFY_HTTPS_USER_AUTH("WebServer - Notify HTTPS User Auth", "WebServer: User Authorization Disabled! (Disabled in config)"),
     WEB_SERVER_NOTIFY_IP_WHITELIST("Webserver - Notify IP Whitelist", "Webserver: IP Whitelist is enabled."),
@@ -56,6 +57,11 @@ public enum PluginLang implements Lang {
     DISABLED_PROCESSING("Disable - Processing", "Processing critical unprocessed tasks. (${0})"),
     DISABLED_PROCESSING_COMPLETE("Disable - Processing Complete", "Processing complete."),
     DISABLED_UNSAVED_SESSIONS("Disable - Unsaved Session Save", "Saving unfinished sessions.."),
+    DISABLED_UNSAVED_SESSIONS_TIMEOUT("Disable - Unsaved Session Save Timeout", "Timeout hit, storing the unfinished sessions on next enable instead."),
+    DISABLED_WAITING_SQLITE("Disable - Waiting SQLite", "Waiting queries to finish to avoid SQLite crashing JVM.."),
+    DISABLED_WAITING_SQLITE_COMPLETE("Disable - Waiting SQLite Complete", "Closed SQLite connection."),
+    DISABLED_WAITING_TRANSACTIONS("Disable - Waiting Transactions", "Waiting for unfinished transactions to avoid data loss.."),
+    DISABLED_WAITING_TRANSACTIONS_COMPLETE("Disable - Waiting Transactions Complete", "Transaction queue closed."),
 
     VERSION_NEWEST("Version - Latest", "You're using the latest version."),
     VERSION_AVAILABLE("Version - New", "New Release (${0}) is available ${1}"),
@@ -64,12 +70,21 @@ public enum PluginLang implements Lang {
     VERSION_FAIL_READ_VERSIONS("Version FAIL - Read versions.txt", "Version information could not be loaded from Github/versions.txt"),
     VERSION_FAIL_READ_OLD("Version FAIL - Read info (old)", "Failed to check newest version number"),
 
+    VERSION_UPDATE("HTML - Version Update", "Update"),
+    VERSION_UPDATE_AVAILABLE("HTML - Version Update Available", "Version ${0} is Available!"),
+    VERSION_UPDATE_INFO("HTML - Version Update Info", "A new version has been released and is now available for download."),
+    VERSION_UPDATE_DEV("HTML - Version Update Dev", "This version is a DEV release."),
+    VERSION_CHANGE_LOG("HTML - Version Change log", "View Changelog"),
+    VERSION_DOWNLOAD("HTML - Version Download", "Download Plan-${0}.jar"),
+    VERSION_CURRENT("HTML - Version Current", "You have version ${0}"),
+
     DB_APPLY_PATCH("Database - Apply Patch", "Applying Patch: ${0}.."),
     DB_APPLIED_PATCHES("Database - Patches Applied", "All database patches applied successfully."),
     DB_APPLIED_PATCHES_ALREADY("Database - Patches Applied Already", "All database patches already applied."),
     DB_NOTIFY_CLEAN("Database Notify - Clean", "Removed data of ${0} players."),
     DB_NOTIFY_SQLITE_WAL("Database Notify - SQLite No WAL", "SQLite WAL mode not supported on this server version, using default. This may or may not affect performance."),
-    DB_MYSQL_LAUNCH_OPTIONS_FAIL("Database MySQL - Launch Options Error", "Launch Options were faulty, using default (${0})");
+    DB_MYSQL_LAUNCH_OPTIONS_FAIL("Database MySQL - Launch Options Error", "Launch Options were faulty, using default (${0})"),
+    LOADING_SERVER_INFO("ServerInfo - Loading", "Loading server identifying information");
 
     private final String identifier;
     private final String defaultValue;

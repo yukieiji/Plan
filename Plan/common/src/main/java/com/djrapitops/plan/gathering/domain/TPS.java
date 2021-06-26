@@ -23,7 +23,7 @@ import java.util.Objects;
 /**
  * Class containing single datapoint of TPS / Players online / CPU Usage / Used Memory / Entity Count / Chunks loaded.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class TPS implements DateHolder {
 
@@ -97,7 +97,7 @@ public class TPS implements DateHolder {
      * @return 0-100 double
      */
     public double getCPUUsage() {
-        return cpuUsage;
+        return Double.isNaN(cpuUsage) ? -1.0 : cpuUsage;
     }
 
     /**
@@ -167,5 +167,18 @@ public class TPS implements DateHolder {
                 "entityCount=" + entityCount + ", " +
                 "chunksLoaded=" + chunksLoaded + ", " +
                 "freeDiskSpace=" + freeDiskSpace + '}';
+    }
+
+    public Number[] toArray() {
+        return new Number[]{
+                getDate(),
+                getPlayers(),
+                getTicksPerSecond(),
+                getCPUUsage(),
+                getUsedMemory(),
+                getEntityCount(),
+                getChunksLoaded(),
+                getFreeDiskSpace()
+        };
     }
 }

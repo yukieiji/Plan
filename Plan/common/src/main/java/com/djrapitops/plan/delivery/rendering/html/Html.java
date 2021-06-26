@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public enum Html {
 
@@ -78,6 +78,8 @@ public enum Html {
      * @return String with span elements.
      */
     public static String swapColorCodesToSpan(String string) {
+        if (string == null) return null;
+
         Html[] replacer = new Html[]{
                 Html.COLOR_0, Html.COLOR_1, Html.COLOR_2, Html.COLOR_3,
                 Html.COLOR_4, Html.COLOR_5, Html.COLOR_6, Html.COLOR_7,

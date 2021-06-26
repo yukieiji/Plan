@@ -16,33 +16,41 @@
  */
 package com.djrapitops.plan.storage.database.transactions.events;
 
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.DataStoreQueries;
 import com.djrapitops.plan.storage.database.queries.PlayerFetchQueries;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * Transaction for registering player's BaseUser and UserInfo to the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayerServerRegisterTransaction extends PlayerRegisterTransaction {
 
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
+    private final Supplier<String> getJoinAddress;
 
-    public PlayerServerRegisterTransaction(UUID playerUUID, LongSupplier registered, String playerName, UUID serverUUID) {
+    public PlayerServerRegisterTransaction(UUID playerUUID, LongSupplier registered,
+                                           String playerName, ServerUUID serverUUID, Supplier<String> getJoinAddress) {
         super(playerUUID, registered, playerName);
         this.serverUUID = serverUUID;
+        this.getJoinAddress = getJoinAddress;
     }
 
     @Override
     protected void performOperations() {
         super.performOperations();
         long registerDate = registered.getAsLong();
+        String joinAddress = getJoinAddress();
+
         if (Boolean.FALSE.equals(query(PlayerFetchQueries.isPlayerRegisteredOnServer(playerUUID, serverUUID)))) {
-            execute(DataStoreQueries.registerUserInfo(playerUUID, registerDate, serverUUID));
+            execute(DataStoreQueries.registerUserInfo(playerUUID, registerDate, serverUUID, joinAddress));
         }
 
         // Updates register date to smallest possible value.
@@ -50,5 +58,19 @@ public class PlayerServerRegisterTransaction extends PlayerRegisterTransaction {
         if (foundRegisterDate.isPresent() && foundRegisterDate.get() > registerDate) {
             execute(DataStoreQueries.updateMainRegisterDate(playerUUID, registerDate));
         }
+
+        execute(DataStoreQueries.updateJoinAddress(playerUUID, serverUUID, joinAddress));
+    }
+
+    private String getJoinAddress() {
+        String joinAddress = this.getJoinAddress.get();
+        // Removes client information given by Forge Mod Loader or Geysir
+        if (joinAddress != null && StringUtils.contains(joinAddress, '\u0000')) {
+            String[] split = StringUtils.split(joinAddress, "\u0000", 2);
+            joinAddress = split.length > 0 ? split[0] : joinAddress;
+        }
+
+        // Truncates the address to fit database.
+        return StringUtils.truncate(joinAddress, 255);
     }
 }

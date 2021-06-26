@@ -25,7 +25,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.INT;
 /**
  * Table information about 'plan_extension_user_table_values'.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionPlayerTableValueTable {
 
@@ -35,6 +35,7 @@ public class ExtensionPlayerTableValueTable {
     public static final String TABLE_ID = "table_id";
     public static final String USER_UUID = "uuid";
 
+    public static final String TABLE_ROW = "table_row";
     // All values can be null
     public static final String VALUE_1 = "col_1_value";
     public static final String VALUE_2 = "col_2_value";
@@ -49,6 +50,7 @@ public class ExtensionPlayerTableValueTable {
         return CreateTableBuilder.create(TABLE_NAME, dbType)
                 .column(ID, INT).primaryKey()
                 .column(USER_UUID, Sql.varchar(36)).notNull()
+                .column(TABLE_ROW, INT).notNull().defaultValue("0")
                 .column(VALUE_1, Sql.varchar(250))
                 .column(VALUE_2, Sql.varchar(250))
                 .column(VALUE_3, Sql.varchar(250))

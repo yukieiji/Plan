@@ -17,25 +17,25 @@
 package com.djrapitops.plan.storage.database.queries;
 
 import com.djrapitops.plan.delivery.domain.Nickname;
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
 import com.djrapitops.plan.gathering.domain.*;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.*;
 import com.djrapitops.plan.storage.database.transactions.ExecBatchStatement;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
-import com.djrapitops.plugin.utilities.Verify;
 import org.apache.commons.lang3.StringUtils;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.UUID;
 
+import static com.djrapitops.plan.storage.database.sql.building.Sql.AND;
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 
 /**
  * Static method class for single item store queries.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class DataStoreQueries {
 
@@ -46,12 +46,10 @@ public class DataStoreQueries {
     /**
      * Store a finished session in the database.
      *
-     * @param session Session, of which {@link Session#endSession(long)} has been called.
+     * @param session a finished session
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
-     * @throws IllegalArgumentException If {@link Session#endSession(long)} has not yet been called.
      */
-    public static Executable storeSession(Session session) {
-        Verify.isTrue(session.supports(SessionKeys.END), () -> new IllegalArgumentException("Attempted to save a session that has not ended."));
+    public static Executable storeSession(FinishedSession session) {
         return connection -> {
             storeSessionInformation(session).execute(connection);
             storeSessionKills(session).execute(connection);
@@ -59,22 +57,22 @@ public class DataStoreQueries {
         };
     }
 
-    private static Executable storeSessionInformation(Session session) {
+    private static Executable storeSessionInformation(FinishedSession session) {
         return new ExecStatement(SessionsTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                statement.setString(1, session.getUnsafe(SessionKeys.UUID).toString());
-                statement.setLong(2, session.getUnsafe(SessionKeys.START));
-                statement.setLong(3, session.getUnsafe(SessionKeys.END));
-                statement.setInt(4, session.getValue(SessionKeys.DEATH_COUNT).orElse(0));
-                statement.setInt(5, session.getValue(SessionKeys.MOB_KILL_COUNT).orElse(0));
-                statement.setLong(6, session.getValue(SessionKeys.AFK_TIME).orElse(0L));
-                statement.setString(7, session.getUnsafe(SessionKeys.SERVER_UUID).toString());
+                statement.setString(1, session.getPlayerUUID().toString());
+                statement.setLong(2, session.getStart());
+                statement.setLong(3, session.getEnd());
+                statement.setInt(4, session.getDeathCount());
+                statement.setInt(5, session.getMobKillCount());
+                statement.setLong(6, session.getAfkTime());
+                statement.setString(7, session.getServerUUID().toString());
             }
         };
     }
 
-    private static Executable storeSessionKills(Session session) {
+    private static Executable storeSessionKills(FinishedSession session) {
         return new ExecBatchStatement(KillsTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -83,7 +81,7 @@ public class DataStoreQueries {
         };
     }
 
-    public static Executable insertWorldName(UUID serverUUID, String worldName) {
+    public static Executable insertWorldName(ServerUUID serverUUID, String worldName) {
         return new ExecStatement(WorldTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -93,10 +91,7 @@ public class DataStoreQueries {
         };
     }
 
-    private static Executable storeSessionWorldTimes(Session session) {
-        if (session.getValue(SessionKeys.WORLD_TIMES).map(times -> times.getWorldTimes().isEmpty()).orElse(true)) {
-            return Executable.empty();
-        }
+    private static Executable storeSessionWorldTimes(FinishedSession session) {
         return new ExecBatchStatement(WorldTimesTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -190,7 +185,7 @@ public class DataStoreQueries {
      * @param serverUUID UUID of the Plan server.
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable registerUserInfo(UUID playerUUID, long registered, UUID serverUUID) {
+    public static Executable registerUserInfo(UUID playerUUID, long registered, ServerUUID serverUUID, String joinAddress) {
         return new ExecStatement(UserInfoTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -198,7 +193,8 @@ public class DataStoreQueries {
                 statement.setLong(2, registered);
                 statement.setString(3, serverUUID.toString());
                 statement.setBoolean(4, false); // Banned
-                statement.setBoolean(5, false); // Operator
+                statement.setString(5, joinAddress);
+                statement.setBoolean(6, false); // Operator
             }
         };
     }
@@ -224,7 +220,7 @@ public class DataStoreQueries {
      * @param ping       Ping data entry
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storePing(UUID playerUUID, UUID serverUUID, Ping ping) {
+    public static Executable storePing(UUID playerUUID, ServerUUID serverUUID, Ping ping) {
         return new ExecStatement(PingTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -245,7 +241,7 @@ public class DataStoreQueries {
      * @param tps        TPS data entry
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storeTPS(UUID serverUUID, TPS tps) {
+    public static Executable storeTPS(ServerUUID serverUUID, TPS tps) {
         return new ExecStatement(TPSTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
@@ -298,6 +294,21 @@ public class DataStoreQueries {
                 statement.setString(2, nickname.getServerUUID().toString());
                 statement.setString(3, nickname.getName());
                 statement.setLong(4, nickname.getDate());
+            }
+        };
+    }
+
+    public static Executable updateJoinAddress(UUID playerUUID, ServerUUID serverUUID, String joinAddress) {
+        String sql = "UPDATE " + UserInfoTable.TABLE_NAME + " SET " +
+                UserInfoTable.JOIN_ADDRESS + "=?" +
+                WHERE + UserInfoTable.USER_UUID + "=?" +
+                AND + UserInfoTable.SERVER_UUID + "=?";
+        return new ExecStatement(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setString(1, joinAddress);
+                statement.setString(2, playerUUID.toString());
+                statement.setString(3, serverUUID.toString());
             }
         };
     }

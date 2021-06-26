@@ -17,12 +17,11 @@
 package com.djrapitops.plan.storage.database.sql.building;
 
 import com.djrapitops.plan.storage.database.DBType;
-import com.djrapitops.plugin.utilities.Verify;
 
 /**
  * SQL Builder creating statements for table creation, removal and modification.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class CreateTableBuilder {
 
@@ -130,7 +129,9 @@ public class CreateTableBuilder {
     public String toString() {
         finalizeColumn();
 
-        Verify.isTrue(columnCount > 0, () -> new IllegalStateException("No columns specified for statement '" + columns.toString() + "..'"));
+        if (columnCount <= 0) {
+            throw new IllegalStateException("No columns specified for statement '" + columns.toString() + "..'");
+        }
         if (constraintCount > 0) {
             return columns.toString() + ',' + keyConstraints.toString() + ')';
         } else {

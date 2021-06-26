@@ -34,24 +34,26 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class LoginResolver implements NoAuthResolver {
 
     private final DBSystem dbSystem;
+    private final ActiveCookieStore activeCookieStore;
 
     @Inject
     public LoginResolver(
-            DBSystem dbSystem
+            DBSystem dbSystem,
+            ActiveCookieStore activeCookieStore
     ) {
         this.dbSystem = dbSystem;
+        this.activeCookieStore = activeCookieStore;
     }
 
     @Override
     public Optional<Response> resolve(Request request) {
         try {
-            String cookie = ActiveCookieStore.generateNewCookie(getUser(request));
+            String cookie = activeCookieStore.generateNewCookie(getUser(request));
             return Optional.of(getResponse(cookie));
         } catch (DBOpException | PassEncryptException e) {
             throw new WebUserAuthException(e);
@@ -61,7 +63,7 @@ public class LoginResolver implements NoAuthResolver {
     public Response getResponse(String cookie) {
         return Response.builder()
                 .setStatus(200)
-                .setHeader("Set-Cookie", "auth=" + cookie + "; Path=/; Max-Age=" + TimeUnit.HOURS.toSeconds(2L) + "; SameSite=Lax; Secure;")
+                .setHeader("Set-Cookie", "auth=" + cookie + "; Path=/; Max-Age=" + ActiveCookieStore.cookieExpiresAfter + "; SameSite=Lax; Secure;")
                 .setJSONContent(Collections.singletonMap("success", true))
                 .build();
     }
@@ -71,7 +73,7 @@ public class LoginResolver implements NoAuthResolver {
         String username = query.get("user").orElseThrow(() -> new BadRequestException("'user' parameter not defined"));
         String password = query.get("password").orElseThrow(() -> new BadRequestException("'password' parameter not defined"));
         User user = dbSystem.getDatabase().query(WebUserQueries.fetchUser(username))
-                .orElseThrow(() -> new BadRequestException(FailReason.USER_DOES_NOT_EXIST.getReason() + ": " + username));
+                .orElseThrow(() -> new WebUserAuthException(FailReason.USER_PASS_MISMATCH));
 
         boolean correctPass = user.doesPasswordMatch(password);
         if (!correctPass) {

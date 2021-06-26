@@ -18,6 +18,7 @@ package com.djrapitops.plan.storage.database.transactions.events;
 
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.gathering.domain.Ping;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.DataStoreQueries;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
 import com.djrapitops.plan.utilities.Predicates;
@@ -30,15 +31,15 @@ import java.util.UUID;
 /**
  * Transaction to store player's Ping value on a server.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PingStoreTransaction extends Transaction {
 
     private final UUID playerUUID;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final List<DateObj<Integer>> pingList;
 
-    public PingStoreTransaction(UUID playerUUID, UUID serverUUID, List<DateObj<Integer>> pingList) {
+    public PingStoreTransaction(UUID playerUUID, ServerUUID serverUUID, List<DateObj<Integer>> pingList) {
         this.playerUUID = playerUUID;
         this.serverUUID = serverUUID;
         this.pingList = pingList;

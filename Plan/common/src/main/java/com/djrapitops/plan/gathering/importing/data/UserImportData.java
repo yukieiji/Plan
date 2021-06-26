@@ -19,6 +19,7 @@ package com.djrapitops.plan.gathering.importing.data;
 import com.djrapitops.plan.delivery.domain.Nickname;
 import com.djrapitops.plan.gathering.domain.GMTimes;
 import com.djrapitops.plan.gathering.domain.PlayerKill;
+import com.djrapitops.plan.identification.ServerUUID;
 
 import java.util.*;
 
@@ -44,7 +45,11 @@ public class UserImportData {
     private int mobKills;
     private int deaths;
 
-    private UserImportData(String name, UUID uuid, List<Nickname> nicknames, long registered, boolean op, boolean banned, int timesKicked, List<String> ips, Map<String, GMTimes> worldTimes, List<PlayerKill> kills, int mobKills, int deaths) {
+    private String joinAddress;
+
+    private UserImportData(String name, UUID uuid, List<Nickname> nicknames, long registered, boolean op,
+                           boolean banned, int timesKicked, List<String> ips, Map<String, GMTimes> worldTimes, List<PlayerKill> kills,
+                           int mobKills, int deaths, String joinAddress) {
         this.name = name;
         this.uuid = uuid;
         this.nicknames = nicknames;
@@ -57,9 +62,10 @@ public class UserImportData {
         this.kills = kills;
         this.mobKills = mobKills;
         this.deaths = deaths;
+        this.joinAddress = joinAddress;
     }
 
-    public static UserImportDataBuilder builder(UUID serverUUID) {
+    public static UserImportDataBuilder builder(ServerUUID serverUUID) {
         return new UserImportDataBuilder(serverUUID);
     }
 
@@ -111,6 +117,14 @@ public class UserImportData {
         this.banned = banned;
     }
 
+    public String getJoinAddress() {
+        return joinAddress;
+    }
+
+    public void setJoinAddress(String joinAddress) {
+        this.joinAddress = joinAddress;
+    }
+
     public int getTimesKicked() {
         return timesKicked;
     }
@@ -159,8 +173,34 @@ public class UserImportData {
         this.deaths = deaths;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof UserImportData)) return false;
+        UserImportData that = (UserImportData) o;
+        return registered == that.registered &&
+                op == that.op &&
+                banned == that.banned &&
+                timesKicked == that.timesKicked &&
+                mobKills == that.mobKills &&
+                deaths == that.deaths &&
+                joinAddress.equals(that.joinAddress) &&
+                Objects.equals(name, that.name) &&
+                Objects.equals(uuid, that.uuid) &&
+                Objects.equals(nicknames, that.nicknames) &&
+                Objects.equals(ips, that.ips) &&
+                Objects.equals(worldTimes, that.worldTimes) &&
+                Objects.equals(kills, that.kills);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, uuid, nicknames, registered, op, banned, timesKicked, ips,
+                worldTimes, kills, mobKills, deaths, joinAddress);
+    }
+
     public static final class UserImportDataBuilder {
-        private final UUID serverUUID;
+        private final ServerUUID serverUUID;
 
         private final List<Nickname> nicknames = new ArrayList<>();
         private final List<String> ips = new ArrayList<>();
@@ -174,8 +214,9 @@ public class UserImportData {
         private int timesKicked;
         private int mobKills;
         private int deaths;
+        private String joinAddress;
 
-        private UserImportDataBuilder(UUID serverUUID) {
+        private UserImportDataBuilder(ServerUUID serverUUID) {
             this.serverUUID = serverUUID;
         }
 
@@ -284,31 +325,8 @@ public class UserImportData {
         }
 
         public UserImportData build() {
-            return new UserImportData(name, uuid, nicknames, registered, op, banned, timesKicked, ips, worldTimes, kills, mobKills, deaths);
+            return new UserImportData(name, uuid, nicknames, registered, op, banned, timesKicked, ips,
+                    worldTimes, kills, mobKills, deaths, joinAddress);
         }
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof UserImportData)) return false;
-        UserImportData that = (UserImportData) o;
-        return registered == that.registered &&
-                op == that.op &&
-                banned == that.banned &&
-                timesKicked == that.timesKicked &&
-                mobKills == that.mobKills &&
-                deaths == that.deaths &&
-                Objects.equals(name, that.name) &&
-                Objects.equals(uuid, that.uuid) &&
-                Objects.equals(nicknames, that.nicknames) &&
-                Objects.equals(ips, that.ips) &&
-                Objects.equals(worldTimes, that.worldTimes) &&
-                Objects.equals(kills, that.kills);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(name, uuid, nicknames, registered, op, banned, timesKicked, ips, worldTimes, kills, mobKills, deaths);
     }
 }

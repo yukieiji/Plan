@@ -21,9 +21,11 @@ import com.djrapitops.plan.delivery.domain.TablePlayer;
 import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
 import com.djrapitops.plan.delivery.domain.keys.Key;
 import com.djrapitops.plan.delivery.domain.keys.PlayerKeys;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
 import com.djrapitops.plan.gathering.domain.BaseUser;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.GeoInfo;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.query.QuerySvc;
 import com.djrapitops.plan.settings.config.Config;
 import com.djrapitops.plan.settings.config.PlanConfig;
@@ -32,6 +34,8 @@ import com.djrapitops.plan.storage.database.queries.*;
 import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQueries;
 import com.djrapitops.plan.storage.database.queries.containers.ServerPlayerContainersQuery;
 import com.djrapitops.plan.storage.database.queries.objects.*;
+import com.djrapitops.plan.storage.database.queries.objects.playertable.NetworkTablePlayersQuery;
+import com.djrapitops.plan.storage.database.queries.objects.playertable.ServerTablePlayersQuery;
 import com.djrapitops.plan.storage.database.sql.building.Sql;
 import com.djrapitops.plan.storage.database.sql.tables.UserInfoTable;
 import com.djrapitops.plan.storage.database.transactions.StoreConfigTransaction;
@@ -41,12 +45,8 @@ import com.djrapitops.plan.storage.database.transactions.events.*;
 import com.djrapitops.plan.storage.database.transactions.init.CreateIndexTransaction;
 import com.djrapitops.plan.storage.database.transactions.patches.RegisterDateMinimizationPatch;
 import com.djrapitops.plan.storage.upkeep.DBCleanTask;
-import com.djrapitops.plugin.logging.console.TestPluginLogger;
 import org.junit.jupiter.api.Test;
-import utilities.FieldFetcher;
-import utilities.RandomData;
-import utilities.TestConstants;
-import utilities.TestData;
+import utilities.*;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -60,12 +60,13 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Contains common Database Tests.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface DatabaseTest extends DatabaseTestPreparer {
 
     default void saveUserOne() {
-        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime, TestConstants.PLAYER_ONE_NAME, serverUUID()));
+        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime,
+                TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
         db().executeTransaction(new KickStoreTransaction(playerUUID));
     }
 
@@ -91,10 +92,11 @@ public interface DatabaseTest extends DatabaseTestPreparer {
     default void testRemovalSingleUser() {
         saveUserTwo();
 
-        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime, TestConstants.PLAYER_ONE_NAME, serverUUID()));
+        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime,
+                TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
         saveTwoWorlds();
 
-        Session session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
+        FinishedSession session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
 
         execute(DataStoreQueries.storeSession(session));
         db().executeTransaction(new NicknameStoreTransaction(playerUUID, new Nickname("TestNick", RandomData.randomTime(), serverUUID()), (uuid, name) -> false /* Not cached */));
@@ -125,16 +127,15 @@ public interface DatabaseTest extends DatabaseTestPreparer {
         saveTwoWorlds();
 
         long sessionStart = System.currentTimeMillis();
-        Session session = new Session(playerUUID, serverUUID(), sessionStart, worlds[0], "SURVIVAL");
-        session.endSession(sessionStart + 22345L);
-        execute(DataStoreQueries.storeSession(session));
+        ActiveSession session = new ActiveSession(playerUUID, serverUUID(), sessionStart, worlds[0], "SURVIVAL");
+        execute(DataStoreQueries.storeSession(session.toFinishedSession(sessionStart + 22345L)));
 
         TestPluginLogger logger = new TestPluginLogger();
         new DBCleanTask(
                 config(),
                 new Locale(),
                 dbSystem(),
-                new QuerySvc(dbSystem(), serverInfo(), null),
+                new QuerySvc(config(), dbSystem(), serverInfo(), null),
                 serverInfo(),
                 logger,
                 null
@@ -149,7 +150,7 @@ public interface DatabaseTest extends DatabaseTestPreparer {
         saveUserOne();
         saveUserTwo();
         saveTwoWorlds();
-        Session session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
+        FinishedSession session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
         execute(DataStoreQueries.storeSession(session));
         db().executeTransaction(new NicknameStoreTransaction(playerUUID, RandomData.randomNickname(serverUUID()), (uuid, name) -> false /* Not cached */));
         saveGeoInfo(playerUUID, new GeoInfo("TestLoc", RandomData.randomTime()));
@@ -158,7 +159,7 @@ public interface DatabaseTest extends DatabaseTestPreparer {
 
         PlayerContainer playerContainer = db().query(ContainerFetchQueries.fetchPlayerContainer(playerUUID));
         // Active sessions are added after fetching
-        playerContainer.putRawData(PlayerKeys.ACTIVE_SESSION, RandomData.randomSession(serverUUID(), worlds, playerUUID));
+        playerContainer.putRawData(PlayerKeys.ACTIVE_SESSION, RandomData.randomUnfinishedSession(serverUUID(), worlds, playerUUID));
 
         List<String> unsupported = new ArrayList<>();
         List<Key> keys = FieldFetcher.getPublicStaticFields(PlayerKeys.class, Key.class);
@@ -203,10 +204,10 @@ public interface DatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void playerCountForServersIsCorrect() {
-        Map<UUID, Integer> expected = Collections.singletonMap(serverUUID(), 1);
+        Map<ServerUUID, Integer> expected = Collections.singletonMap(serverUUID(), 1);
         saveUserOne();
 
-        Map<UUID, Integer> result = db().query(ServerAggregateQueries.serverUserCounts());
+        Map<ServerUUID, Integer> result = db().query(ServerAggregateQueries.serverUserCounts());
         assertEquals(expected, result);
     }
 
@@ -269,7 +270,8 @@ public interface DatabaseTest extends DatabaseTestPreparer {
     @Test
     default void registerDateIsMinimized() {
         executeTransactions(
-                new PlayerServerRegisterTransaction(playerUUID, () -> 1000, TestConstants.PLAYER_ONE_NAME, serverUUID())
+                new PlayerServerRegisterTransaction(playerUUID, () -> 1000,
+                        TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME)
                 , new Transaction() {
                     @Override
                     protected void performOperations() {
@@ -290,15 +292,17 @@ public interface DatabaseTest extends DatabaseTestPreparer {
         // Test expected result
         Optional<BaseUser> updatedBaseUser = db().query(BaseUserQueries.fetchBaseUserOfPlayer(playerUUID));
         assertEquals(0L, updatedBaseUser.isPresent() ? updatedBaseUser.get().getRegistered() : null);
-        assertTrue(testedPatch.hasBeenApplied());
+        assertTrue(testedPatch.isApplied());
     }
 
     @Test
     default void serverTablePlayersQueryQueriesAtLeastOnePlayer() {
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[0]));
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[1]));
-        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime, TestConstants.PLAYER_ONE_NAME, serverUUID()));
-        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime, TestConstants.PLAYER_TWO_NAME, serverUUID()));
+        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime,
+                TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
+        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime,
+                TestConstants.PLAYER_TWO_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
         db().executeTransaction(new SessionEndTransaction(RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID)));
 
         List<TablePlayer> result = db().query(new ServerTablePlayersQuery(serverUUID(), System.currentTimeMillis(), 10L, 1));
@@ -310,8 +314,10 @@ public interface DatabaseTest extends DatabaseTestPreparer {
     default void networkTablePlayersQueryQueriesAtLeastOnePlayer() {
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[0]));
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[1]));
-        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime, TestConstants.PLAYER_ONE_NAME, serverUUID()));
-        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime, TestConstants.PLAYER_TWO_NAME, serverUUID()));
+        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime,
+                TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
+        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime,
+                TestConstants.PLAYER_TWO_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
         db().executeTransaction(new SessionEndTransaction(RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID)));
 
         List<TablePlayer> result = db().query(new NetworkTablePlayersQuery(System.currentTimeMillis(), 10L, 1));

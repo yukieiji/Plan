@@ -26,7 +26,7 @@ import java.nio.file.Path;
 /**
  * Test utility for creating a dagger PlanComponent using a mocked PlanBungee.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class BungeeMockComponent {
 
@@ -53,7 +53,11 @@ public class BungeeMockComponent {
 
     public PlanSystem getPlanSystem() throws Exception {
         if (component == null) {
-            component = DaggerPlanBungeeComponent.builder().plan(getPlanMock()).build();
+            PlanBungee planMock = getPlanMock();
+            component = DaggerPlanBungeeComponent.builder()
+                    .plan(planMock)
+                    .abstractionLayer(new TestPlatformAbstractionLayer(this.planMock))
+                    .build();
         }
         return component.system();
     }

@@ -24,19 +24,21 @@
 package com.djrapitops.plan.gathering.timed;
 
 import com.djrapitops.plan.PlanVelocity;
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.transactions.events.PingStoreTransaction;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.Listeners;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -51,10 +53,11 @@ import java.util.concurrent.TimeUnit;
  * @author MicleBrick
  */
 @Singleton
-public class VelocityPingCounter extends AbsRunnable {
+public class VelocityPingCounter extends TaskSystem.Task {
 
     final Map<UUID, List<DateObj<Integer>>> playerHistory;
 
+    private final Listeners listeners;
     private final PlanVelocity plugin;
     private final PlanConfig config;
     private final DBSystem dbSystem;
@@ -63,12 +66,14 @@ public class VelocityPingCounter extends AbsRunnable {
 
     @Inject
     public VelocityPingCounter(
+            Listeners listeners,
             PlanVelocity plugin,
             PlanConfig config,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             RunnableFactory runnableFactory
     ) {
+        this.listeners = listeners;
         this.plugin = plugin;
         this.config = config;
         this.dbSystem = dbSystem;
@@ -106,6 +111,17 @@ public class VelocityPingCounter extends AbsRunnable {
         }
     }
 
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        Long startDelay = config.get(TimeSettings.PING_SERVER_ENABLE_DELAY);
+        if (startDelay < TimeUnit.HOURS.toMillis(1L) && config.isTrue(DataGatheringSettings.PING)) {
+            listeners.registerListener(this);
+            long delay = TimeAmount.toTicks(startDelay, TimeUnit.MILLISECONDS);
+            long period = 40L;
+            runnableFactory.create(this).runTaskTimer(delay, period);
+        }
+    }
+
     void addPlayer(Player player) {
         playerHistory.put(player.getUniqueId(), new ArrayList<>());
     }
@@ -125,12 +141,9 @@ public class VelocityPingCounter extends AbsRunnable {
         if (pingDelay >= TimeUnit.HOURS.toMillis(2L)) {
             return;
         }
-        runnableFactory.create("Add Player to Ping list", new AbsRunnable() {
-            @Override
-            public void run() {
-                if (player.isActive()) {
-                    addPlayer(player);
-                }
+        runnableFactory.create(() -> {
+            if (player.isActive()) {
+                addPlayer(player);
             }
         }).runTaskLater(TimeAmount.toTicks(pingDelay, TimeUnit.MILLISECONDS));
     }

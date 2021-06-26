@@ -23,6 +23,7 @@ import com.djrapitops.plan.extension.icon.Icon;
 import com.djrapitops.plan.extension.implementation.results.ExtensionData;
 import com.djrapitops.plan.extension.table.Table;
 import com.djrapitops.plan.extension.table.TableAccessor;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.SQLDB;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
@@ -31,7 +32,10 @@ import com.djrapitops.plan.storage.database.sql.tables.*;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
@@ -45,13 +49,13 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
  * 2. Table values are queried and merged
  * 3. QueriedTables is mapped into ExtensionData objects by PluginID, one per ID
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionServerTablesQuery implements Query<Map<Integer, ExtensionData.Builder>> {
 
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
 
-    public ExtensionServerTablesQuery(UUID serverUUID) {
+    public ExtensionServerTablesQuery(ServerUUID serverUUID) {
         this.serverUUID = serverUUID;
     }
 
@@ -149,7 +153,8 @@ public class ExtensionServerTablesQuery implements Query<Map<Integer, ExtensionD
                 LEFT_JOIN + ExtensionIconTable.TABLE_NAME + " i4 on i4." + ExtensionIconTable.ID + "=p1." + ExtensionTableProviderTable.ICON_4_ID +
                 LEFT_JOIN + ExtensionIconTable.TABLE_NAME + " i5 on i5." + ExtensionIconTable.ID + "=p1." + ExtensionTableProviderTable.ICON_5_ID +
                 LEFT_JOIN + ExtensionIconTable.TABLE_NAME + " i6 on i6." + ExtensionIconTable.ID + "=t1." + ExtensionTabTable.ICON_ID +
-                WHERE + "p2." + ExtensionPluginTable.SERVER_UUID + "=?";
+                WHERE + "p2." + ExtensionPluginTable.SERVER_UUID + "=?" +
+                AND + "p1." + ExtensionTableProviderTable.VALUES_FOR + '=' + ExtensionTableProviderTable.VALUES_FOR_SERVER;
 
         return new QueryStatement<QueriedTables>(selectTables, 100) {
             @Override

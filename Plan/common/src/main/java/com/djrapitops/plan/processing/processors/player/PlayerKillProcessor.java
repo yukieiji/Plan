@@ -17,8 +17,8 @@
 package com.djrapitops.plan.processing.processors.player;
 
 import com.djrapitops.plan.gathering.cache.SessionCache;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
 import com.djrapitops.plan.gathering.domain.PlayerKill;
-import com.djrapitops.plan.gathering.domain.Session;
 import com.djrapitops.plan.processing.CriticalRunnable;
 
 import java.util.Optional;
@@ -30,7 +30,7 @@ import java.util.UUID;
  * <p>
  * Adds PlayerKill or a Mob kill to the active Session.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayerKillProcessor implements CriticalRunnable {
 
@@ -56,12 +56,12 @@ public class PlayerKillProcessor implements CriticalRunnable {
 
     @Override
     public void run() {
-        Optional<Session> cachedSession = SessionCache.getCachedSession(killer);
+        Optional<ActiveSession> cachedSession = SessionCache.getCachedSession(killer);
         if (!cachedSession.isPresent()) {
             return;
         }
-        Session session = cachedSession.get();
+        ActiveSession session = cachedSession.get();
 
-        session.playerKilled(new PlayerKill(victim, weaponName, time));
+        session.addPlayerKill(new PlayerKill(killer, victim, weaponName, time));
     }
 }

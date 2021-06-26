@@ -26,11 +26,12 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility for getting server identifier from different sources.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class Identifiers {
@@ -51,13 +52,13 @@ public class Identifiers {
      * @return UUID of the server.
      * @throws BadRequestException If server parameter is not defined or the server is not in the database.
      */
-    public UUID getServerUUID(Request request) {
+    public ServerUUID getServerUUID(Request request) {
         String identifier = request.getQuery().get("server")
                 .orElseThrow(() -> new BadRequestException("'server' parameter was not defined."));
 
-        Optional<UUID> parsed = UUIDUtility.parseFromString(identifier);
+        Optional<ServerUUID> parsed = UUIDUtility.parseFromString(identifier).map(ServerUUID::from);
         return parsed.orElseGet(() -> getServerUUIDFromName(identifier).orElseThrow(
-                () -> new BadRequestException("Given 'server' was not found in the database: '" + identifier + "'")
+                () -> new BadRequestException("Given 'server' was not found in the database.")
         ));
     }
 
@@ -68,13 +69,13 @@ public class Identifiers {
      * @return UUID of the server.
      * @throws BadRequestException If the server is not in the database.
      */
-    public Optional<UUID> getServerUUID(String identifier) {
-        Optional<UUID> parsed = UUIDUtility.parseFromString(identifier);
+    public Optional<ServerUUID> getServerUUID(String identifier) {
+        Optional<ServerUUID> parsed = UUIDUtility.parseFromString(identifier).map(ServerUUID::from);
         if (parsed.isPresent()) return parsed;
         return getServerUUIDFromName(identifier);
     }
 
-    private Optional<UUID> getServerUUIDFromName(String serverName) {
+    private Optional<ServerUUID> getServerUUIDFromName(String serverName) {
         return dbSystem.getDatabase().query(ServerQueries.fetchServerMatchingIdentifier(serverName))
                 .map(Server::getUuid);
     }
@@ -97,10 +98,25 @@ public class Identifiers {
     private UUID getPlayerUUIDFromName(String playerName) {
         return dbSystem.getDatabase()
                 .query(UserIdentifierQueries.fetchPlayerUUIDOf(playerName))
-                .orElseThrow(() -> new BadRequestException("Given 'player' was not found in the database: '" + playerName + "'"));
+                .orElseThrow(() -> new BadRequestException("Given 'player' was not found in the database."));
     }
 
     public UUID getPlayerUUID(String name) {
         return uuidUtility.getUUIDOf(name);
+    }
+
+    public static long getTimestamp(Request request) {
+        try {
+            long currentTime = System.currentTimeMillis();
+            long timestamp = request.getQuery().get("timestamp")
+                    .map(Long::parseLong)
+                    .orElse(currentTime);
+            if (currentTime + TimeUnit.SECONDS.toMillis(10L) < timestamp) {
+                return currentTime;
+            }
+            return timestamp;
+        } catch (NumberFormatException nonNumberTimestamp) {
+            throw new BadRequestException("'timestamp' was not a number: " + nonNumberTimestamp.getMessage());
+        }
     }
 }

@@ -16,21 +16,22 @@
  */
 package com.djrapitops.plan.delivery.domain;
 
+import com.djrapitops.plan.identification.ServerUUID;
+
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Object storing nickname information.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class Nickname implements DateHolder {
 
     private final String name;
     private final long date;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
 
-    public Nickname(String name, long date, UUID serverUUID) {
+    public Nickname(String name, long date, ServerUUID serverUUID) {
         this.name = name;
         this.date = date;
         this.serverUUID = serverUUID;
@@ -45,7 +46,7 @@ public class Nickname implements DateHolder {
         return date;
     }
 
-    public UUID getServerUUID() {
+    public ServerUUID getServerUUID() {
         return serverUUID;
     }
 

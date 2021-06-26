@@ -20,7 +20,7 @@ import com.djrapitops.plan.extension.FormatType;
 import com.djrapitops.plan.extension.annotation.Conditional;
 import com.djrapitops.plan.extension.icon.Color;
 import com.djrapitops.plan.extension.icon.Icon;
-import com.djrapitops.plan.extension.implementation.results.ExtensionDescriptive;
+import com.djrapitops.plan.extension.implementation.results.ExtensionDescription;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
@@ -29,9 +29,9 @@ import java.util.Optional;
 /**
  * Represents the annotation information provided on a method.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public class ProviderInformation extends ExtensionDescriptive {
+public class ProviderInformation extends ExtensionDescription {
 
     private final String pluginName;
     private final boolean showInPlayersTable;
@@ -45,7 +45,13 @@ public class ProviderInformation extends ExtensionDescriptive {
     private final boolean percentage;       // affects where doubles are stored
 
     private ProviderInformation(ProviderInformation.Builder builder) {
-        super(builder.name, builder.text, builder.description, builder.icon, builder.priority);
+        super(
+                builder.name,
+                builder.text,
+                builder.description,
+                builder.icon != null ? builder.icon : Icon.called("cube").build(),
+                builder.priority
+        );
         pluginName = builder.pluginName;
         showInPlayersTable = builder.showInPlayersTable;
         tab = builder.tab;
@@ -136,7 +142,7 @@ public class ProviderInformation extends ExtensionDescriptive {
         private String text;
         private String description;
         private Icon icon;
-        private int priority;
+        private int priority = 0;
         private boolean showInPlayersTable = false;
         private String tab;                   // can be null
         private Conditional condition;        // can be null

@@ -16,6 +16,13 @@
  */
 package com.djrapitops.plan.storage.database.transactions.patches;
 
+/**
+ * Removes plan_transfer table, used for transferring html in the database.
+ * <p>
+ * The idea turned out to use a lot of disk space and improper use of a database.
+ *
+ * @author AuroraLS3
+ */
 public class TransferTableRemovalPatch extends Patch {
 
     @Override

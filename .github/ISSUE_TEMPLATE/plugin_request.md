@@ -1,7 +1,7 @@
 ---
 name: Plugin Suggestion
 about: Suggest data from another plugin for Plan
-labels: 'New Feature, DataExtensions, Help Wanted'
+labels: 'New Data, DataExtensions, Help Wanted'
 
 ---
 
@@ -11,6 +11,6 @@ labels: 'New Feature, DataExtensions, Help Wanted'
 ### Plugin information
 
 <!-- Required -->
-**API or Source Code:** [Link]()  
+**API or Source Code:** [Link](URL HERE)  
 <!-- Required -->
-**Project page or Downloads:** [Link]()
+**Project page or Downloads:** [Link](URL HERE)

@@ -1,23 +1,21 @@
 dependencies {
-    compile "com.djrapitops:AbstractPluginFramework-api:$abstractPluginFrameworkVersion"
-    compile project(":api")
+    implementation "net.playeranalytics:platform-abstraction-layer-api:$palVersion"
+    implementation project(":api")
     compileOnly project(":extensions")
-    compile project(path: ":extensions", configuration: 'shadow')
-    compile "org.apache.httpcomponents:httpclient:$httpClientVersion"
-    compile "org.apache.commons:commons-text:$commonsTextVersion"
-    compile "org.apache.commons:commons-compress:$commonsCompressVersion"
-    compile "com.googlecode.htmlcompressor:htmlcompressor:$htmlCompressorVersion"
-    compile "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
-    compile "com.h2database:h2:$h2Version"
-    compile "mysql:mysql-connector-java:$mysqlVersion"
-    compile "com.zaxxer:HikariCP:$hikariVersion"
-    compile "org.slf4j:slf4j-nop:$slf4jVersion"
-    compile "org.slf4j:slf4j-api:$slf4jVersion"
-    compile "com.maxmind.geoip2:geoip2:$geoIpVersion"
-    compile "com.google.code.gson:gson:$gsonVersion"
+    implementation project(path: ":extensions", configuration: 'shadow')
+    implementation "org.apache.commons:commons-text:$commonsTextVersion"
+    implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
+    implementation "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
+    implementation "mysql:mysql-connector-java:$mysqlVersion"
+    implementation "org.xerial:sqlite-jdbc:$sqliteVersion"
+    implementation "com.zaxxer:HikariCP:$hikariVersion"
+    implementation "org.slf4j:slf4j-nop:$slf4jVersion"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    implementation "com.maxmind.geoip2:geoip2:$geoIpVersion"
+    implementation "com.google.code.gson:gson:$gsonVersion"
 
-    testCompile project(":api")
-    testCompile "com.google.code.gson:gson:$gsonVersion"
+    testImplementation project(":api")
+    testImplementation "com.google.code.gson:gson:$gsonVersion"
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens
@@ -31,31 +29,35 @@ task updateVersion(type: Copy) {
     filter(ReplaceTokens, tokens: [version: '' + project.ext.fullVersion])
 }
 processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     dependsOn updateVersion
     from 'build/sources/resources'
 }
 
 shadowJar {
     dependsOn processResources
-    configurations = [project.configurations.compile]
 
     // Exclude these files
     exclude "**/*.svg"
     exclude "**/*.psd"
 
     exclude "**/module-info.class"
+    exclude "module-info.class"
     exclude 'META-INF/versions/' // Causes Sponge to crash
+    exclude 'org/apache/http/**/*' // Unnecessary http client depended on by geolite2 implementation
+    exclude 'mozilla/**/*'
 
+    // Exclude unnecessary SQLite drivers
+    exclude '**/Linux/android-arm/libsqlitejdbc.so'
+    exclude '**/DragonFlyBSD/**/libsqlitejdbc.so'
+
+    relocate 'com.google.protobuf', 'plan.com.mysql.cj.x.google.protobuf'
 
     relocate 'com.maxmind', 'plan.com.maxmind'
     relocate 'com.fasterxml', 'plan.com.fasterxml'
     relocate 'com.zaxxer', 'plan.com.zaxxer'
-    relocate 'com.github.benmanes', 'plan.com.github.benmanes'
-    relocate 'com.googlecode.htmlcompressor', 'plan.com.google.htmlcompressor'
-    relocate 'com.google.protobuf', 'plan.com.google.protobuf'
     relocate 'com.google.gson', 'plan.com.google.gson'
     relocate 'com.google.errorprone', 'plan.com.google.errorprone'
-    relocate 'org.h2', 'plan.org.h2'
     relocate 'org.bstats', 'plan.org.bstats'
     relocate 'org.slf4j', 'plan.org.slf4j'
 

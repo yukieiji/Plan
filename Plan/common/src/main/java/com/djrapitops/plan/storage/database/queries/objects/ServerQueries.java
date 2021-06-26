@@ -17,6 +17,7 @@
 package com.djrapitops.plan.storage.database.queries.objects;
 
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryAllStatement;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
@@ -34,7 +35,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 /**
  * Queries for {@link Server} objects.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ServerQueries {
 
@@ -47,25 +48,27 @@ public class ServerQueries {
      *
      * @return Map: Server UUID - Plan Server Information
      */
-    public static Query<Map<UUID, Server>> fetchPlanServerInformation() {
+    public static Query<Map<ServerUUID, Server>> fetchPlanServerInformation() {
         String sql = SELECT + '*' + FROM + ServerTable.TABLE_NAME + WHERE + ServerTable.INSTALLED + "=?";
 
-        return new QueryStatement<Map<UUID, Server>>(sql, 100) {
+        return new QueryStatement<Map<ServerUUID, Server>>(sql, 100) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 statement.setBoolean(1, true);
             }
 
             @Override
-            public Map<UUID, Server> processResults(ResultSet set) throws SQLException {
-                Map<UUID, Server> servers = new HashMap<>();
+            public Map<ServerUUID, Server> processResults(ResultSet set) throws SQLException {
+                Map<ServerUUID, Server> servers = new HashMap<>();
                 while (set.next()) {
-                    UUID serverUUID = UUID.fromString(set.getString(ServerTable.SERVER_UUID));
+                    ServerUUID serverUUID = ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID));
                     servers.put(serverUUID, new Server(
                             set.getInt(ServerTable.SERVER_ID),
                             serverUUID,
                             set.getString(ServerTable.NAME),
-                            set.getString(ServerTable.WEB_ADDRESS)));
+                            set.getString(ServerTable.WEB_ADDRESS),
+                            set.getBoolean(ServerTable.PROXY)
+                    ));
                 }
                 return servers;
             }
@@ -76,7 +79,7 @@ public class ServerQueries {
         return db -> db.query(fetchPlanServerInformation()).values();
     }
 
-    public static Query<Optional<Server>> fetchServerMatchingIdentifier(UUID serverUUID) {
+    public static Query<Optional<Server>> fetchServerMatchingIdentifier(ServerUUID serverUUID) {
         return fetchServerMatchingIdentifier(serverUUID.toString());
     }
 
@@ -104,9 +107,10 @@ public class ServerQueries {
                 if (set.next()) {
                     return Optional.of(new Server(
                             set.getInt(ServerTable.SERVER_ID),
-                            UUID.fromString(set.getString(ServerTable.SERVER_UUID)),
+                            ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID)),
                             set.getString(ServerTable.NAME),
-                            set.getString(ServerTable.WEB_ADDRESS)
+                            set.getString(ServerTable.WEB_ADDRESS),
+                            set.getBoolean(ServerTable.PROXY)
                     ));
                 }
                 return Optional.empty();
@@ -115,20 +119,44 @@ public class ServerQueries {
     }
 
     public static Query<Optional<Server>> fetchProxyServerInformation() {
-        return db -> db.query(fetchServerMatchingIdentifier("BungeeCord"));
+        String sql = SELECT + '*' + FROM + ServerTable.TABLE_NAME +
+                WHERE + ServerTable.INSTALLED + "=?" +
+                AND + ServerTable.PROXY + "=?" +
+                " LIMIT 1";
+        return new QueryStatement<Optional<Server>>(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setBoolean(1, true);
+                statement.setBoolean(2, true);
+            }
+
+            @Override
+            public Optional<Server> processResults(ResultSet set) throws SQLException {
+                if (set.next()) {
+                    return Optional.of(new Server(
+                            set.getInt(ServerTable.SERVER_ID),
+                            ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID)),
+                            set.getString(ServerTable.NAME),
+                            set.getString(ServerTable.WEB_ADDRESS),
+                            set.getBoolean(ServerTable.PROXY)
+                    ));
+                }
+                return Optional.empty();
+            }
+        };
     }
 
-    public static Query<Map<UUID, String>> fetchServerNames() {
+    public static Query<Map<ServerUUID, String>> fetchServerNames() {
         String sql = Select.from(ServerTable.TABLE_NAME,
                 ServerTable.SERVER_UUID, ServerTable.NAME)
                 .toString();
 
-        return new QueryAllStatement<Map<UUID, String>>(sql) {
+        return new QueryAllStatement<Map<ServerUUID, String>>(sql) {
             @Override
-            public Map<UUID, String> processResults(ResultSet set) throws SQLException {
-                Map<UUID, String> names = new HashMap<>();
+            public Map<ServerUUID, String> processResults(ResultSet set) throws SQLException {
+                Map<ServerUUID, String> names = new HashMap<>();
                 while (set.next()) {
-                    UUID serverUUID = UUID.fromString(set.getString(ServerTable.SERVER_UUID));
+                    ServerUUID serverUUID = ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID));
                     names.put(serverUUID, set.getString(ServerTable.NAME));
                 }
                 return names;
@@ -163,12 +191,45 @@ public class ServerQueries {
                 while (set.next()) {
                     matches.add(new Server(
                             set.getInt(ServerTable.SERVER_ID),
-                            UUID.fromString(set.getString(ServerTable.SERVER_UUID)),
+                            ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID)),
                             set.getString(ServerTable.NAME),
-                            set.getString(ServerTable.WEB_ADDRESS)
+                            set.getString(ServerTable.WEB_ADDRESS),
+                            set.getBoolean(ServerTable.PROXY)
                     ));
                 }
                 return matches;
+            }
+        };
+    }
+
+    public static Query<Integer> fetchServerCount() {
+        String sql = SELECT + "COUNT(1) as c" + FROM + ServerTable.TABLE_NAME +
+                WHERE + ServerTable.INSTALLED + "=?";
+        return new QueryStatement<Integer>(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setBoolean(1, true);
+            }
+
+            @Override
+            public Integer processResults(ResultSet set) throws SQLException {
+                return set.next() ? set.getInt("c") : 1;
+            }
+        };
+    }
+
+    public static Query<Integer> fetchBiggestServerID() {
+        String sql = SELECT + "MAX(" + ServerTable.SERVER_ID + ") as max_id" + FROM + ServerTable.TABLE_NAME +
+                WHERE + ServerTable.INSTALLED + "=?";
+        return new QueryStatement<Integer>(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setBoolean(1, true);
+            }
+
+            @Override
+            public Integer processResults(ResultSet set) throws SQLException {
+                return set.next() ? set.getInt("max_id") : 1;
             }
         };
     }

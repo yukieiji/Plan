@@ -22,8 +22,9 @@ import com.djrapitops.plan.extension.icon.Icon;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Object for giving Plan table data.
@@ -40,7 +41,7 @@ import java.util.List;
  * <p>
  * If a table has no columns or rows, it is ignored.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see com.djrapitops.plan.extension.annotation.TableProvider for associated annotation.
  */
 public final class Table {
@@ -109,9 +110,9 @@ public final class Table {
             building = new Table();
         }
 
-        private Factory column(int indx, String columnName, Icon icon) {
-            building.columns[indx] = StringUtils.truncate(columnName, 50);
-            building.icons[indx] = icon != null ? Icon.called(icon.getName()).of(icon.getFamily()).build() : Icon.called("question").build();
+        private Factory column(int index, String columnName, Icon icon) {
+            building.columns[index] = StringUtils.truncate(columnName, 50);
+            building.icons[index] = icon != null ? Icon.called(icon.getName()).of(icon.getFamily()).build() : Icon.called("question").build();
             return this;
         }
 
@@ -186,7 +187,17 @@ public final class Table {
                 return this; // Ignore row when all values are null or no values are present.
             }
 
-            building.rows.add(Arrays.copyOf(values, 5));
+            Object[] row = new Object[5];
+
+            for (int i = 0; i < Math.min(values.length, 5); i++) {
+                Object value = values[i];
+                if (value instanceof Optional) {
+                    value = ((Optional<?>) value).map(Objects::toString).orElse("-");
+                }
+                row[i] = value;
+            }
+
+            building.rows.add(row);
             return this;
         }
 

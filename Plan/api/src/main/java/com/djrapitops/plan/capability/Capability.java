@@ -30,7 +30,7 @@ import java.util.UUID;
  * <p>
  * If a capability is not available, attempting to use the capability might lead to exceptions.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 enum Capability {
 
@@ -56,6 +56,10 @@ enum Capability {
      * When the parameter is set to {@code true} the value from this Provider is shown on a table alongside players.
      */
     DATA_EXTENSION_SHOW_IN_PLAYER_TABLE,
+    /**
+     * DataExtension API addition, {@link com.djrapitops.plan.extension.builder.ExtensionDataBuilder}.
+     */
+    DATA_EXTENSION_BUILDER_API,
     /**
      * {@link com.djrapitops.plan.query.QueryService} and {@link com.djrapitops.plan.query.CommonQueries}
      */

@@ -18,34 +18,37 @@ package com.djrapitops.plan.gathering.importing;
 
 import com.djrapitops.plan.SubSystem;
 import com.djrapitops.plan.gathering.importing.importers.Importer;
-import com.djrapitops.plugin.utilities.Verify;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.*;
 
 /**
  * Abstract representation of an ImportSystem.
- * <p>
- * TODO it is possible to remove the abstract part of this class by binding Importers to a Map with Dagger
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public abstract class ImportSystem implements SubSystem {
+@Singleton
+public class ImportSystem implements SubSystem {
 
     protected final Map<String, Importer> importers;
 
-    protected ImportSystem() {
-        importers = new HashMap<>();
+    @Inject
+    protected ImportSystem(Set<Importer> importers) {
+        this.importers = new HashMap<>();
+        for (Importer importer : importers) {
+            this.importers.put(importer.getName(), importer);
+        }
+
     }
 
     @Override
     public void enable() {
-        registerImporters();
+        // Nothing to do
     }
 
-    abstract void registerImporters();
-
     public void registerImporter(Importer importer) {
-        Verify.nullCheck(importer, () -> new IllegalArgumentException("Importer cannot be null"));
+        if (importer == null) throw new IllegalArgumentException("Importer cannot be null");
 
         importers.put(importer.getName(), importer);
     }

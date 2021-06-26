@@ -18,23 +18,27 @@ package com.djrapitops.plan.storage.database;
 
 import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.delivery.DeliveryUtilities;
+import com.djrapitops.plan.extension.ExtensionSvc;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.database.transactions.Executable;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
 import utilities.TestConstants;
 
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 public interface DatabaseTestPreparer {
 
     String[] worlds = new String[]{"TestWorld", "TestWorld2"};
     UUID playerUUID = TestConstants.PLAYER_ONE_UUID;
     UUID player2UUID = TestConstants.PLAYER_TWO_UUID;
+    UUID player3UUID = TestConstants.PLAYER_THREE_UUID;
 
     Database db();
 
-    UUID serverUUID();
+    ServerUUID serverUUID();
 
     @Deprecated
     PlanSystem system();
@@ -55,18 +59,28 @@ public interface DatabaseTestPreparer {
         return system().getDeliveryUtilities();
     }
 
+    default ExtensionSvc extensionService() {return system().getExtensionService();}
+
     default void execute(Executable executable) {
-        db().executeTransaction(new Transaction() {
-            @Override
-            protected void performOperations() {
-                execute(executable);
-            }
-        });
+        try {
+            db().executeTransaction(new Transaction() {
+                @Override
+                protected void performOperations() {
+                    execute(executable);
+                }
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new AssertionError(e);
+        }
     }
 
     default void executeTransactions(Transaction... transactions) {
         for (Transaction transaction : transactions) {
-            db().executeTransaction(transaction);
+            try {
+                db().executeTransaction(transaction).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new AssertionError(e);
+            }
         }
     }
 

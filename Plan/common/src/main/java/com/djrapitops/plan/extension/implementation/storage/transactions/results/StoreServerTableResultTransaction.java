@@ -17,7 +17,10 @@
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
 import com.djrapitops.plan.exceptions.database.DBOpException;
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
+import com.djrapitops.plan.extension.implementation.providers.Parameters;
 import com.djrapitops.plan.extension.table.Table;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionPluginTable;
@@ -32,29 +35,33 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.UUID;
+import java.util.List;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 import static com.djrapitops.plan.storage.database.sql.tables.ExtensionServerTableValueTable.*;
 
 /**
- * Transaction to store method result of a {@link com.djrapitops.plan.extension.implementation.providers.TableDataProvider}.
+ * Transaction to store method result of a Table.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StoreServerTableResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
 
     private final Table table;
 
-    public StoreServerTableResultTransaction(String pluginName, UUID serverUUID, String providerName, Table table) {
+    public StoreServerTableResultTransaction(String pluginName, ServerUUID serverUUID, String providerName, Table table) {
         this.pluginName = pluginName;
         this.serverUUID = serverUUID;
         this.providerName = providerName;
         this.table = table;
+    }
+
+    public StoreServerTableResultTransaction(ProviderInformation information, Parameters parameters, Table value) {
+        this(information.getPluginName(), parameters.getServerUUID(), information.getName(), value);
     }
 
     @Override
@@ -70,27 +77,43 @@ public class StoreServerTableResultTransaction extends ThrowawayTransaction {
             }
 
             Integer tableID = query(tableID());
-            deleteOldValues(tableID).execute(connection);
-            insertNewValues(tableID).execute(connection);
+
+            List<Object[]> rows = table.getRows();
+            Integer oldRowCount = query(currentRowCount(tableID));
+            int newRowCount = rows.size();
+
+            if (oldRowCount < newRowCount) {
+                updateRows(tableID, oldRowCount, rows);
+                insertNewRows(tableID, oldRowCount, rows);
+            } else if (oldRowCount == newRowCount) {
+                // No need to delete or insert rows
+                updateRows(tableID, oldRowCount, rows);
+            } else {
+                // oldRowCount > newRowCount
+                updateRows(tableID, newRowCount, rows);
+                deleteOldRows(tableID, newRowCount);
+            }
             return false;
         };
     }
 
-    private Executable deleteOldValues(int tableID) {
+    private void deleteOldRows(Integer tableID, int afterRow) {
         String sql = DELETE_FROM + TABLE_NAME +
                 WHERE + TABLE_ID + "=?" +
-                AND + SERVER_UUID + "=?";
+                AND + SERVER_UUID + "=?" +
+                AND + TABLE_ROW + ">=?"; // Since row count is zero indexed and afterRow is size the value should be removed.
 
-        return new ExecStatement(sql) {
+        execute(new ExecStatement(sql) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 statement.setInt(1, tableID);
                 statement.setString(2, serverUUID.toString());
+                statement.setInt(3, afterRow);
             }
-        };
+        });
     }
 
-    private Executable insertNewValues(int tableID) {
+    private void insertNewRows(Integer tableID, Integer afterRow, List<Object[]> rows) {
         String sql = "INSERT INTO " + TABLE_NAME + '(' +
                 TABLE_ID + ',' +
                 SERVER_UUID + ',' +
@@ -98,15 +121,17 @@ public class StoreServerTableResultTransaction extends ThrowawayTransaction {
                 VALUE_2 + ',' +
                 VALUE_3 + ',' +
                 VALUE_4 + ',' +
-                VALUE_5 +
-                ") VALUES (?,?,?,?,?,?, ?)";
+                VALUE_5 + ',' +
+                TABLE_ROW +
+                ") VALUES (?,?,?,?,?,?,?,?)";
 
-        return new ExecBatchStatement(sql) {
+        execute(new ExecBatchStatement(sql) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 int maxColumnSize = Math.min(table.getMaxColumnSize(), 5); // Limit to maximum 5 columns, or how many column names there are.
 
-                for (Object[] row : table.getRows()) {
+                for (int rowNumber = afterRow; rowNumber < rows.size(); rowNumber++) {
+                    Object[] row = rows.get(rowNumber);
                     statement.setInt(1, tableID);
                     statement.setString(2, serverUUID.toString());
                     for (int i = 0; i < maxColumnSize; i++) {
@@ -118,8 +143,67 @@ public class StoreServerTableResultTransaction extends ThrowawayTransaction {
                         statement.setNull(3 + i, Types.VARCHAR);
                     }
 
+                    statement.setInt(8, rowNumber);
+
                     statement.addBatch();
                 }
+            }
+        });
+    }
+
+    private void updateRows(Integer tableID, Integer untilRow, List<Object[]> rows) {
+        String sql = "UPDATE " + TABLE_NAME + " SET " +
+                VALUE_1 + "=?," +
+                VALUE_2 + "=?," +
+                VALUE_3 + "=?," +
+                VALUE_4 + "=?," +
+                VALUE_5 + "=?" +
+                WHERE + TABLE_ID + "=?" +
+                AND + SERVER_UUID + "=?" +
+                AND + TABLE_ROW + "=?";
+        execute(new ExecBatchStatement(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                int maxColumnSize = Math.min(table.getMaxColumnSize(), 5); // Limit to maximum 5 columns, or how many column names there are.
+
+                for (int rowNumber = 0; rowNumber < untilRow; rowNumber++) {
+                    Object[] row = rows.get(rowNumber);
+
+                    for (int valueIndex = 0; valueIndex < maxColumnSize; valueIndex++) {
+                        Object value = row[valueIndex];
+                        setStringOrNull(statement, 1 + valueIndex, value != null ? StringUtils.truncate(value.toString(), 250) : null);
+                    }
+                    // Rest are set null if not 5 columns wide.
+                    for (int valueIndex = maxColumnSize; valueIndex < 5; valueIndex++) {
+                        statement.setNull(1 + valueIndex, Types.VARCHAR);
+                    }
+
+                    statement.setInt(6, tableID);
+                    statement.setString(7, serverUUID.toString());
+                    statement.setInt(8, rowNumber);
+
+                    statement.addBatch();
+                }
+            }
+        });
+    }
+
+    private Query<Integer> currentRowCount(Integer tableID) {
+        String sql = SELECT + "COALESCE(MAX(" + TABLE_ROW + "), -1) as m" +
+                FROM + TABLE_NAME +
+                WHERE + TABLE_ID + "=?" +
+                AND + SERVER_UUID + "=?";
+        return new QueryStatement<Integer>(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setInt(1, tableID);
+                statement.setString(2, serverUUID.toString());
+            }
+
+            @Override
+            public Integer processResults(ResultSet set) throws SQLException {
+                // add one to the row number, which is 0 indexed
+                return set.next() ? set.getInt("m") + 1 : 0;
             }
         };
     }

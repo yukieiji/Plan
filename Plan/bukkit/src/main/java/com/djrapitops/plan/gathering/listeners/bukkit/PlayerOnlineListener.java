@@ -17,18 +17,18 @@
 package com.djrapitops.plan.gathering.listeners.bukkit;
 
 import com.djrapitops.plan.delivery.domain.Nickname;
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
+import com.djrapitops.plan.delivery.domain.PlayerName;
+import com.djrapitops.plan.delivery.domain.ServerName;
 import com.djrapitops.plan.delivery.export.Exporter;
-import com.djrapitops.plan.delivery.webserver.cache.DataID;
-import com.djrapitops.plan.delivery.webserver.cache.JSONCache;
 import com.djrapitops.plan.extension.CallEvents;
 import com.djrapitops.plan.extension.ExtensionSvc;
 import com.djrapitops.plan.gathering.cache.NicknameCache;
 import com.djrapitops.plan.gathering.cache.SessionCache;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
 import com.djrapitops.plan.gathering.geolocation.GeolocationCache;
 import com.djrapitops.plan.gathering.listeners.Status;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
@@ -38,7 +38,6 @@ import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.transactions.events.*;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -50,12 +49,15 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import javax.inject.Inject;
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Event Listener for PlayerJoin, PlayerQuit and PlayerKickEvents.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayerOnlineListener implements Listener {
 
@@ -70,6 +72,8 @@ public class PlayerOnlineListener implements Listener {
     private final SessionCache sessionCache;
     private final ErrorLogger errorLogger;
     private final Status status;
+
+    private final Map<UUID, String> joinAddresses;
 
     @Inject
     public PlayerOnlineListener(
@@ -96,6 +100,8 @@ public class PlayerOnlineListener implements Listener {
         this.sessionCache = sessionCache;
         this.status = status;
         this.errorLogger = errorLogger;
+
+        joinAddresses = new HashMap<>();
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -103,12 +109,15 @@ public class PlayerOnlineListener implements Listener {
         try {
             PlayerLoginEvent.Result result = event.getResult();
             UUID playerUUID = event.getPlayer().getUniqueId();
-            boolean operator = event.getPlayer().isOp();
+            ServerUUID serverUUID = serverInfo.getServerUUID();
             boolean banned = result == PlayerLoginEvent.Result.KICK_BANNED;
-            dbSystem.getDatabase().executeTransaction(new BanStatusTransaction(playerUUID, () -> banned));
-            dbSystem.getDatabase().executeTransaction(new OperatorStatusTransaction(playerUUID, operator));
+            String joinAddress = event.getHostname();
+            if (!joinAddress.isEmpty()) {
+                joinAddresses.put(playerUUID, joinAddress.substring(0, joinAddress.lastIndexOf(':')));
+            }
+            dbSystem.getDatabase().executeTransaction(new BanStatusTransaction(playerUUID, serverUUID, () -> banned));
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event, event.getResult()).build());
+            errorLogger.error(e, ErrorContext.builder().related(event, event.getResult()).build());
         }
     }
 
@@ -127,13 +136,13 @@ public class PlayerOnlineListener implements Listener {
                 return;
             }
             UUID uuid = event.getPlayer().getUniqueId();
-            if (BukkitAFKListener.AFK_TRACKER.isAfk(uuid)) {
+            if (BukkitAFKListener.afkTracker.isAfk(uuid)) {
                 return;
             }
 
             dbSystem.getDatabase().executeTransaction(new KickStoreTransaction(uuid));
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event).build());
+            errorLogger.error(e, ErrorContext.builder().related(event).build());
         }
     }
 
@@ -142,7 +151,7 @@ public class PlayerOnlineListener implements Listener {
         try {
             actOnJoinEvent(event);
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event).build());
+            errorLogger.error(e, ErrorContext.builder().related(event).build());
         }
     }
 
@@ -150,12 +159,10 @@ public class PlayerOnlineListener implements Listener {
         Player player = event.getPlayer();
 
         UUID playerUUID = player.getUniqueId();
-        UUID serverUUID = serverInfo.getServerUUID();
+        ServerUUID serverUUID = serverInfo.getServerUUID();
         long time = System.currentTimeMillis();
-        JSONCache.invalidate(DataID.SERVER_OVERVIEW, serverUUID);
-        JSONCache.invalidate(DataID.GRAPH_PERFORMANCE, serverUUID);
 
-        BukkitAFKListener.AFK_TRACKER.performedAction(playerUUID, time);
+        BukkitAFKListener.afkTracker.performedAction(playerUUID, time);
 
         String world = player.getWorld().getName();
         String gm = player.getGameMode().name();
@@ -164,6 +171,7 @@ public class PlayerOnlineListener implements Listener {
         database.executeTransaction(new WorldNameStoreTransaction(serverUUID, world));
 
         InetAddress address = player.getAddress().getAddress();
+        Supplier<String> getHostName = () -> getHostname(player);
 
         String playerName = player.getName();
         String displayName = player.getDisplayName();
@@ -175,10 +183,13 @@ public class PlayerOnlineListener implements Listener {
             );
         }
 
-        database.executeTransaction(new PlayerServerRegisterTransaction(playerUUID, player::getFirstPlayed, playerName, serverUUID));
-        Session session = new Session(playerUUID, serverUUID, time, world, gm);
-        session.putRawData(SessionKeys.NAME, playerName);
-        session.putRawData(SessionKeys.SERVER_NAME, serverInfo.getServer().getIdentifiableName());
+        database.executeTransaction(new PlayerServerRegisterTransaction(playerUUID,
+                player::getFirstPlayed, playerName, serverUUID, getHostName));
+        database.executeTransaction(new OperatorStatusTransaction(playerUUID, serverUUID, player.isOp()));
+
+        ActiveSession session = new ActiveSession(playerUUID, serverUUID, time, world, gm);
+        session.getExtraData().put(PlayerName.class, new PlayerName(playerName));
+        session.getExtraData().put(ServerName.class, new ServerName(serverInfo.getServer().getIdentifiableName()));
         sessionCache.cacheSession(playerUUID, session)
                 .ifPresent(previousSession -> database.executeTransaction(new SessionEndTransaction(previousSession)));
 
@@ -191,6 +202,10 @@ public class PlayerOnlineListener implements Listener {
         if (config.isTrue(ExportSettings.EXPORT_ON_ONLINE_STATUS_CHANGE)) {
             processing.submitNonCritical(() -> exporter.exportPlayerPage(playerUUID, playerName));
         }
+    }
+
+    private String getHostname(Player player) {
+        return joinAddresses.get(player.getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -206,7 +221,7 @@ public class PlayerOnlineListener implements Listener {
         try {
             actOnQuitEvent(event);
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event).build());
+            errorLogger.error(e, ErrorContext.builder().related(event).build());
         }
     }
 
@@ -215,15 +230,14 @@ public class PlayerOnlineListener implements Listener {
         Player player = event.getPlayer();
         String playerName = player.getName();
         UUID playerUUID = player.getUniqueId();
-        UUID serverUUID = serverInfo.getServerUUID();
-        JSONCache.invalidate(DataID.SERVER_OVERVIEW, serverUUID);
-        JSONCache.invalidate(DataID.GRAPH_PERFORMANCE, serverUUID);
+        ServerUUID serverUUID = serverInfo.getServerUUID();
 
-        BukkitAFKListener.AFK_TRACKER.loggedOut(playerUUID, time);
+        BukkitAFKListener.afkTracker.loggedOut(playerUUID, time);
 
+        joinAddresses.remove(playerUUID);
         nicknameCache.removeDisplayName(playerUUID);
 
-        dbSystem.getDatabase().executeTransaction(new BanStatusTransaction(playerUUID, player::isBanned));
+        dbSystem.getDatabase().executeTransaction(new BanStatusTransaction(playerUUID, serverUUID, player::isBanned));
 
         sessionCache.endSession(playerUUID, time)
                 .ifPresent(endedSession -> dbSystem.getDatabase().executeTransaction(new SessionEndTransaction(endedSession)));

@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * <p>
  * Requires Capability QUERY_API
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface QueryService {
 
@@ -48,7 +48,7 @@ public interface QueryService {
     /**
      * Get what kind of database is in use.
      *
-     * @return H2, SQLITE or MYSQL
+     * @return SQLITE or MYSQL
      * @throws IllegalStateException If database has not been initialized (Plugin failed to enable)
      */
     String getDBType();
@@ -113,7 +113,7 @@ public interface QueryService {
     /**
      * Get the UUID of this server.
      *
-     * @return Optinal of the server UUID, empty if server did not start properly.
+     * @return Optional of the server UUID, empty if server did not start properly.
      */
     Optional<UUID> getServerUUID();
 
@@ -150,7 +150,7 @@ public interface QueryService {
     }
 
     class Holder {
-        static volatile AtomicReference<QueryService> service = new AtomicReference<>();
+        static final AtomicReference<QueryService> service = new AtomicReference<>();
 
         private Holder() {
             /* Static variable holder */

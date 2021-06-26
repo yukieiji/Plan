@@ -17,7 +17,6 @@
 package com.djrapitops.plan.settings.config.paths.key;
 
 import com.djrapitops.plan.settings.config.ConfigNode;
-import com.djrapitops.plugin.utilities.Verify;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -27,7 +26,7 @@ import java.util.function.Predicate;
  * <p>
  * All values return milliseconds.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class TimeSetting extends Setting<Long> {
 
@@ -35,8 +34,16 @@ public class TimeSetting extends Setting<Long> {
         super(path, Long.class, Setting::timeValidator);
     }
 
+    public TimeSetting(String path, Long defaultValue) {
+        super(path, Setting::timeValidator, defaultValue);
+    }
+
     public TimeSetting(String path, Predicate<Long> validator) {
         super(path, Long.class, validator.and(Setting::timeValidator));
+    }
+
+    public TimeSetting(String path, Predicate<Long> validator, Long defaultValue) {
+        super(path, validator.and(Setting::timeValidator), defaultValue);
     }
 
     @Override
@@ -47,9 +54,11 @@ public class TimeSetting extends Setting<Long> {
         }
         String unitName = node.getString(path + ".Unit");
         try {
-            Verify.nullCheck(unitName, () -> new IllegalStateException(
-                    "Config value for " + path + ".Unit has a bad value: 'null'"
-            ));
+            if (unitName == null) {
+                throw new IllegalStateException(
+                        "Config value for " + path + ".Unit has a bad value: 'null'"
+                );
+            }
             TimeUnit unit = TimeUnit.valueOf(unitName.toUpperCase());
             return unit.toMillis(duration);
         } catch (IllegalArgumentException e) {

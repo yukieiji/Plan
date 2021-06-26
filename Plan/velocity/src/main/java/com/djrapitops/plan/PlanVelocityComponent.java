@@ -17,35 +17,32 @@
 package com.djrapitops.plan;
 
 import com.djrapitops.plan.commands.PlanCommand;
-import com.djrapitops.plan.modules.APFModule;
-import com.djrapitops.plan.modules.PlaceholderModule;
-import com.djrapitops.plan.modules.ProxySuperClassBindingModule;
-import com.djrapitops.plan.modules.SystemObjectProvidingModule;
-import com.djrapitops.plan.modules.velocity.VelocityCommandModule;
-import com.djrapitops.plan.modules.velocity.VelocityPlanModule;
-import com.djrapitops.plan.modules.velocity.VelocityServerPropertiesModule;
-import com.djrapitops.plan.modules.velocity.VelocitySuperClassBindingModule;
+import com.djrapitops.plan.modules.*;
+import com.djrapitops.plan.modules.velocity.*;
 import dagger.BindsInstance;
 import dagger.Component;
+import net.playeranalytics.plugin.PlatformAbstractionLayer;
 
 import javax.inject.Singleton;
 
 /**
  * Dagger Component that constructs the plugin systems running on Velocity.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 @Component(modules = {
         VelocityPlanModule.class,
         VelocityCommandModule.class,
         SystemObjectProvidingModule.class,
-        APFModule.class,
+        PlatformAbstractionLayerModule.class,
+        FiltersModule.class,
         PlaceholderModule.class,
 
         ProxySuperClassBindingModule.class,
         VelocitySuperClassBindingModule.class,
-        VelocityServerPropertiesModule.class
+        VelocityServerPropertiesModule.class,
+        VelocityTaskModule.class
 })
 public interface PlanVelocityComponent {
 
@@ -58,6 +55,9 @@ public interface PlanVelocityComponent {
 
         @BindsInstance
         Builder plan(PlanVelocity plan);
+
+        @BindsInstance
+        Builder abstractionLayer(PlatformAbstractionLayer abstractionLayer);
 
         PlanVelocityComponent build();
     }

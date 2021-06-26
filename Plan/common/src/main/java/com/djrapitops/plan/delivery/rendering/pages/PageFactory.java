@@ -21,10 +21,12 @@ import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.html.icon.Icon;
 import com.djrapitops.plan.delivery.web.ResourceService;
 import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
+import com.djrapitops.plan.delivery.webserver.cache.JSONStorage;
 import com.djrapitops.plan.extension.implementation.results.ExtensionData;
 import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionPlayerDataQuery;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.theme.Theme;
@@ -33,10 +35,7 @@ import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQueries;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.file.PlanFiles;
-import com.djrapitops.plan.utilities.logging.ErrorLogger;
 import com.djrapitops.plan.version.VersionChecker;
-import com.djrapitops.plugin.benchmarking.Timings;
-import com.djrapitops.plugin.logging.debug.DebugLogger;
 import dagger.Lazy;
 
 import javax.inject.Inject;
@@ -48,7 +47,7 @@ import java.util.*;
 /**
  * Factory for creating different {@link Page} objects.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class PageFactory {
@@ -60,10 +59,8 @@ public class PageFactory {
     private final Lazy<Theme> theme;
     private final Lazy<DBSystem> dbSystem;
     private final Lazy<ServerInfo> serverInfo;
+    private final Lazy<JSONStorage> jsonStorage;
     private final Lazy<Formatters> formatters;
-    private final Lazy<DebugLogger> debugLogger;
-    private final Lazy<Timings> timings;
-    private final Lazy<ErrorLogger> errorLogger;
 
     @Inject
     public PageFactory(
@@ -74,10 +71,8 @@ public class PageFactory {
             Lazy<Theme> theme,
             Lazy<DBSystem> dbSystem,
             Lazy<ServerInfo> serverInfo,
-            Lazy<Formatters> formatters,
-            Lazy<DebugLogger> debugLogger,
-            Lazy<Timings> timings,
-            Lazy<ErrorLogger> errorLogger
+            Lazy<JSONStorage> jsonStorage,
+            Lazy<Formatters> formatters
     ) {
         this.versionChecker = versionChecker;
         this.files = files;
@@ -86,18 +81,8 @@ public class PageFactory {
         this.theme = theme;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
+        this.jsonStorage = jsonStorage;
         this.formatters = formatters;
-        this.debugLogger = debugLogger;
-        this.timings = timings;
-        this.errorLogger = errorLogger;
-    }
-
-    public DebugPage debugPage() throws IOException {
-        return new DebugPage(
-                getResource("error.html"),
-                dbSystem.get().getDatabase(), serverInfo.get(), formatters.get(), versionChecker.get(),
-                debugLogger.get(), timings.get(), errorLogger.get()
-        );
     }
 
     public PlayersPage playersPage() throws IOException {
@@ -113,7 +98,7 @@ public class PageFactory {
      * @throws NotFoundException If the server can not be found in the database.
      * @throws IOException       If the template files can not be read.
      */
-    public Page serverPage(UUID serverUUID) throws IOException {
+    public Page serverPage(ServerUUID serverUUID) throws IOException {
         Server server = dbSystem.get().getDatabase().query(ServerQueries.fetchServerMatchingIdentifier(serverUUID))
                 .orElseThrow(() -> new NotFoundException("Server not found in the database"));
         return new ServerPage(
@@ -125,6 +110,7 @@ public class PageFactory {
                 versionChecker.get(),
                 dbSystem.get(),
                 serverInfo.get(),
+                jsonStorage.get(),
                 formatters.get()
         );
     }
@@ -143,15 +129,15 @@ public class PageFactory {
     public PlayerPluginTab inspectPluginTabs(UUID playerUUID) {
         Database database = dbSystem.get().getDatabase();
 
-        Map<UUID, List<ExtensionData>> extensionPlayerData = database.query(new ExtensionPlayerDataQuery(playerUUID));
+        Map<ServerUUID, List<ExtensionData>> extensionPlayerData = database.query(new ExtensionPlayerDataQuery(playerUUID));
 
         if (extensionPlayerData.isEmpty()) {
             return new PlayerPluginTab("", Collections.emptyList(), formatters.get());
         }
 
         List<PlayerPluginTab> playerPluginTabs = new ArrayList<>();
-        for (Map.Entry<UUID, Server> entry : database.query(ServerQueries.fetchPlanServerInformation()).entrySet()) {
-            UUID serverUUID = entry.getKey();
+        for (Map.Entry<ServerUUID, Server> entry : database.query(ServerQueries.fetchPlanServerInformation()).entrySet()) {
+            ServerUUID serverUUID = entry.getKey();
             String serverName = entry.getValue().getIdentifiableName();
 
             List<ExtensionData> ofServer = extensionPlayerData.get(serverUUID);
@@ -178,7 +164,9 @@ public class PageFactory {
                 dbSystem.get(),
                 versionChecker.get(),
                 config.get(), theme.get(), locale.get(),
-                serverInfo.get(), formatters.get());
+                serverInfo.get(),
+                jsonStorage.get(),
+                formatters.get());
     }
 
     public Page internalErrorPage(String message, Throwable error) {
@@ -216,10 +204,21 @@ public class PageFactory {
     }
 
     public Page loginPage() throws IOException {
-        return new LoginPage(getResource("login.html"), serverInfo.get());
+        return new LoginPage(getResource("login.html"), serverInfo.get(), locale.get(), theme.get());
     }
 
     public Page registerPage() throws IOException {
-        return new LoginPage(getResource("register.html"), serverInfo.get());
+        return new LoginPage(getResource("register.html"), serverInfo.get(), locale.get(), theme.get());
+    }
+
+    public Page queryPage() throws IOException {
+        return new QueryPage(
+                getResource("query.html"),
+                locale.get(), theme.get(), versionChecker.get()
+        );
+    }
+
+    public Page errorsPage() throws IOException {
+        return new ErrorsPage(getResource("error.html"), locale.get(), theme.get(), versionChecker.get());
     }
 }

@@ -17,35 +17,32 @@
 package com.djrapitops.plan;
 
 import com.djrapitops.plan.commands.PlanCommand;
-import com.djrapitops.plan.modules.APFModule;
-import com.djrapitops.plan.modules.PlaceholderModule;
-import com.djrapitops.plan.modules.ProxySuperClassBindingModule;
-import com.djrapitops.plan.modules.SystemObjectProvidingModule;
-import com.djrapitops.plan.modules.bungee.BungeeCommandModule;
-import com.djrapitops.plan.modules.bungee.BungeePlanModule;
-import com.djrapitops.plan.modules.bungee.BungeeServerPropertiesModule;
-import com.djrapitops.plan.modules.bungee.BungeeSuperClassBindingModule;
+import com.djrapitops.plan.modules.*;
+import com.djrapitops.plan.modules.bungee.*;
 import dagger.BindsInstance;
 import dagger.Component;
+import net.playeranalytics.plugin.PlatformAbstractionLayer;
 
 import javax.inject.Singleton;
 
 /**
  * Dagger Component that constructs the plugin systems running on Bungee.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 @Component(modules = {
         BungeePlanModule.class,
         BungeeCommandModule.class,
         SystemObjectProvidingModule.class,
-        APFModule.class,
+        PlatformAbstractionLayerModule.class,
+        FiltersModule.class,
         PlaceholderModule.class,
 
         ProxySuperClassBindingModule.class,
         BungeeSuperClassBindingModule.class,
-        BungeeServerPropertiesModule.class
+        BungeeServerPropertiesModule.class,
+        BungeeTaskModule.class
 })
 public interface PlanBungeeComponent {
 
@@ -58,6 +55,9 @@ public interface PlanBungeeComponent {
 
         @BindsInstance
         Builder plan(PlanBungee plan);
+
+        @BindsInstance
+        Builder abstractionLayer(PlatformAbstractionLayer abstractionLayer);
 
         PlanBungeeComponent build();
     }

@@ -24,6 +24,7 @@ import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.gathering.ServerSensor;
 import com.djrapitops.plan.gathering.domain.TPS;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
@@ -37,19 +38,19 @@ import com.djrapitops.plan.storage.database.queries.analysis.PlayerCountQueries;
 import com.djrapitops.plan.storage.database.queries.objects.KillQueries;
 import com.djrapitops.plan.storage.database.queries.objects.SessionQueries;
 import com.djrapitops.plan.storage.database.queries.objects.TPSQueries;
+import com.djrapitops.plan.utilities.analysis.Percentage;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Creates JSON payload for /server-page Server Overview tab.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<String, Object>> {
@@ -88,7 +89,7 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
         percentage = formatters.percentage();
     }
 
-    public Map<String, Object> createJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> createJSONAsMap(ServerUUID serverUUID) {
         Map<String, Object> serverOverview = new HashMap<>();
         serverOverview.put("last_7_days", createLast7DaysMap(serverUUID));
         serverOverview.put("numbers", createNumbersMap(serverUUID));
@@ -96,7 +97,7 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
         return serverOverview;
     }
 
-    private Map<String, Object> createLast7DaysMap(UUID serverUUID) {
+    private Map<String, Object> createLast7DaysMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long weekAgo = now - TimeUnit.DAYS.toMillis(7L);
@@ -108,11 +109,11 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
 
         int new7d = db.query(PlayerCountQueries.newPlayerCount(weekAgo, now, serverUUID));
         int retained7d = db.query(PlayerCountQueries.retainedPlayerCount(weekAgo, now, serverUUID));
-        double retentionPerc7d = new7d != 0 ? (double) retained7d / new7d : -1;
+        double retentionPercentage7d = Percentage.calculate(retained7d, new7d, -1);
 
         sevenDays.put("new_players", new7d);
         sevenDays.put("new_players_retention", retained7d);
-        sevenDays.put("new_players_retention_perc", percentage.apply(retentionPerc7d));
+        sevenDays.put("new_players_retention_perc", percentage.apply(retentionPercentage7d));
         TPSMutator tpsMutator = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServer(weekAgo, now, serverUUID)));
         double averageTPS = tpsMutator.averageTPS();
         sevenDays.put("average_tps", averageTPS != -1 ? decimals.apply(averageTPS) : locale.get(GenericLang.UNAVAILABLE).toString());
@@ -122,7 +123,7 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
         return sevenDays;
     }
 
-    private Map<String, Object> createNumbersMap(UUID serverUUID) {
+    private Map<String, Object> createNumbersMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long twoDaysAgo = now - TimeUnit.DAYS.toMillis(2L);
@@ -151,7 +152,7 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
         return numbers;
     }
 
-    private Object getOnlinePlayers(UUID serverUUID, Database db) {
+    private Object getOnlinePlayers(ServerUUID serverUUID, Database db) {
         return serverUUID.equals(serverInfo.getServerUUID())
                 ? serverSensor.getOnlinePlayerCount()
                 : db.query(TPSQueries.fetchLatestTPSEntryForServer(serverUUID))
@@ -159,7 +160,7 @@ public class ServerOverviewJSONCreator implements ServerTabJSONCreator<Map<Strin
                 .orElse(locale.get(GenericLang.UNKNOWN).toString());
     }
 
-    private Map<String, Object> createWeeksMap(UUID serverUUID) {
+    private Map<String, Object> createWeeksMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - TimeUnit.DAYS.toMillis(7L);

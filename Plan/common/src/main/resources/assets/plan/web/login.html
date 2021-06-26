@@ -4,10 +4,9 @@
 <head>
 
     <meta charset="utf-8">
-    <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport">
     <meta content="Player Analytics, login page" name="description">
-    <meta content="Rsl1122" name="author">
+    <meta content="AuroraLS3" name="author">
     <meta content="noindex, nofollow" name="robots">
 
     <title>Plan | Login</title>
@@ -18,16 +17,19 @@
           rel="stylesheet">
 
     <!-- Custom styles for this template-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css"
+          integrity="sha256-hHKA3d/HttC8OW3Sl093W8DoZudhHJDj++kZYo6MLzA="
+          crossorigin="anonymous">
     <link href="css/sb-admin-2.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
 
 </head>
 
-<body class="bg-plan bg-gradient">
+<body class="bg-plan plan-bg-gradient">
 
 <script>
     function login() {
-        msg.addClass('hidden');
+        errorElement.classList.add('hidden');
         const user = $('#inputUser').val();
         if (!user || user.length < 1) {
             return displayError('You need to specify a Username');
@@ -50,7 +52,11 @@
             if (json && json.success) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const cameFrom = urlParams.get('from');
-                window.location.href = cameFrom ? cameFrom : './';
+                if (cameFrom && !cameFrom.startsWith("http")) {
+                    window.location.href = cameFrom + (window.location.hash ? window.location.hash : '');
+                } else {
+                    window.location.href = './';
+                }
             } else {
                 return displayError('Login failed: ' + json.error);
             }
@@ -58,7 +64,6 @@
     }
 
     document.addEventListener('keydown', (event) => {
-        console.log(event.key);
         if (event.key === 'Enter') login();
     });
 </script>
@@ -66,8 +71,8 @@
 <div class="container">
 
     <!-- Outer Row -->
-    <div class="row justify-content-center">
-        <img alt="logo" class="w-15 mt-5" src="img/Flaticon_circle.png">
+    <div class="col-12 mt-5 text-center">
+        <img alt="logo" class="w-15" src="img/Flaticon_circle.png">
     </div>
     <div class="row justify-content-center">
         <div class="col-xl-6 col-lg-7 col-md-9">
@@ -81,29 +86,29 @@
                                     Failed
                                 </div>
                                 <form class="user">
-                                    <div class="form-group">
+                                    <div class="mb-3">
                                         <input autocomplete="username" class="form-control form-control-user"
                                                id="inputUser"
                                                placeholder="Username" type="text">
                                     </div>
-                                    <div class="form-group">
+                                    <div class="mb-3">
                                         <input autocomplete="current-password" class="form-control form-control-user"
                                                id="inputPassword" placeholder="Password"
                                                type="password">
                                     </div>
-                                    <button class="btn bg-plan btn-user btn-block" href="#" id="login-button">
+                                    <button class="btn bg-plan btn-user w-100" href="#" id="login-button">
                                         Login
                                     </button>
                                 </form>
-                                <hr>
+                                <hr class="bg-secondary">
                                 <div class="text-center">
-                                    <a class="col-plan small" href="#" id="forgot-button">Forgot Password?</a>
+                                    <a class="col-plan small" href="#" data-bs-toggle="modal" data-bs-target="#forgotModal">Forgot Password?</a>
                                 </div>
                                 <div class="text-center">
                                     <a class="col-plan small" href="./register">Create an Account!</a>
                                 </div>
                                 <div class="text-center">
-                                    <button class="btn col-plan" data-target="#colorChooserModal" data-toggle="modal"
+                                    <button class="btn col-plan" data-bs-target="#colorChooserModal" data-bs-toggle="modal"
                                             type="button">
                                         <i class="fa fa-palette"></i>
                                     </button>
@@ -129,9 +134,7 @@
                 <h5 class="modal-title" id="forgotModalLabel"><i class="far fa-fw fa-hand-point-right"></i>
                     Forgot password? Unregister and register again.
                 </h5>
-                <button aria-label="Close" class="close" data-dismiss="modal" type="button">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
             </div>
             <div class="modal-body bg-white">
                 <p>Use the following command in game to remove your current user:</p>
@@ -152,9 +155,7 @@
             <div class="modal-header bg-white">
                 <h5 class="modal-title" id="colorChooserModalLabel"><i class="fa fa-palette"></i> Theme Select
                 </h5>
-                <button aria-label="Close" class="close" data-dismiss="modal" type="button">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
             </div>
             <div class="modal-body bg-white">
                 <button class="btn color-chooser" id="choose-plan" type="button"><i
@@ -200,18 +201,21 @@
             </div>
             <div class="modal-footer">
                 <button class="btn" id="night-mode-toggle" type="button"><i class="fa fa-fw fa-cloud-moon"></i>
-                    Night
-                    Mode
+                    Night Mode
                 </button>
-                <button class="btn bg-plan" data-dismiss="modal" type="button">OK</button>
+                <button class="btn bg-plan" data-bs-dismiss="modal" type="button">OK</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Bootstrap core JavaScript-->
-<script src="vendor/jquery/jquery.min.js"></script>
-<script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha256-edRDsV9ULIqKzKjpN/KjyQ7Lp4vUn9usbJuHjH8Sk+k="
+        crossorigin="anonymous"></script>
 
 <!-- Custom scripts for all pages-->
 <script src="js/xmlhttprequests.js"></script>
@@ -225,14 +229,12 @@
         login();
     });
 
-    const msg = $(`#fail-msg`);
+    const errorElement = document.getElementById("fail-msg");
 
     function displayError(message) {
-        msg.text(message);
-        msg.removeClass('hidden');
+        errorElement.innerText = message;
+        errorElement.classList.remove('hidden');
     }
-
-    $('#forgot-button').click(() => $('#forgotModal').modal());
 </script>
 </body>
 

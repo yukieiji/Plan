@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.storage.database.transactions.events;
 
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.DataStoreQueries;
 import com.djrapitops.plan.storage.database.queries.HasMoreThanZeroQueryStatement;
 import com.djrapitops.plan.storage.database.sql.tables.WorldTable;
@@ -24,21 +25,20 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
  * Transaction to store world name after an event.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class WorldNameStoreTransaction extends Transaction {
 
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String worldName;
 
-    public WorldNameStoreTransaction(UUID serverUUID, String worldName) {
+    public WorldNameStoreTransaction(ServerUUID serverUUID, String worldName) {
         this.serverUUID = serverUUID;
         this.worldName = worldName;
     }

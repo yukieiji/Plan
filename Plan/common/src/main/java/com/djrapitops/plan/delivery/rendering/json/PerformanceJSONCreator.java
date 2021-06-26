@@ -20,6 +20,7 @@ import com.djrapitops.plan.delivery.domain.mutators.TPSMutator;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.gathering.domain.TPS;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.locale.Locale;
@@ -34,13 +35,12 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Creates JSON payload for /server-page Performance tab.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class PerformanceJSONCreator implements ServerTabJSONCreator<Map<String, Object>> {
@@ -71,7 +71,8 @@ public class PerformanceJSONCreator implements ServerTabJSONCreator<Map<String, 
         byteSize = formatters.byteSize();
     }
 
-    public Map<String, Object> createJSONAsMap(UUID serverUUID) {
+    @Override
+    public Map<String, Object> createJSONAsMap(ServerUUID serverUUID) {
         Map<String, Object> serverOverview = new HashMap<>();
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
@@ -106,9 +107,9 @@ public class PerformanceJSONCreator implements ServerTabJSONCreator<Map<String, 
         numbers.put("tps_30d", format(tpsDataMonth.averageTPS()));
         numbers.put("tps_7d", format(tpsDataWeek.averageTPS()));
         numbers.put("tps_24h", format(tpsDataDay.averageTPS()));
-        numbers.put("cpu_30d", formatPerc(tpsDataMonth.averageCPU()));
-        numbers.put("cpu_7d", formatPerc(tpsDataWeek.averageCPU()));
-        numbers.put("cpu_24h", formatPerc(tpsDataDay.averageCPU()));
+        numbers.put("cpu_30d", formatPercentage(tpsDataMonth.averageCPU()));
+        numbers.put("cpu_7d", formatPercentage(tpsDataWeek.averageCPU()));
+        numbers.put("cpu_24h", formatPercentage(tpsDataDay.averageCPU()));
         numbers.put("ram_30d", formatBytes(tpsDataMonth.averageRAM()));
         numbers.put("ram_7d", formatBytes(tpsDataWeek.averageRAM()));
         numbers.put("ram_24h", formatBytes(tpsDataDay.averageRAM()));
@@ -137,7 +138,7 @@ public class PerformanceJSONCreator implements ServerTabJSONCreator<Map<String, 
         return value != -1 ? byteSize.apply(value) : locale.get(GenericLang.UNAVAILABLE).toString();
     }
 
-    private String formatPerc(double value) {
+    private String formatPercentage(double value) {
         return value != -1 ? percentage.apply(value / 100.0) : locale.get(GenericLang.UNAVAILABLE).toString();
     }
 
@@ -148,11 +149,13 @@ public class PerformanceJSONCreator implements ServerTabJSONCreator<Map<String, 
 
         Map<String, Object> insights = new HashMap<>();
 
+        double averageTPS = lowTPS.averageTPS();
         double avgPlayersOnline = lowTPS.averagePlayersOnline();
         double averageCPU = lowTPS.averageCPU();
         double averageEntities = lowTPS.averageEntities();
         double averageChunks = lowTPS.averageChunks();
         insights.put("low_tps_players", avgPlayersOnline != -1 ? decimals.apply(avgPlayersOnline) : locale.get(HtmlLang.TEXT_NO_LOW_TPS).toString());
+        insights.put("low_tps_tps", averageTPS != -1 ? decimals.apply(averageTPS) : "-");
         insights.put("low_tps_cpu", averageCPU != -1 ? decimals.apply(averageCPU) : "-");
         insights.put("low_tps_entities", averageEntities != -1 ? decimals.apply(averageEntities) : "-");
         insights.put("low_tps_chunks", averageChunks != -1 ? decimals.apply(averageChunks) : "-");

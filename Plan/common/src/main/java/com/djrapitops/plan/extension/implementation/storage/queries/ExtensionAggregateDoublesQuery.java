@@ -22,9 +22,10 @@ import com.djrapitops.plan.extension.icon.Family;
 import com.djrapitops.plan.extension.icon.Icon;
 import com.djrapitops.plan.extension.implementation.TabInformation;
 import com.djrapitops.plan.extension.implementation.results.ExtensionData;
-import com.djrapitops.plan.extension.implementation.results.ExtensionDescriptive;
+import com.djrapitops.plan.extension.implementation.results.ExtensionDescription;
 import com.djrapitops.plan.extension.implementation.results.ExtensionDoubleData;
 import com.djrapitops.plan.extension.implementation.results.ExtensionTabData;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.SQLDB;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
@@ -35,7 +36,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
@@ -49,13 +49,13 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
  * 2. Join with provider information query
  * 3. Map into ExtensionData objects by PluginID, one per ID
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionAggregateDoublesQuery implements Query<Map<Integer, ExtensionData.Builder>> {
 
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
 
-    public ExtensionAggregateDoublesQuery(UUID serverUUID) {
+    public ExtensionAggregateDoublesQuery(ServerUUID serverUUID) {
         this.serverUUID = serverUUID;
     }
 
@@ -125,8 +125,8 @@ public class ExtensionAggregateDoublesQuery implements Query<Map<Integer, Extens
             String tabName = Optional.ofNullable(set.getString("tab_name")).orElse("");
             ExtensionTabData.Builder extensionTab = tabData.getTab(pluginID, tabName, () -> extractTabInformation(tabName, set));
 
-            ExtensionDescriptive extensionDescriptive = extractDescriptive(set);
-            extractAndPutDataTo(extensionTab, extensionDescriptive, set);
+            ExtensionDescription extensionDescription = extractDescription(set);
+            extractAndPutDataTo(extensionTab, extensionDescription, set);
         }
         return tabData;
     }
@@ -148,16 +148,16 @@ public class ExtensionAggregateDoublesQuery implements Query<Map<Integer, Extens
         );
     }
 
-    private void extractAndPutDataTo(ExtensionTabData.Builder extensionTab, ExtensionDescriptive descriptive, ResultSet set) throws SQLException {
-        extensionTab.putDoubleData(new ExtensionDoubleData(modifiedDescriptive(descriptive, "_avg", "Average "), set.getDouble("average")));
-        extensionTab.putDoubleData(new ExtensionDoubleData(modifiedDescriptive(descriptive, "_total", "Total "), set.getDouble("total")));
+    private void extractAndPutDataTo(ExtensionTabData.Builder extensionTab, ExtensionDescription description, ResultSet set) throws SQLException {
+        extensionTab.putDoubleData(new ExtensionDoubleData(modifiedDescription(description, "_avg", "Average "), set.getDouble("average")));
+        extensionTab.putDoubleData(new ExtensionDoubleData(modifiedDescription(description, "_total", "Total "), set.getDouble("total")));
     }
 
-    private ExtensionDescriptive modifiedDescriptive(ExtensionDescriptive descriptive, String appendToName, String appendToText) {
-        return new ExtensionDescriptive(descriptive.getName() + appendToName, appendToText + descriptive.getText(), descriptive.getDescription().orElse(null), descriptive.getIcon(), descriptive.getPriority());
+    private ExtensionDescription modifiedDescription(ExtensionDescription description, String appendToName, String appendToText) {
+        return new ExtensionDescription(description.getName() + appendToName, appendToText + description.getText(), description.getDescription().orElse(null), description.getIcon(), description.getPriority());
     }
 
-    private ExtensionDescriptive extractDescriptive(ResultSet set) throws SQLException {
+    private ExtensionDescription extractDescription(ResultSet set) throws SQLException {
         String name = set.getString("provider_name");
         String text = set.getString(ExtensionProviderTable.TEXT);
         String description = set.getString(ExtensionProviderTable.DESCRIPTION);
@@ -168,7 +168,7 @@ public class ExtensionAggregateDoublesQuery implements Query<Map<Integer, Extens
         Color color = Color.getByName(set.getString("provider_icon_color")).orElse(Color.NONE);
         Icon icon = new Icon(family, iconName, color);
 
-        return new ExtensionDescriptive(name, text, description, icon, priority);
+        return new ExtensionDescription(name, text, description, icon, priority);
     }
 
     private Icon extractTabIcon(ResultSet set) throws SQLException {

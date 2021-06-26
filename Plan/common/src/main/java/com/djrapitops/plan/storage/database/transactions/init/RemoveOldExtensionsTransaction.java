@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.storage.database.transactions.init;
 
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
 import com.djrapitops.plan.storage.database.sql.tables.*;
@@ -27,21 +28,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
  * Transaction that removes outdated plugin's data after configurable threshold.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class RemoveOldExtensionsTransaction extends ThrowawayTransaction {
 
     private final long deleteOlder;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
 
-    public RemoveOldExtensionsTransaction(long deleteAfterMs, UUID serverUUID) {
+    public RemoveOldExtensionsTransaction(long deleteAfterMs, ServerUUID serverUUID) {
         deleteOlder = System.currentTimeMillis() - deleteAfterMs;
         this.serverUUID = serverUUID;
     }

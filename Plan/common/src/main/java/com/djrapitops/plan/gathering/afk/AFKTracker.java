@@ -25,7 +25,7 @@ import java.util.*;
 /**
  * Keeps track how long player has been afk during a session
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class AFKTracker {
 
@@ -52,38 +52,44 @@ public class AFKTracker {
     }
 
     public void usedAfkCommand(UUID uuid, long time) {
+        Long lastMoved = lastMovement.getOrDefault(uuid, time);
+        if (lastMoved == -1) {
+            return;
+        }
         usedAFKCommand.add(uuid);
         lastMovement.put(uuid, time - getAfkThreshold());
     }
 
-    public void performedAction(UUID uuid, long time) {
+    public long performedAction(UUID uuid, long time) {
         Long lastMoved = lastMovement.getOrDefault(uuid, time);
         // Ignore afk permission
         if (lastMoved == -1) {
-            return;
+            return 0L;
         }
         lastMovement.put(uuid, time);
 
         try {
             if (time - lastMoved < getAfkThreshold()) {
                 // Threshold not crossed, no action required.
-                return;
+                return 0L;
             }
 
             long removeAfkCommandEffect = usedAFKCommand.contains(uuid) ? getAfkThreshold() : 0;
             long timeAFK = time - lastMoved - removeAfkCommandEffect;
 
             SessionCache.getCachedSession(uuid)
-                    .ifPresent(session -> session.addAFKTime(timeAFK));
+                    .ifPresent(session -> session.addAfkTime(timeAFK));
+            return timeAFK;
         } finally {
             usedAFKCommand.remove(uuid);
         }
     }
 
-    public void loggedOut(UUID uuid, long time) {
-        performedAction(uuid, time);
+    public long loggedOut(UUID uuid, long time) {
+        long timeAFK = performedAction(uuid, time);
         lastMovement.remove(uuid);
         usedAFKCommand.remove(uuid);
+        return timeAFK;
     }
 
     public boolean isAfk(UUID uuid) {

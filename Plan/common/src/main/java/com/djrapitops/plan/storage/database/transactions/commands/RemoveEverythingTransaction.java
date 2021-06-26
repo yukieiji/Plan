@@ -24,7 +24,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.DELETE_FROM;
 /**
  * Transaction that removes everything from the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class RemoveEverythingTransaction extends ThrowawayTransaction {
 
@@ -45,6 +45,7 @@ public class RemoveEverythingTransaction extends ThrowawayTransaction {
         clearTable(TPSTable.TABLE_NAME);
         clearTable(SecurityTable.TABLE_NAME);
         clearTable(ServerTable.TABLE_NAME);
+        clearTable(CookieTable.TABLE_NAME);
         clearTable(ExtensionPlayerValueTable.TABLE_NAME);
         clearTable(ExtensionServerValueTable.TABLE_NAME);
         clearTable(ExtensionGroupsTable.TABLE_NAME);

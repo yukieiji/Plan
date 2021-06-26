@@ -25,18 +25,20 @@ import com.djrapitops.plan.identification.storage.ServerLoader;
 import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.PluginSettings;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.PluginLang;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Manages the Server UUID for Bukkit servers.
  * <p>
  * Also manages Server ID required for MySQL database independence.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ServerServerInfo extends ServerInfo {
@@ -48,6 +50,9 @@ public class ServerServerInfo extends ServerInfo {
     private final Processing processing;
     private final Addresses addresses;
 
+    private final Locale locale;
+    private final PluginLogger logger;
+
     @Inject
     public ServerServerInfo(
             ServerProperties serverProperties,
@@ -55,7 +60,9 @@ public class ServerServerInfo extends ServerInfo {
             ServerDBLoader fromDatabase,
             Processing processing,
             PlanConfig config,
-            Addresses addresses
+            Addresses addresses,
+            Locale locale,
+            PluginLogger logger
     ) {
         super(serverProperties);
         this.fromFile = fromFile;
@@ -63,10 +70,13 @@ public class ServerServerInfo extends ServerInfo {
         this.processing = processing;
         this.addresses = addresses;
         this.config = config;
+        this.locale = locale;
+        this.logger = logger;
     }
 
     @Override
     protected void loadServerInfo() {
+        logger.info(locale.getString(PluginLang.LOADING_SERVER_INFO));
         Optional<Server> loaded = fromFile.load(null);
         server = loaded.orElseGet(this::registerNew);
         processing.submitNonCritical(this::updateStorage);
@@ -80,6 +90,7 @@ public class ServerServerInfo extends ServerInfo {
         server.setWebAddress(address);
 
         fromDatabase.save(server);
+        server = fromDatabase.load(server.getUuid()).orElse(server);
         fromFile.save(server);
     }
 
@@ -87,7 +98,7 @@ public class ServerServerInfo extends ServerInfo {
         return registerNew(generateNewUUID());
     }
 
-    private Server registerNew(UUID serverUUID) {
+    private Server registerNew(ServerUUID serverUUID) {
         Server server = createServerObject(serverUUID);
         fromDatabase.save(server);
 
@@ -97,7 +108,7 @@ public class ServerServerInfo extends ServerInfo {
         return stored;
     }
 
-    private Server createServerObject(UUID serverUUID) {
+    private Server createServerObject(ServerUUID serverUUID) {
         String webAddress = addresses.getAccessAddress().orElseGet(addresses::getFallbackLocalhostAddress);
         String name = config.get(PluginSettings.SERVER_NAME);
         return new Server(serverUUID, name, webAddress);

@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.storage.database.queries;
 
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.UserInfoTable;
 import com.djrapitops.plan.storage.database.sql.tables.UsersTable;
 
@@ -30,7 +31,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 /**
  * Static method class for queries that return information related to a single player.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayerFetchQueries {
 
@@ -89,7 +90,7 @@ public class PlayerFetchQueries {
      * @param serverUUID UUID of the Plan server.
      * @return True if the player's UserInfo is found
      */
-    public static Query<Boolean> isPlayerRegisteredOnServer(UUID playerUUID, UUID serverUUID) {
+    public static Query<Boolean> isPlayerRegisteredOnServer(UUID playerUUID, ServerUUID serverUUID) {
         String sql = SELECT + "COUNT(1) as c" +
                 FROM + UserInfoTable.TABLE_NAME +
                 WHERE + UserInfoTable.USER_UUID + "=?" +

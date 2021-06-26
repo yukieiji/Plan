@@ -17,38 +17,42 @@
 package com.djrapitops.plan.delivery.webserver.resolver.json;
 
 import com.djrapitops.plan.delivery.rendering.json.graphs.GraphJSONCreator;
+import com.djrapitops.plan.delivery.web.resolver.MimeType;
 import com.djrapitops.plan.delivery.web.resolver.Resolver;
 import com.djrapitops.plan.delivery.web.resolver.Response;
 import com.djrapitops.plan.delivery.web.resolver.exception.BadRequestException;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resolver.request.WebUser;
+import com.djrapitops.plan.delivery.webserver.cache.AsyncJSONResolverService;
 import com.djrapitops.plan.delivery.webserver.cache.DataID;
-import com.djrapitops.plan.delivery.webserver.cache.JSONCache;
+import com.djrapitops.plan.delivery.webserver.cache.JSONStorage;
 import com.djrapitops.plan.identification.Identifiers;
+import com.djrapitops.plan.identification.ServerUUID;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Resolves /v1/graph JSON requests.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class GraphsJSONResolver implements Resolver {
 
     private final Identifiers identifiers;
+    private final AsyncJSONResolverService jsonResolverService;
     private final GraphJSONCreator graphJSON;
 
     @Inject
     public GraphsJSONResolver(
             Identifiers identifiers,
-            GraphJSONCreator graphJSON
+            AsyncJSONResolverService jsonResolverService, GraphJSONCreator graphJSON
     ) {
         this.identifiers = identifiers;
+        this.jsonResolverService = jsonResolverService;
         this.graphJSON = graphJSON;
     }
 
@@ -76,18 +80,37 @@ public class GraphsJSONResolver implements Resolver {
 
         DataID dataID = getDataID(type);
 
+        return Response.builder()
+                .setMimeType(MimeType.JSON)
+                .setJSONContent(getGraphJSON(request, dataID).json)
+                .build();
+    }
+
+    private JSONStorage.StoredJSON getGraphJSON(Request request, DataID dataID) {
+        long timestamp = Identifiers.getTimestamp(request);
+
+        JSONStorage.StoredJSON storedJSON;
         if (request.getQuery().get("server").isPresent()) {
-            UUID serverUUID = identifiers.getServerUUID(request); // Can throw BadRequestException
-            return JSONCache.getOrCache(dataID, serverUUID, () -> generateGraphDataJSONOfType(dataID, serverUUID));
+            ServerUUID serverUUID = identifiers.getServerUUID(request); // Can throw BadRequestException
+            storedJSON = jsonResolverService.resolve(
+                    timestamp, dataID, serverUUID,
+                    theServerUUID -> generateGraphDataJSONOfType(dataID, theServerUUID)
+            );
+        } else {
+            // Assume network
+            storedJSON = jsonResolverService.resolve(
+                    timestamp, dataID, () -> generateGraphDataJSONOfType(dataID)
+            );
         }
-        // Assume network
-        return JSONCache.getOrCache(dataID, () -> generateGraphDataJSONOfType(dataID));
+        return storedJSON;
     }
 
     private DataID getDataID(String type) {
         switch (type) {
             case "performance":
                 return DataID.GRAPH_PERFORMANCE;
+            case "optimizedPerformance":
+                return DataID.GRAPH_OPTIMIZED_PERFORMANCE;
             case "playersOnline":
                 return DataID.GRAPH_ONLINE;
             case "uniqueAndNew":
@@ -108,15 +131,19 @@ public class GraphsJSONResolver implements Resolver {
                 return DataID.GRAPH_PUNCHCARD;
             case "serverPie":
                 return DataID.GRAPH_SERVER_PIE;
+            case "joinAddressPie":
+                return DataID.GRAPH_HOSTNAME_PIE;
             default:
-                throw new BadRequestException("unknown 'type' parameter: " + type);
+                throw new BadRequestException("unknown 'type' parameter.");
         }
     }
 
-    private Object generateGraphDataJSONOfType(DataID id, UUID serverUUID) {
+    private Object generateGraphDataJSONOfType(DataID id, ServerUUID serverUUID) {
         switch (id) {
             case GRAPH_PERFORMANCE:
                 return graphJSON.performanceGraphJSON(serverUUID);
+            case GRAPH_OPTIMIZED_PERFORMANCE:
+                return graphJSON.optimizedPerformanceGraphJSON(serverUUID);
             case GRAPH_ONLINE:
                 return graphJSON.playersOnlineGraph(serverUUID);
             case GRAPH_UNIQUE_NEW:
@@ -127,6 +154,8 @@ public class GraphsJSONResolver implements Resolver {
                 return graphJSON.serverCalendarJSON(serverUUID);
             case GRAPH_WORLD_PIE:
                 return graphJSON.serverWorldPieJSONAsMap(serverUUID);
+            case GRAPH_HOSTNAME_PIE:
+                return graphJSON.playerHostnamePieJSONAsMap(serverUUID);
             case GRAPH_ACTIVITY:
                 return graphJSON.activityGraphsJSONAsMap(serverUUID);
             case GRAPH_WORLD_MAP:
@@ -150,6 +179,8 @@ public class GraphsJSONResolver implements Resolver {
                 return graphJSON.hourlyUniqueAndNewGraphJSON();
             case GRAPH_SERVER_PIE:
                 return graphJSON.serverPreferencePieJSONAsMap();
+            case GRAPH_HOSTNAME_PIE:
+                return graphJSON.playerHostnamePieJSONAsMap();
             case GRAPH_WORLD_MAP:
                 return graphJSON.geolocationGraphsJSONAsMap();
             default:

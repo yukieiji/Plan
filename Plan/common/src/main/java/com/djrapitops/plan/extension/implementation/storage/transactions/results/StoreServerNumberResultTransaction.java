@@ -16,8 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
-import com.djrapitops.plan.extension.implementation.providers.DataProvider;
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
 import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
@@ -25,27 +26,26 @@ import com.djrapitops.plan.storage.database.transactions.ThrowawayTransaction;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 import static com.djrapitops.plan.storage.database.sql.tables.ExtensionServerValueTable.*;
 
 /**
- * Transaction to store method result of a {@link com.djrapitops.plan.extension.implementation.providers.NumberDataProvider}.
+ * Transaction to store method result of a long.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StoreServerNumberResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
 
     private final long value;
 
-    public StoreServerNumberResultTransaction(DataProvider<Long> provider, Parameters parameters, long value) {
-        this.pluginName = provider.getProviderInformation().getPluginName();
-        this.providerName = provider.getProviderInformation().getName();
+    public StoreServerNumberResultTransaction(ProviderInformation information, Parameters parameters, long value) {
+        this.pluginName = information.getPluginName();
+        this.providerName = information.getName();
         this.serverUUID = parameters.getServerUUID();
         this.value = value;
     }

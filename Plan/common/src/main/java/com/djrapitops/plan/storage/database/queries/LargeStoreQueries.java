@@ -17,28 +17,27 @@
 package com.djrapitops.plan.storage.database.queries;
 
 import com.djrapitops.plan.delivery.domain.Nickname;
+import com.djrapitops.plan.delivery.domain.World;
 import com.djrapitops.plan.delivery.domain.auth.User;
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
 import com.djrapitops.plan.gathering.domain.*;
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.storage.database.queries.objects.WorldTimesQueries;
 import com.djrapitops.plan.storage.database.sql.tables.*;
 import com.djrapitops.plan.storage.database.transactions.ExecBatchStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
-import com.djrapitops.plugin.utilities.Verify;
 import org.apache.commons.lang3.StringUtils;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Static method class for large storage queries.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class LargeStoreQueries {
 
@@ -53,9 +52,7 @@ public class LargeStoreQueries {
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
     public static Executable storeAllGeoInformation(Map<UUID, List<GeoInfo>> ofUsers) {
-        if (Verify.isEmpty(ofUsers)) {
-            return Executable.empty();
-        }
+        if (ofUsers == null || ofUsers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(GeoInfoTable.INSERT_STATEMENT) {
             @Override
@@ -85,17 +82,15 @@ public class LargeStoreQueries {
      * @param ofServersAndUsers Multimap: Server UUID - (Player UUID - List of nicknames)
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storeAllNicknameData(Map<UUID, Map<UUID, List<Nickname>>> ofServersAndUsers) {
-        if (Verify.isEmpty(ofServersAndUsers)) {
-            return Executable.empty();
-        }
+    public static Executable storeAllNicknameData(Map<ServerUUID, Map<UUID, List<Nickname>>> ofServersAndUsers) {
+        if (ofServersAndUsers == null || ofServersAndUsers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(NicknamesTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 // Every Server
-                for (Map.Entry<UUID, Map<UUID, List<Nickname>>> serverEntry : ofServersAndUsers.entrySet()) {
-                    UUID serverUUID = serverEntry.getKey();
+                for (Map.Entry<ServerUUID, Map<UUID, List<Nickname>>> serverEntry : ofServersAndUsers.entrySet()) {
+                    ServerUUID serverUUID = serverEntry.getKey();
                     // Every User
                     for (Map.Entry<UUID, List<Nickname>> entry : serverEntry.getValue().entrySet()) {
                         UUID uuid = entry.getKey();
@@ -115,9 +110,7 @@ public class LargeStoreQueries {
     }
 
     public static Executable storeAllPlanWebUsers(Collection<User> users) {
-        if (Verify.isEmpty(users)) {
-            return Executable.empty();
-        }
+        if (users == null || users.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(SecurityTable.INSERT_STATEMENT) {
             @Override
@@ -138,32 +131,28 @@ public class LargeStoreQueries {
     }
 
     /**
-     * Execute a big batch of server infromation insert statements.
+     * Execute a big batch of server information insert statements.
      *
      * @param servers Collection of Plan Servers.
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
     public static Executable storeAllPlanServerInformation(Collection<Server> servers) {
-        if (Verify.isEmpty(servers)) {
-            return Executable.empty();
-        }
+        if (servers == null || servers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(ServerTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                for (Server info : servers) {
-                    UUID uuid = info.getUuid();
-                    String name = info.getName();
-                    String webAddress = info.getWebAddress();
-
-                    if (uuid == null) {
+                for (Server server : servers) {
+                    ServerUUID serverUUID = server.getUuid();
+                    if (serverUUID == null) {
                         continue;
                     }
 
-                    statement.setString(1, uuid.toString());
-                    statement.setString(2, name);
-                    statement.setString(3, webAddress);
+                    statement.setString(1, serverUUID.toString());
+                    statement.setString(2, server.getName());
+                    statement.setString(3, server.getWebAddress());
                     statement.setBoolean(4, true);
+                    statement.setBoolean(5, server.isProxy());
                     statement.addBatch();
                 }
             }
@@ -176,17 +165,15 @@ public class LargeStoreQueries {
      * @param ofServers Map: Server UUID - List of TPS data
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storeAllTPSData(Map<UUID, List<TPS>> ofServers) {
-        if (Verify.isEmpty(ofServers)) {
-            return Executable.empty();
-        }
+    public static Executable storeAllTPSData(Map<ServerUUID, List<TPS>> ofServers) {
+        if (ofServers == null || ofServers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(TPSTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 // Every Server
-                for (Map.Entry<UUID, List<TPS>> entry : ofServers.entrySet()) {
-                    UUID serverUUID = entry.getKey();
+                for (Map.Entry<ServerUUID, List<TPS>> entry : ofServers.entrySet()) {
+                    ServerUUID serverUUID = entry.getKey();
                     // Every TPS Data point
                     List<TPS> tpsList = entry.getValue();
                     for (TPS tps : tpsList) {
@@ -212,24 +199,23 @@ public class LargeStoreQueries {
      * @param ofServers Map: Server UUID - List of user information
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storePerServerUserInformation(Map<UUID, List<UserInfo>> ofServers) {
-        if (Verify.isEmpty(ofServers)) {
-            return Executable.empty();
-        }
+    public static Executable storePerServerUserInformation(Map<ServerUUID, List<UserInfo>> ofServers) {
+        if (ofServers == null || ofServers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(UserInfoTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 // Every Server
-                for (Map.Entry<UUID, List<UserInfo>> entry : ofServers.entrySet()) {
-                    UUID serverUUID = entry.getKey();
+                for (Map.Entry<ServerUUID, List<UserInfo>> entry : ofServers.entrySet()) {
+                    ServerUUID serverUUID = entry.getKey();
                     // Every User
                     for (UserInfo user : entry.getValue()) {
                         statement.setString(1, user.getPlayerUuid().toString());
                         statement.setLong(2, user.getRegistered());
                         statement.setString(3, serverUUID.toString());
                         statement.setBoolean(4, user.isBanned());
-                        statement.setBoolean(5, user.isOperator());
+                        statement.setString(5, user.getJoinAddress());
+                        statement.setBoolean(6, user.isOperator());
                         statement.addBatch();
                     }
                 }
@@ -243,16 +229,14 @@ public class LargeStoreQueries {
      * @param ofServers Map: Server UUID - Collection of world names
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
-    public static Executable storeAllWorldNames(Map<UUID, Collection<String>> ofServers) {
-        if (Verify.isEmpty(ofServers)) {
-            return Executable.empty();
-        }
+    public static Executable storeAllWorldNames(Map<ServerUUID, Collection<String>> ofServers) {
+        if (ofServers == null || ofServers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(WorldTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                for (Map.Entry<UUID, Collection<String>> entry : ofServers.entrySet()) {
-                    UUID serverUUID = entry.getKey();
+                for (Map.Entry<ServerUUID, Collection<String>> entry : ofServers.entrySet()) {
+                    ServerUUID serverUUID = entry.getKey();
                     for (String world : entry.getValue()) {
                         statement.setString(1, StringUtils.truncate(world, 100));
                         statement.setString(2, serverUUID.toString());
@@ -270,9 +254,7 @@ public class LargeStoreQueries {
      * @return Executable, use inside a {@link com.djrapitops.plan.storage.database.transactions.Transaction}
      */
     public static Executable storeAllCommonUserInformation(Collection<BaseUser> ofUsers) {
-        if (Verify.isEmpty(ofUsers)) {
-            return Executable.empty();
-        }
+        if (ofUsers == null || ofUsers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(UsersTable.INSERT_STATEMENT) {
             @Override
@@ -288,62 +270,84 @@ public class LargeStoreQueries {
         };
     }
 
-    public static Executable storeAllSessionsWithoutKillOrWorldData(Collection<Session> sessions) {
-        if (Verify.isEmpty(sessions)) {
-            return Executable.empty();
-        }
+    public static Executable storeAllSessionsWithoutKillOrWorldData(Collection<FinishedSession> sessions) {
+        if (sessions == null || sessions.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(SessionsTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                for (Session session : sessions) {
-                    statement.setString(1, session.getUnsafe(SessionKeys.UUID).toString());
-                    statement.setLong(2, session.getUnsafe(SessionKeys.START));
-                    statement.setLong(3, session.getUnsafe(SessionKeys.END));
-                    statement.setInt(4, session.getValue(SessionKeys.DEATH_COUNT).orElse(0));
-                    statement.setInt(5, session.getValue(SessionKeys.MOB_KILL_COUNT).orElse(0));
-                    statement.setLong(6, session.getValue(SessionKeys.AFK_TIME).orElse(0L));
-                    statement.setString(7, session.getUnsafe(SessionKeys.SERVER_UUID).toString());
+                for (FinishedSession session : sessions) {
+                    statement.setString(1, session.getPlayerUUID().toString());
+                    statement.setLong(2, session.getStart());
+                    statement.setLong(3, session.getEnd());
+                    statement.setInt(4, session.getDeathCount());
+                    statement.setInt(5, session.getMobKillCount());
+                    statement.setLong(6, session.getAfkTime());
+                    statement.setString(7, session.getServerUUID().toString());
                     statement.addBatch();
                 }
             }
         };
     }
 
-    public static Executable storeAllSessionsWithKillAndWorldData(Collection<Session> sessions) {
+    public static Executable storeAllSessionsWithKillAndWorldData(Collection<FinishedSession> sessions) {
         return connection -> {
+            Set<World> existingWorlds = WorldTimesQueries.fetchWorlds().executeWithConnection(connection);
+            storeAllWorldNames(sessions, existingWorlds).execute(connection);
             storeAllSessionsWithoutKillOrWorldData(sessions).execute(connection);
             storeSessionKillData(sessions).execute(connection);
             return storeSessionWorldTimeData(sessions).execute(connection);
         };
     }
 
-    private static Executable storeSessionKillData(Collection<Session> sessions) {
-        if (Verify.isEmpty(sessions)) {
-            return Executable.empty();
-        }
+    private static Executable storeAllWorldNames(Collection<FinishedSession> sessions, Set<World> existingWorlds) {
+        Set<World> worlds = sessions.stream().flatMap(session -> {
+            ServerUUID serverUUID = session.getServerUUID();
+            return session.getExtraData(WorldTimes.class)
+                    .map(WorldTimes::getWorldTimes)
+                    .map(Map::keySet)
+                    .orElseGet(Collections::emptySet)
+                    .stream()
+                    .map(worldName -> new World(worldName, serverUUID));
+        }).filter(world -> !existingWorlds.contains(world))
+                .collect(Collectors.toSet());
+
+        if (worlds.isEmpty()) return Executable.empty();
+
+        return new ExecBatchStatement(WorldTable.INSERT_STATEMENT) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                for (World world : worlds) {
+                    statement.setString(1, world.getWorldName());
+                    statement.setString(2, world.getServerUUID().toString());
+                    statement.addBatch();
+                }
+            }
+        };
+    }
+
+    private static Executable storeSessionKillData(Collection<FinishedSession> sessions) {
+        if (sessions == null || sessions.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(KillsTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                for (Session session : sessions) {
+                for (FinishedSession session : sessions) {
                     KillsTable.addSessionKillsToBatch(statement, session);
                 }
             }
         };
     }
 
-    private static Executable storeSessionWorldTimeData(Collection<Session> sessions) {
-        if (Verify.isEmpty(sessions)) {
-            return Executable.empty();
-        }
+    private static Executable storeSessionWorldTimeData(Collection<FinishedSession> sessions) {
+        if (sessions == null || sessions.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(WorldTimesTable.INSERT_STATEMENT) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
                 String[] gms = GMTimes.getGMKeyArray();
 
-                for (Session session : sessions) {
+                for (FinishedSession session : sessions) {
                     WorldTimesTable.addSessionWorldTimesToBatch(statement, session, gms);
                 }
             }
@@ -351,9 +355,7 @@ public class LargeStoreQueries {
     }
 
     public static Executable storeAllPingData(Map<UUID, List<Ping>> ofUsers) {
-        if (Verify.isEmpty(ofUsers)) {
-            return Executable.empty();
-        }
+        if (ofUsers == null || ofUsers.isEmpty()) return Executable.empty();
 
         return new ExecBatchStatement(PingTable.INSERT_STATEMENT) {
             @Override
@@ -362,7 +364,7 @@ public class LargeStoreQueries {
                     UUID uuid = entry.getKey();
                     List<Ping> pings = entry.getValue();
                     for (Ping ping : pings) {
-                        UUID serverUUID = ping.getServerUUID();
+                        ServerUUID serverUUID = ping.getServerUUID();
                         long date = ping.getDate();
                         int minPing = ping.getMin();
                         int maxPing = ping.getMax();

@@ -16,8 +16,8 @@
  */
 package com.djrapitops.plan;
 
-import com.djrapitops.plugin.api.Check;
 import org.bstats.bukkit.Metrics;
+import org.bstats.charts.SimplePie;
 
 public class BStatsBukkit {
 
@@ -30,14 +30,14 @@ public class BStatsBukkit {
 
     public void registerMetrics() {
         if (metrics == null) {
-            metrics = new Metrics(plugin);
+            metrics = new Metrics(plugin, 1240);
         }
         registerConfigSettingGraphs();
     }
 
     private void registerConfigSettingGraphs() {
         String serverType = plugin.getServer().getName();
-        if ("CraftBukkit".equals(serverType) && Check.isSpigotAvailable()) {
+        if ("CraftBukkit".equals(serverType) && isSpigotAvailable()) {
             serverType = "Spigot";
         }
         String databaseType = plugin.getSystem().getDatabaseSystem().getDatabase().getType().getName();
@@ -46,7 +46,16 @@ public class BStatsBukkit {
         addStringSettingPie("database_type", databaseType);
     }
 
+    private boolean isSpigotAvailable() {
+        try {
+            Class.forName("org.spigotmc.CustomTimingsHandler");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     protected void addStringSettingPie(String id, String setting) {
-        metrics.addCustomChart(new Metrics.SimplePie(id, () -> setting));
+        metrics.addCustomChart(new SimplePie(id, () -> setting));
     }
 }

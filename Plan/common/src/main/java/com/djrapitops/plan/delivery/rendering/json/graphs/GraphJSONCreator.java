@@ -21,6 +21,7 @@ import com.djrapitops.plan.delivery.domain.mutators.MutatorFunctions;
 import com.djrapitops.plan.delivery.domain.mutators.PingMutator;
 import com.djrapitops.plan.delivery.domain.mutators.TPSMutator;
 import com.djrapitops.plan.delivery.rendering.json.graphs.bar.BarGraph;
+import com.djrapitops.plan.delivery.rendering.json.graphs.line.LineGraph;
 import com.djrapitops.plan.delivery.rendering.json.graphs.line.LineGraphFactory;
 import com.djrapitops.plan.delivery.rendering.json.graphs.line.PingGraph;
 import com.djrapitops.plan.delivery.rendering.json.graphs.line.Point;
@@ -28,12 +29,16 @@ import com.djrapitops.plan.delivery.rendering.json.graphs.pie.Pie;
 import com.djrapitops.plan.delivery.rendering.json.graphs.pie.WorldPie;
 import com.djrapitops.plan.delivery.rendering.json.graphs.special.WorldMap;
 import com.djrapitops.plan.delivery.rendering.json.graphs.stack.StackGraph;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.Ping;
-import com.djrapitops.plan.gathering.domain.Session;
 import com.djrapitops.plan.gathering.domain.WorldTimes;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.GenericLang;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.settings.theme.ThemeVal;
 import com.djrapitops.plan.storage.database.DBSystem;
@@ -44,22 +49,26 @@ import com.djrapitops.plan.storage.database.queries.analysis.PlayerCountQueries;
 import com.djrapitops.plan.storage.database.queries.objects.*;
 import com.djrapitops.plan.utilities.java.Lists;
 import com.djrapitops.plan.utilities.java.Maps;
-import com.djrapitops.plugin.api.TimeAmount;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Perses Graph related Data JSON.
+ * Creates Graph related Data JSON.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class GraphJSONCreator {
 
     private final PlanConfig config;
+    private final Locale locale;
     private final Theme theme;
     private final DBSystem dbSystem;
     private final Graphs graphs;
@@ -67,23 +76,24 @@ public class GraphJSONCreator {
     @Inject
     public GraphJSONCreator(
             PlanConfig config,
+            Locale locale,
             Theme theme,
             DBSystem dbSystem,
             Graphs graphs
     ) {
         this.config = config;
+        this.locale = locale;
         this.theme = theme;
         this.dbSystem = dbSystem;
         this.graphs = graphs;
     }
 
-    public String performanceGraphJSON(UUID serverUUID) {
+    public String performanceGraphJSON(ServerUUID serverUUID) {
+        long now = System.currentTimeMillis();
         Database db = dbSystem.getDatabase();
         LineGraphFactory lineGraphs = graphs.line();
-        long now = System.currentTimeMillis();
-        long halfYearAgo = now - TimeUnit.DAYS.toMillis(180L);
-        TPSMutator tpsMutator = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServer(serverUUID)))
-                .filterDataBetween(halfYearAgo, now);
+        long halfYearAgo = now - TimeUnit.DAYS.toMillis(180);
+        TPSMutator tpsMutator = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServer(halfYearAgo, now, serverUUID)));
         return '{' +
                 "\"playersOnline\":" + lineGraphs.playersOnlineGraph(tpsMutator).toHighChartsSeries() +
                 ",\"tps\":" + lineGraphs.tpsGraph(tpsMutator).toHighChartsSeries() +
@@ -109,19 +119,76 @@ public class GraphJSONCreator {
                 "}}";
     }
 
-    public String playersOnlineGraph(UUID serverUUID) {
+    public Map<String, Object> optimizedPerformanceGraphJSON(ServerUUID serverUUID) {
+        long now = System.currentTimeMillis();
+        long twoMonthsAgo = now - TimeUnit.DAYS.toMillis(60);
+        long monthAgo = now - TimeUnit.DAYS.toMillis(30);
+
+        long lowestResolution = TimeUnit.MINUTES.toMillis(20);
+        long lowResolution = TimeUnit.MINUTES.toMillis(5);
+        Database db = dbSystem.getDatabase();
+        TPSMutator lowestResolutionData = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServerInResolution(0, twoMonthsAgo, lowestResolution, serverUUID)));
+        TPSMutator lowResolutionData = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServerInResolution(twoMonthsAgo, monthAgo, lowResolution, serverUUID)));
+        TPSMutator highResolutionData = new TPSMutator(db.query(TPSQueries.fetchTPSDataOfServer(monthAgo, now, serverUUID)));
+
+        List<Number[]> values = lowestResolutionData.toArrays(new LineGraph.GapStrategy(
+                config.isTrue(DisplaySettings.GAPS_IN_GRAPH_DATA),
+                lowestResolution + TimeUnit.MINUTES.toMillis(1),
+                TimeUnit.MINUTES.toMillis(1),
+                TimeUnit.MINUTES.toMillis(30),
+                null
+        ));
+        values.addAll(lowResolutionData.toArrays(new LineGraph.GapStrategy(
+                config.isTrue(DisplaySettings.GAPS_IN_GRAPH_DATA),
+                lowResolution + TimeUnit.MINUTES.toMillis(1),
+                TimeUnit.MINUTES.toMillis(1),
+                TimeUnit.MINUTES.toMillis(30),
+                null
+        )));
+        values.addAll(highResolutionData.toArrays(new LineGraph.GapStrategy(
+                config.isTrue(DisplaySettings.GAPS_IN_GRAPH_DATA),
+                TimeUnit.MINUTES.toMillis(3),
+                TimeUnit.MINUTES.toMillis(1),
+                TimeUnit.MINUTES.toMillis(30),
+                null
+        )));
+
+        return Maps.builder(String.class, Object.class)
+                .put("keys", new String[]{"date", "playersOnline", "tps", "cpu", "ram", "entities", "chunks", "disk"})
+                .put("values", values)
+                .put("colors", Maps.builder(String.class, Object.class)
+                        .put("playersOnline", theme.getValue(ThemeVal.GRAPH_PLAYERS_ONLINE))
+                        .put("cpu", theme.getValue(ThemeVal.GRAPH_CPU))
+                        .put("ram", theme.getValue(ThemeVal.GRAPH_RAM))
+                        .put("entities", theme.getValue(ThemeVal.GRAPH_ENTITIES))
+                        .put("chunks", theme.getValue(ThemeVal.GRAPH_CHUNKS))
+                        .put("low", theme.getValue(ThemeVal.GRAPH_TPS_LOW))
+                        .put("med", theme.getValue(ThemeVal.GRAPH_TPS_MED))
+                        .put("high", theme.getValue(ThemeVal.GRAPH_TPS_HIGH))
+                        .build())
+                .put("zones", Maps.builder(String.class, Object.class)
+                        .put("tpsThresholdMed", config.get(DisplaySettings.GRAPH_TPS_THRESHOLD_MED))
+                        .put("tpsThresholdHigh", config.get(DisplaySettings.GRAPH_TPS_THRESHOLD_HIGH))
+                        .put("diskThresholdMed", config.get(DisplaySettings.GRAPH_DISK_THRESHOLD_MED))
+                        .put("diskThresholdHigh", config.get(DisplaySettings.GRAPH_DISK_THRESHOLD_HIGH))
+                        .build())
+                .build();
+    }
+
+    public String playersOnlineGraph(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long halfYearAgo = now - TimeUnit.DAYS.toMillis(180L);
 
-        List<Point> points = Lists.map(db.query(TPSQueries.fetchPlayersOnlineOfServer(halfYearAgo, now, serverUUID)),
-                point -> new Point(point.getDate(), point.getValue())
+        List<Point> points = Lists.map(
+                db.query(TPSQueries.fetchPlayersOnlineOfServer(halfYearAgo, now, serverUUID)),
+                Point::fromDateObj
         );
         return "{\"playersOnline\":" + graphs.line().lineGraph(points).toHighChartsSeries() +
                 ",\"color\":\"" + theme.getValue(ThemeVal.GRAPH_PLAYERS_ONLINE) + "\"}";
     }
 
-    public String uniqueAndNewGraphJSON(UUID serverUUID) {
+    public String uniqueAndNewGraphJSON(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         LineGraphFactory lineGraphs = graphs.line();
         long now = System.currentTimeMillis();
@@ -137,7 +204,7 @@ public class GraphJSONCreator {
         return createUniqueAndNewJSON(lineGraphs, uniquePerDay, newPerDay, TimeUnit.DAYS.toMillis(1L));
     }
 
-    public String hourlyUniqueAndNewGraphJSON(UUID serverUUID) {
+    public String hourlyUniqueAndNewGraphJSON(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         LineGraphFactory lineGraphs = graphs.line();
         long now = System.currentTimeMillis();
@@ -154,14 +221,15 @@ public class GraphJSONCreator {
     }
 
     public String createUniqueAndNewJSON(LineGraphFactory lineGraphs, NavigableMap<Long, Integer> uniquePerDay, NavigableMap<Long, Integer> newPerDay, long gapFillPeriod) {
+        LineGraph.GapStrategy gapStrategy = new LineGraph.GapStrategy(true, gapFillPeriod, 0, gapFillPeriod, 0.0);
         return "{\"uniquePlayers\":" +
                 lineGraphs.lineGraph(MutatorFunctions.toPoints(
                         MutatorFunctions.addMissing(uniquePerDay, gapFillPeriod, 0)
-                )).toHighChartsSeries() +
+                ), gapStrategy).toHighChartsSeries() +
                 ",\"newPlayers\":" +
                 lineGraphs.lineGraph(MutatorFunctions.toPoints(
                         MutatorFunctions.addMissing(newPerDay, gapFillPeriod, 0)
-                )).toHighChartsSeries() +
+                ), gapStrategy).toHighChartsSeries() +
                 ",\"colors\":{" +
                 "\"playersOnline\":\"" + theme.getValue(ThemeVal.GRAPH_PLAYERS_ONLINE) + "\"," +
                 "\"newPlayers\":\"" + theme.getValue(ThemeVal.LIGHT_GREEN) + "\"" +
@@ -200,7 +268,7 @@ public class GraphJSONCreator {
         return createUniqueAndNewJSON(lineGraphs, uniquePerDay, newPerDay, TimeUnit.HOURS.toMillis(1L));
     }
 
-    public String serverCalendarJSON(UUID serverUUID) {
+    public String serverCalendarJSON(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long twoYearsAgo = now - TimeUnit.DAYS.toMillis(730L);
@@ -227,7 +295,7 @@ public class GraphJSONCreator {
                 ",\"firstDay\":" + 1 + '}';
     }
 
-    public Map<String, Object> serverWorldPieJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> serverWorldPieJSONAsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         WorldTimes worldTimes = db.query(WorldTimesQueries.fetchServerTotalWorldTimes(serverUUID));
         WorldPie worldPie = graphs.pie().worldPie(worldTimes);
@@ -238,7 +306,7 @@ public class GraphJSONCreator {
                 .build();
     }
 
-    public Map<String, Object> activityGraphsJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> activityGraphsJSONAsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long date = System.currentTimeMillis();
         Long threshold = config.get(TimeSettings.ACTIVE_PLAY_THRESHOLD);
@@ -276,7 +344,7 @@ public class GraphJSONCreator {
         return createActivityGraphJSON(activityData);
     }
 
-    public Map<String, Object> geolocationGraphsJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> geolocationGraphsJSONAsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         Map<String, Integer> geolocationCounts = db.query(GeoInfoQueries.serverGeolocationCounts(serverUUID));
 
@@ -288,6 +356,7 @@ public class GraphJSONCreator {
         WorldMap worldMap = graphs.special().worldMap(geolocationCounts);
 
         return Maps.builder(String.class, Object.class)
+                .put("geolocations_enabled", config.get(DataGatheringSettings.GEOLOCATIONS) && config.get(DataGatheringSettings.ACCEPT_GEOLITE2_EULA))
                 .put("geolocation_series", worldMap.getEntries())
                 .put("geolocation_bar_series", geolocationBarGraph.getBars())
                 .put("colors", Maps.builder(String.class, String.class)
@@ -305,7 +374,7 @@ public class GraphJSONCreator {
         return createGeolocationJSON(geolocationCounts);
     }
 
-    public String pingGraphsJSON(UUID serverUUID) {
+    public String pingGraphsJSON(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         List<Ping> pings = db.query(PingQueries.fetchPingDataOfServer(now - TimeUnit.DAYS.toMillis(180L), now, serverUUID));
@@ -322,10 +391,10 @@ public class GraphJSONCreator {
                 "}}";
     }
 
-    public Map<String, Object> punchCardJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> punchCardJSONAsMap(ServerUUID serverUUID) {
         long now = System.currentTimeMillis();
         long monthAgo = now - TimeUnit.DAYS.toMillis(30L);
-        List<Session> sessions = dbSystem.getDatabase().query(
+        List<FinishedSession> sessions = dbSystem.getDatabase().query(
                 SessionQueries.fetchServerSessionsWithoutKillOrWorldData(monthAgo, now, serverUUID)
         );
         return Maps.builder(String.class, Object.class)
@@ -338,11 +407,43 @@ public class GraphJSONCreator {
         long now = System.currentTimeMillis();
         long monthAgo = now - TimeUnit.DAYS.toMillis(30L);
         String[] pieColors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
-        Map<String, Long> playtimePerServer = dbSystem.getDatabase().query(SessionQueries.playtimePerServer(now, monthAgo));
+        Map<String, Long> playtimePerServer = dbSystem.getDatabase().query(SessionQueries.playtimePerServer(monthAgo, now));
 
         return Maps.builder(String.class, Object.class)
                 .put("server_pie_colors", pieColors)
                 .put("server_pie_series_30d", graphs.pie().serverPreferencePie(playtimePerServer).getSlices())
                 .build();
+    }
+
+    public Map<String, Object> playerHostnamePieJSONAsMap() {
+        String[] pieColors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
+        Map<String, Integer> joinAddresses = dbSystem.getDatabase().query(UserInfoQueries.joinAddresses());
+
+        translateUnknown(joinAddresses);
+
+        return Maps.builder(String.class, Object.class)
+                .put("colors", pieColors)
+                .put("slices", graphs.pie().joinAddressPie(joinAddresses).getSlices())
+                .build();
+    }
+
+    public Map<String, Object> playerHostnamePieJSONAsMap(ServerUUID serverUUID) {
+        String[] pieColors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
+        Map<String, Integer> joinAddresses = dbSystem.getDatabase().query(UserInfoQueries.joinAddresses(serverUUID));
+
+        translateUnknown(joinAddresses);
+
+        return Maps.builder(String.class, Object.class)
+                .put("colors", pieColors)
+                .put("slices", graphs.pie().joinAddressPie(joinAddresses).getSlices())
+                .build();
+    }
+
+    public void translateUnknown(Map<String, Integer> joinAddresses) {
+        Integer unknown = joinAddresses.get("unknown");
+        if (unknown != null) {
+            joinAddresses.remove("unknown");
+            joinAddresses.put(locale.getString(GenericLang.UNKNOWN).toLowerCase(), unknown);
+        }
     }
 }

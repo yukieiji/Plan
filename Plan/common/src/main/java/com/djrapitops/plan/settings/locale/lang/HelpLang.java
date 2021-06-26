@@ -19,7 +19,7 @@ package com.djrapitops.plan.settings.locale.lang;
 /**
  * Lang for short help messages in Commands.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public enum HelpLang implements Lang {
     ARG_SERVER("CMD Arg Name - server", "server"),
@@ -69,7 +69,8 @@ public enum HelpLang implements Lang {
     DB_UNINSTALLED("Command Help - /plan db uninstalled", "Set a server as uninstalled in the database."),
     EXPORT("Command Help - /plan export", "Export html or json files manually"),
     IMPORT("Command Help - /plan import", "Import data"),
-    JSON("Command Help - /plan json", "View json of Player's raw data.");
+    JSON("Command Help - /plan json", "View json of Player's raw data."),
+    LOGOUT("Command Help - /plan logout", "Log out other users from the panel.");
 
     private final String identifier;
     private final String defaultValue;

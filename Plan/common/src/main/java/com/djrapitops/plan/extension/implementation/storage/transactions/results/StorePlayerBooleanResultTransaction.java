@@ -16,6 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
+import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
@@ -30,25 +33,29 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 import static com.djrapitops.plan.storage.database.sql.tables.ExtensionPlayerValueTable.*;
 
 /**
- * Transaction to store method result of a {@link com.djrapitops.plan.extension.implementation.providers.BooleanDataProvider}.
+ * Transaction to store method result of a boolean.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StorePlayerBooleanResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
     private final UUID playerUUID;
 
     private final boolean value;
 
-    public StorePlayerBooleanResultTransaction(String pluginName, UUID serverUUID, String providerName, UUID playerUUID, boolean value) {
+    public StorePlayerBooleanResultTransaction(String pluginName, ServerUUID serverUUID, String providerName, UUID playerUUID, boolean value) {
         this.pluginName = pluginName;
         this.serverUUID = serverUUID;
         this.providerName = providerName;
         this.playerUUID = playerUUID;
         this.value = value;
+    }
+
+    public StorePlayerBooleanResultTransaction(ProviderInformation information, Parameters parameters, boolean value) {
+        this(information.getPluginName(), parameters.getServerUUID(), information.getName(), parameters.getPlayerUUID(), value);
     }
 
     @Override

@@ -18,6 +18,8 @@ package com.djrapitops.plan.query;
 
 import com.djrapitops.plan.exceptions.database.DBOpException;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.QueryAPIExecutable;
@@ -25,7 +27,6 @@ import com.djrapitops.plan.storage.database.queries.QueryAPIQuery;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -40,6 +41,7 @@ import java.util.function.Consumer;
 @Singleton
 public class QuerySvc implements QueryService {
 
+    private final PlanConfig config;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
     private final ErrorLogger errorLogger;
@@ -49,10 +51,12 @@ public class QuerySvc implements QueryService {
 
     @Inject
     public QuerySvc(
+            PlanConfig config,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             ErrorLogger errorLogger
     ) {
+        this.config = config;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
         this.errorLogger = errorLogger;
@@ -104,7 +108,7 @@ public class QuerySvc implements QueryService {
             try {
                 subscriber.accept(playerUUID);
             } catch (DBOpException e) {
-                errorLogger.log(L.WARN, e, ErrorContext.builder()
+                errorLogger.warn(e, ErrorContext.builder()
                         .whatToDo("Report to this Query API user " + subscriber.getClass().getName())
                         .related("Subscriber: " + subscriber.getClass().getName()).build());
             }
@@ -116,7 +120,7 @@ public class QuerySvc implements QueryService {
             try {
                 function.apply();
             } catch (DBOpException e) {
-                errorLogger.log(L.WARN, e, ErrorContext.builder()
+                errorLogger.warn(e, ErrorContext.builder()
                         .whatToDo("Report to this Query API user " + function.getClass().getName())
                         .related("Subscriber: " + function.getClass().getName()).build());
             }
@@ -125,13 +129,13 @@ public class QuerySvc implements QueryService {
 
     @Override
     public Optional<UUID> getServerUUID() {
-        return serverInfo.getServerUUIDSafe();
+        return serverInfo.getServerUUIDSafe().map(ServerUUID::asUUID);
     }
 
     @Override
     public CommonQueries getCommonQueries() {
         Database database = dbSystem.getDatabase();
         if (database == null) throw new IllegalStateException("Database has not been initialized.");
-        return new CommonQueriesImplementation(database);
+        return new CommonQueriesImplementation(database, config);
     }
 }

@@ -18,6 +18,7 @@ package com.djrapitops.plan.delivery.rendering.json;
 
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
@@ -25,18 +26,18 @@ import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.analysis.ActivityIndexQueries;
 import com.djrapitops.plan.storage.database.queries.analysis.PlayerCountQueries;
 import com.djrapitops.plan.storage.database.queries.objects.SessionQueries;
+import com.djrapitops.plan.utilities.analysis.Percentage;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Creates JSON payload for /server-page Playerbase Overview tab.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class PlayerBaseOverviewJSONCreator implements ServerTabJSONCreator<Map<String, Object>> {
@@ -60,14 +61,14 @@ public class PlayerBaseOverviewJSONCreator implements ServerTabJSONCreator<Map<S
         percentage = formatters.percentage();
     }
 
-    public Map<String, Object> createJSONAsMap(UUID serverUUID) {
+    public Map<String, Object> createJSONAsMap(ServerUUID serverUUID) {
         Map<String, Object> serverOverview = new HashMap<>();
         serverOverview.put("trends", createTrendsMap(serverUUID));
         serverOverview.put("insights", createInsightsMap(serverUUID));
         return serverOverview;
     }
 
-    private Map<String, Object> createTrendsMap(UUID serverUUID) {
+    private Map<String, Object> createTrendsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long monthAgo = now - TimeUnit.DAYS.toMillis(30L);
@@ -96,11 +97,11 @@ public class PlayerBaseOverviewJSONCreator implements ServerTabJSONCreator<Map<S
 
         Long avgAfkBefore = db.query(SessionQueries.averageAfkPerPlayer(twoMonthsAgo, monthAgo, serverUUID));
         Long avgAfkAfter = db.query(SessionQueries.averageAfkPerPlayer(monthAgo, now, serverUUID));
-        double afkPercBefore = avgPlaytimeBefore != 0 ? (double) avgAfkBefore / avgPlaytimeBefore : 0;
-        double afkPercAfter = avgPlaytimeAfter != 0 ? (double) avgAfkAfter / avgPlaytimeAfter : 0;
-        trends.put("afk_then", percentage.apply(afkPercBefore));
-        trends.put("afk_now", percentage.apply(afkPercAfter));
-        trends.put("afk_trend", new Trend(afkPercBefore, afkPercAfter, Trend.REVERSED, percentage));
+        double afkPercentageBefore = Percentage.calculate(avgAfkBefore, avgPlaytimeBefore);
+        double afkPercentageAfter = Percentage.calculate(avgAfkAfter, avgPlaytimeAfter);
+        trends.put("afk_then", percentage.apply(afkPercentageBefore));
+        trends.put("afk_now", percentage.apply(afkPercentageAfter));
+        trends.put("afk_trend", new Trend(afkPercentageBefore, afkPercentageAfter, Trend.REVERSED, percentage));
 
         Long avgRegularPlaytimeBefore = db.query(ActivityIndexQueries.averagePlaytimePerRegularPlayer(twoMonthsAgo, monthAgo, serverUUID, playThreshold));
         Long avgRegularPlaytimeAfter = db.query(ActivityIndexQueries.averagePlaytimePerRegularPlayer(monthAgo, now, serverUUID, playThreshold));
@@ -116,16 +117,16 @@ public class PlayerBaseOverviewJSONCreator implements ServerTabJSONCreator<Map<S
 
         Long avgRegularAfkBefore = db.query(ActivityIndexQueries.averageAFKPerRegularPlayer(twoMonthsAgo, monthAgo, serverUUID, playThreshold));
         Long avgRegularAfkAfter = db.query(ActivityIndexQueries.averageAFKPerRegularPlayer(monthAgo, now, serverUUID, playThreshold));
-        double afkRegularPercBefore = avgRegularPlaytimeBefore != 0 ? (double) avgRegularAfkBefore / avgRegularPlaytimeBefore : 0;
-        double afkRegularPercAfter = avgRegularPlaytimeAfter != 0 ? (double) avgRegularAfkAfter / avgRegularPlaytimeAfter : 0;
-        trends.put("regular_afk_avg_then", percentage.apply(afkRegularPercBefore));
-        trends.put("regular_afk_avg_now", percentage.apply(afkRegularPercAfter));
-        trends.put("regular_afk_avg_trend", new Trend(afkRegularPercBefore, afkRegularPercAfter, Trend.REVERSED, percentage));
+        double afkRegularPercentageBefore = Percentage.calculate(avgRegularAfkBefore, avgRegularPlaytimeBefore);
+        double afkRegularPercentageAfter = Percentage.calculate(avgRegularAfkAfter, avgRegularPlaytimeAfter);
+        trends.put("regular_afk_avg_then", percentage.apply(afkRegularPercentageBefore));
+        trends.put("regular_afk_avg_now", percentage.apply(afkRegularPercentageAfter));
+        trends.put("regular_afk_avg_trend", new Trend(afkRegularPercentageBefore, afkRegularPercentageAfter, Trend.REVERSED, percentage));
 
         return trends;
     }
 
-    private Map<String, Object> createInsightsMap(UUID serverUUID) {
+    private Map<String, Object> createInsightsMap(ServerUUID serverUUID) {
         Database db = dbSystem.getDatabase();
         long now = System.currentTimeMillis();
         long halfMonthAgo = now - TimeUnit.DAYS.toMillis(15L);

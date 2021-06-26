@@ -20,8 +20,7 @@ import com.djrapitops.plan.settings.config.Config;
 import com.djrapitops.plan.settings.config.paths.FormatSettings;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -30,7 +29,7 @@ import java.io.IOException;
 /**
  * Class in charge of updating config.yml.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ConfigUpdater {
@@ -142,6 +141,13 @@ public class ConfigUpdater {
                 new ConfigChange.Moved("Plugin.Configuration.Allow_bungeecord_to_manage_settings", "Plugin.Configuration.Allow_proxy_to_manage_settings"),
                 new ConfigChange.RemovedComment("Webserver.Disable_Webserver"),
                 new ConfigChange.BooleanToString("Time.Use_server_timezone", FormatSettings.TIMEZONE.getPath(), "server", "UTC"),
+
+                new ConfigChange.Removed("Plugin.Logging.Debug"),
+                new ConfigChange.Moved("Plugins.PlaceholderAPI.Placeholders", "Plugins.PlaceholderAPI.Tracked_player_placeholders"),
+
+                new ConfigChange.Removed("Database.H2.User"),
+                new ConfigChange.Removed("Database.H2.Password"),
+                new ConfigChange.Removed("Database.H2"),
         };
     }
 
@@ -153,7 +159,7 @@ public class ConfigUpdater {
                     logger.info("Config: " + change.getAppliedMessage());
                 }
             } catch (Exception e) {
-                errorLogger.log(L.ERROR, e, ErrorContext.builder()
+                errorLogger.error(e, ErrorContext.builder()
                         .whatToDo("Fix write permissions to " + config.getConfigFilePath() + " or Report this")
                         .related("Attempt to change: " + change.getAppliedMessage()).build());
             }

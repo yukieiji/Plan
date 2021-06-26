@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Risto Lahtela
+ * Copyright (c) 2021 AuroraLS3
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
  */
 package com.djrapitops.plan.settings.config;
 
-import com.djrapitops.plugin.utilities.Verify;
+import com.djrapitops.plan.utilities.UnitSemaphoreAccessLock;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -35,11 +35,13 @@ import java.util.stream.Collectors;
  * Represents a single node in a configuration file
  * <p>
  * Based on
- * https://github.com/Rsl1122/Abstract-Plugin-Framework/blob/72e221d3571ef200727713d10d3684c51e9f469d/AbstractPluginFramework/api/src/main/java/com/djrapitops/plugin/config/ConfigNode.java
+ * https://github.com/AuroraLS3/Abstract-Plugin-Framework/blob/72e221d3571ef200727713d10d3684c51e9f469d/AbstractPluginFramework/api/src/main/java/com/djrapitops/plugin/config/ConfigNode.java
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ConfigNode {
+
+    protected final UnitSemaphoreAccessLock nodeModificationLock = new UnitSemaphoreAccessLock();
 
     protected final String key;
     protected ConfigNode parent;
@@ -129,8 +131,11 @@ public class ConfigNode {
         if (parent == null) {
             throw new IllegalStateException("Can not remove root node from a tree.");
         }
-        parent.childNodes.remove(key);
+        nodeModificationLock.enter();
         parent.nodeOrder.remove(key);
+        parent.childNodes.remove(key);
+        nodeModificationLock.exit();
+
         updateParent(null);
 
         // Remove children recursively to avoid memory leaks
@@ -150,8 +155,12 @@ public class ConfigNode {
      */
     protected ConfigNode addChild(ConfigNode child) {
         getNode(child.key).ifPresent(ConfigNode::remove);
+
+        nodeModificationLock.enter();
         childNodes.put(child.key, child);
         nodeOrder.add(child.key);
+        nodeModificationLock.exit();
+
         child.updateParent(this);
         return child;
     }
@@ -198,6 +207,7 @@ public class ConfigNode {
     }
 
     public void reorder(List<String> newOrder) {
+        nodeModificationLock.enter();
         List<String> oldOrder = nodeOrder;
         nodeOrder = new ArrayList<>();
         for (String childKey : newOrder) {
@@ -208,6 +218,7 @@ public class ConfigNode {
         // Add those that were not in the new order, but are in the old order.
         oldOrder.removeAll(nodeOrder);
         nodeOrder.addAll(oldOrder);
+        nodeModificationLock.exit();
     }
 
     /**
@@ -306,7 +317,7 @@ public class ConfigNode {
         }
 
         // Override value conditionally
-        if (Verify.isEmpty(value) && from.value != null) {
+        if (value == null || value.isEmpty() && from.value != null) {
             value = from.value;
         }
 

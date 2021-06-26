@@ -36,7 +36,7 @@ import java.util.Optional;
 /**
  * Resolves '/' URL (Address Root).
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class RootPageResolver implements NoAuthResolver {
@@ -65,7 +65,7 @@ public class RootPageResolver implements NoAuthResolver {
         }
 
         WebUser user = request.getUser()
-                .orElseThrow(() -> new WebUserAuthException(FailReason.NO_USER_PRESENT));
+                .orElseThrow(() -> new WebUserAuthException(FailReason.EXPIRED_COOKIE));
 
         if (user.hasPermission("page.server")) {
             return responseFactory.redirectResponse(server.isProxy() ? "network" : "server/" + Html.encodeToURL(server.getIdentifiableName()));

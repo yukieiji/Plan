@@ -16,37 +16,54 @@
  */
 package com.djrapitops.plan;
 
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.PluginRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.PluginRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * TaskSystem that registers tasks that were previously registered inside Plugin classes.
+ * TaskSystem that registers tasks for the plugin.
+ * See platform specific [Platform]TaskModule classes for what Tasks are registered.
  *
- * Subclasses register actual tasks.
- *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public abstract class TaskSystem implements SubSystem {
+@Singleton
+public class TaskSystem implements SubSystem {
 
-    protected final RunnableFactory runnableFactory;
+    private final RunnableFactory runnableFactory;
+    private final Set<Task> tasks;
 
-    protected TaskSystem(RunnableFactory runnableFactory) {
+    @Inject
+    public TaskSystem(
+            RunnableFactory runnableFactory,
+            Set<Task> tasks
+    ) {
         this.runnableFactory = runnableFactory;
+        this.tasks = tasks;
     }
 
-    protected PluginRunnable registerTask(AbsRunnable runnable) {
-        String taskName = runnable.getClass().getSimpleName();
-        return registerTask(taskName, runnable);
-    }
-
-    public PluginRunnable registerTask(String name, AbsRunnable runnable) {
-        return runnableFactory.create(name, runnable);
+    @Override
+    public void enable() {
+        for (Task task : tasks) task.register(runnableFactory);
     }
 
     @Override
     public void disable() {
         runnableFactory.cancelAllKnownTasks();
+    }
+
+    public <T extends Task> Optional<T> getTask(Class<T> ofType) {
+        for (Task task : tasks) {
+            if (task.getClass().equals(ofType)) return Optional.of(ofType.cast(task));
+        }
+        return Optional.empty();
+    }
+
+    public abstract static class Task extends PluginRunnable {
+        public abstract void register(RunnableFactory runnableFactory);
     }
 
 }

@@ -24,11 +24,8 @@ import com.djrapitops.plan.settings.locale.lang.PluginLang;
 import com.djrapitops.plan.utilities.java.Lists;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.api.utility.Version;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -40,17 +37,19 @@ import java.util.Optional;
 /**
  * System for checking if new Version is available when the System initializes.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class VersionChecker implements SubSystem {
 
-    private final String currentVersion;
+    private final VersionNumber currentVersion;
     private final Locale locale;
     private final PlanConfig config;
     private final PluginLogger logger;
     private final RunnableFactory runnableFactory;
     private final ErrorLogger errorLogger;
+
+    private static final String DOWNLOAD_ICON_HTML = "<i class=\"fa fa-fw fa-download\"></i> ";
 
     private VersionInfo newVersionAvailable;
 
@@ -63,7 +62,7 @@ public class VersionChecker implements SubSystem {
             RunnableFactory runnableFactory,
             ErrorLogger errorLogger
     ) {
-        this.currentVersion = currentVersion;
+        this.currentVersion = new VersionNumber(currentVersion);
         this.locale = locale;
         this.config = config;
         this.logger = logger;
@@ -82,21 +81,21 @@ public class VersionChecker implements SubSystem {
                 versions = Lists.filter(versions, VersionInfo::isRelease);
             }
             VersionInfo newestVersion = versions.get(0);
-            if (Version.isNewVersionAvailable(new Version(currentVersion), newestVersion.getVersion())) {
+            if (newestVersion.getVersion().isNewerThan(currentVersion)) {
                 newVersionAvailable = newestVersion;
                 String notification = locale.getString(
                         PluginLang.VERSION_AVAILABLE,
-                        newestVersion.getVersion().toString(),
+                        newestVersion.getVersion().asString(),
                         newestVersion.getChangeLogUrl()
                 ) + (newestVersion.isRelease() ? "" : locale.getString(PluginLang.VERSION_AVAILABLE_DEV));
-                logger.log(L.INFO_COLOR, "§a----------------------------------------");
-                logger.log(L.INFO_COLOR, "§a" + notification);
-                logger.log(L.INFO_COLOR, "§a----------------------------------------");
+                logger.info("§a----------------------------------------");
+                logger.info("§a" + notification);
+                logger.info("§a----------------------------------------");
             } else {
                 logger.info(locale.getString(PluginLang.VERSION_NEWEST));
             }
         } catch (IOException e) {
-            errorLogger.log(L.WARN, e, ErrorContext.builder()
+            errorLogger.warn(e, ErrorContext.builder()
                     .related(locale.getString(PluginLang.VERSION_FAIL_READ_VERSIONS))
                     .whatToDo("Allow Plan to check for updates from Github/versions.txt or disable update check.")
                     .build());
@@ -108,12 +107,7 @@ public class VersionChecker implements SubSystem {
         if (config.isFalse(PluginSettings.CHECK_FOR_UPDATES)) {
             return;
         }
-        runnableFactory.create("VersionChecker", new AbsRunnable() {
-            @Override
-            public void run() {
-                checkForUpdates();
-            }
-        }).runTaskAsynchronously();
+        runnableFactory.create(this::checkForUpdates).runTaskAsynchronously();
     }
 
     @Override
@@ -126,16 +120,20 @@ public class VersionChecker implements SubSystem {
     }
 
     public Optional<String> getUpdateButton() {
-        return getNewVersionAvailable()
-                .map(v -> "<button class=\"btn bg-white col-plan\" data-target=\"#updateModal\" data-toggle=\"modal\" type=\"button\">" +
-                        "<i class=\"fa fa-fw fa-download\"></i> v." + v.getVersion().getVersionString() +
-                        "</button>"
-                );
+        return getNewVersionAvailable().map(v -> {
+            String reduceFontSize = v.getVersion().compareTo(new VersionNumber("5.2 build 999")) > 0 ?
+                    "font-size: 0.95rem;" : "";
+                    return "<button class=\"btn bg-white col-plan\" style=\"" + reduceFontSize +
+                            "\" data-bs-target=\"#updateModal\" data-bs-toggle=\"modal\" type=\"button\">" +
+                            DOWNLOAD_ICON_HTML + locale.getString(PluginLang.VERSION_UPDATE) + ": " + v.getVersion().asString() +
+                            "</button>";
+                }
+        );
     }
 
     public String getCurrentVersionButton() {
-        return "<button class=\"btn bg-plan\" data-target=\"#updateModal\" data-toggle=\"modal\" type=\"button\">" +
-                "v." + getCurrentVersion() +
+        return "<button class=\"btn bg-plan\" data-bs-target=\"#updateModal\" data-bs-toggle=\"modal\" type=\"button\">" +
+                getCurrentVersion() +
                 "</button>";
     }
 
@@ -143,28 +141,28 @@ public class VersionChecker implements SubSystem {
         return getNewVersionAvailable()
                 .map(v -> "<div class=\"modal-header\">" +
                         "<h5 class=\"modal-title\" id=\"updateModalLabel\">" +
-                        "<i class=\"fa fa-fw fa-download\"></i> Version " + v.getVersion().getVersionString() + " is Available!" +
-                        "</h5><button aria-label=\"Close\" class=\"close\" data-dismiss=\"modal\" type=\"button\"><span aria-hidden=\"true\">&times;</span></button>" +
+                        DOWNLOAD_ICON_HTML + locale.getString(PluginLang.VERSION_UPDATE_AVAILABLE, v.getVersion().asString()) +
+                        "</h5><button aria-label=\"Close\" class=\"btn-close\" data-bs-dismiss=\"modal\" type=\"button\"></button>" +
                         "</div>" + // Close modal-header
                         "<div class=\"modal-body\">" +
-                        "<p>A new version has been released and is now available for download." +
-                        (v.isRelease() ? "" : "<br>This version is a DEV release.") + "</p>" +
+                        "<p>" + locale.getString(PluginLang.VERSION_CURRENT, getCurrentVersion()) + ". " + locale.getString(PluginLang.VERSION_UPDATE_INFO) +
+                        (v.isRelease() ? "" : "<br>" + locale.getString(PluginLang.VERSION_UPDATE_DEV)) + "</p>" +
                         "<a class=\"btn col-plan\" href=\"" + v.getChangeLogUrl() + "\" rel=\"noopener noreferrer\" target=\"_blank\">" +
-                        "<i class=\"fa fa-fw fa-list\"></i> View Changelog</a>" +
+                        "<i class=\"fa fa-fw fa-list\"></i> " + locale.getString(PluginLang.VERSION_CHANGE_LOG) + "</a>" +
                         "<a class=\"btn col-plan\" href=\"" + v.getDownloadUrl() + "\" rel=\"noopener noreferrer\" target=\"_blank\">" +
-                        "<i class=\"fa fa-fw fa-download\"></i> Download Plan-" + v.getVersion().getVersionString() + ".jar</a>" +
+                        DOWNLOAD_ICON_HTML + locale.getString(PluginLang.VERSION_DOWNLOAD, v.getVersion().asString()) + "</a>" +
                         "</div>") // Close modal-body
                 .orElse("<div class=\"modal-header\">" +
                         "<h5 class=\"modal-title\" id=\"updateModalLabel\">" +
-                        "<i class=\"far fa-fw fa-check-circle\"></i> You have version " + getCurrentVersion() + "" +
-                        "</h5><button aria-label=\"Close\" class=\"close\" data-dismiss=\"modal\" type=\"button\"><span aria-hidden=\"true\">&times;</span></button>" +
+                        "<i class=\"far fa-fw fa-check-circle\"></i> " + locale.getString(PluginLang.VERSION_CURRENT, getCurrentVersion()) +
+                        "</h5><button aria-label=\"Close\" class=\"btn-close\" data-bs-dismiss=\"modal\" type=\"button\"></button>" +
                         "</div>" + // Close modal-header
                         "<div class=\"modal-body\">" +
-                        "<p>You are running the latest version.</p>" +
+                        "<p>" + locale.getString(PluginLang.VERSION_NEWEST) + "</p>" +
                         "</div>"); // Close modal-body
     }
 
     public String getCurrentVersion() {
-        return currentVersion;
+        return currentVersion.asString();
     }
 }

@@ -23,7 +23,6 @@ import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.queries.objects.NicknameQueries;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -35,7 +34,7 @@ import java.util.UUID;
 /**
  * Used for caching nicknames when the player is online.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class NicknameCache implements SubSystem {
@@ -99,7 +98,7 @@ public class NicknameCache implements SubSystem {
                     NicknameQueries.fetchLastSeenNicknameOfPlayer(uuid, serverInfo.getServerUUID())
             ).map(Nickname::getName);
         } catch (DBOpException e) {
-            errorLogger.log(L.ERROR, e);
+            errorLogger.error(e);
         }
         return Optional.empty();
     }

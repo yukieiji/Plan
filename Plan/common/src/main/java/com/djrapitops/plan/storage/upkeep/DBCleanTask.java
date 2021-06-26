@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.storage.upkeep;
 
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.exceptions.database.DBOpException;
 import com.djrapitops.plan.extension.implementation.storage.transactions.results.RemoveUnsatisfiedConditionalPlayerResultsTransaction;
 import com.djrapitops.plan.extension.implementation.storage.transactions.results.RemoveUnsatisfiedConditionalServerResultsTransaction;
@@ -29,15 +30,17 @@ import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
+import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.sql.tables.SessionsTable;
 import com.djrapitops.plan.storage.database.transactions.commands.RemovePlayerTransaction;
 import com.djrapitops.plan.storage.database.transactions.init.RemoveDuplicateUserInfoTransaction;
 import com.djrapitops.plan.storage.database.transactions.init.RemoveOldExtensionsTransaction;
 import com.djrapitops.plan.storage.database.transactions.init.RemoveOldSampledDataTransaction;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.scheduling.PluginRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -47,16 +50,17 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
  * Task for cleaning the active database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
-public class DBCleanTask extends AbsRunnable {
+public class DBCleanTask extends TaskSystem.Task {
 
     private final Locale locale;
     private final DBSystem dbSystem;
@@ -97,6 +101,7 @@ public class DBCleanTask extends AbsRunnable {
         Database database = dbSystem.getDatabase();
         try {
             if (database.getState() != Database.State.CLOSED) {
+
                 database.executeTransaction(new RemoveOldSampledDataTransaction(
                         serverInfo.getServerUUID(),
                         config.get(TimeSettings.DELETE_TPS_DATA_AFTER),
@@ -110,14 +115,44 @@ public class DBCleanTask extends AbsRunnable {
                     logger.info(locale.getString(PluginLang.DB_NOTIFY_CLEAN, removed));
                 }
                 Long deleteExtensionDataAfter = config.get(TimeSettings.DELETE_EXTENSION_DATA_AFTER);
+                Long databaseCleanPeriod = config.get(TimeSettings.CLEAN_DATABASE_PERIOD);
+                if (databaseCleanPeriod > deleteExtensionDataAfter) {
+                    logger.warn("Data of Disabled Extensions can not be cleaned due to " + TimeSettings.CLEAN_DATABASE_PERIOD.getPath() + " being larger than " + TimeSettings.DELETE_EXTENSION_DATA_AFTER.getPath());
+                }
+
+                // Avoid cleaning extension data that has not been updated after uptime longer than the deletion threshold.
+                // This is needed since the last updated number is updated at reload and it would lead to all data
+                // for plugins being deleted all the time.
                 if (System.currentTimeMillis() - lastReload <= deleteExtensionDataAfter) {
                     database.executeTransaction(new RemoveOldExtensionsTransaction(deleteExtensionDataAfter, serverInfo.getServerUUID()));
                 }
             }
         } catch (DBOpException e) {
-            errorLogger.log(L.ERROR, e);
+            errorLogger.error(e);
             cancel();
         }
+    }
+
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        PluginRunnable taskToRegister = this;
+        // Secondary task for registration due to database queries.
+        runnableFactory.create(() -> {
+            // Distribute clean task evenly between multiple servers.
+            // see https://github.com/plan-player-analytics/Plan/issues/1641 for why
+            Integer biggestId = dbSystem.getDatabase().query(ServerQueries.fetchBiggestServerID());
+            Integer id = serverInfo.getServer().getId().orElse(1);
+
+            double distributor = id * 1.0 / biggestId; // 0 < distributor <= 1
+            long distributingOverTimeMs = config.get(TimeSettings.CLEAN_DATABASE_PERIOD);
+
+            // -40 seconds to start first at 20 seconds if only one server is present and period is 1 minute.
+            long startAfterMs = (long) (distributor * distributingOverTimeMs) - TimeUnit.SECONDS.toMillis(40L);
+
+            long delayTicks = TimeAmount.toTicks(startAfterMs, TimeUnit.MILLISECONDS);
+            long periodTicks = TimeAmount.toTicks(config.get(TimeSettings.CLEAN_DATABASE_PERIOD), TimeUnit.MILLISECONDS);
+            runnableFactory.create(taskToRegister).runTaskTimerAsynchronously(delayTicks, periodTicks);
+        }).runTaskAsynchronously();
     }
 
     // VisibleForTesting

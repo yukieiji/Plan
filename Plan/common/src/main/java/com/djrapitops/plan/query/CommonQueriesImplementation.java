@@ -16,47 +16,61 @@
  */
 package com.djrapitops.plan.query;
 
+import com.djrapitops.plan.delivery.domain.mutators.ActivityIndex;
 import com.djrapitops.plan.gathering.cache.SessionCache;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
+import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBType;
 import com.djrapitops.plan.storage.database.Database;
+import com.djrapitops.plan.storage.database.queries.containers.PlayerContainerQuery;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.queries.objects.SessionQueries;
 import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
-import com.djrapitops.plan.storage.database.queries.schema.H2SchemaQueries;
 import com.djrapitops.plan.storage.database.queries.schema.MySQLSchemaQueries;
 import com.djrapitops.plan.storage.database.queries.schema.SQLiteSchemaQueries;
 
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class CommonQueriesImplementation implements CommonQueries {
 
     private final Database db;
+    private final PlanConfig config;
 
-    CommonQueriesImplementation(Database db) {
+    CommonQueriesImplementation(Database db, PlanConfig config) {
         this.db = db;
+        this.config = config;
     }
 
     @Override
     public long fetchPlaytime(UUID playerUUID, UUID serverUUID, long after, long before) {
-        return db.query(SessionQueries.playtimeOfPlayer(after, before, playerUUID)).getOrDefault(serverUUID, 0L);
+        return db.query(SessionQueries.playtimeOfPlayer(after, before, playerUUID))
+                .getOrDefault(ServerUUID.from(serverUUID), 0L);
     }
 
     @Override
     public long fetchCurrentSessionPlaytime(UUID playerUUID) {
-        return SessionCache.getCachedSession(playerUUID).map(Session::getLength).orElse(0L);
+        return SessionCache.getCachedSession(playerUUID)
+                .map(ActiveSession::toFinishedSessionFromStillActive)
+                .map(FinishedSession::getLength)
+                .orElse(0L);
     }
 
     @Override
     public long fetchLastSeen(UUID playerUUID, UUID serverUUID) {
-        return db.query(SessionQueries.lastSeen(playerUUID, serverUUID));
+        return db.query(SessionQueries.lastSeen(playerUUID, ServerUUID.from(serverUUID)));
     }
 
     @Override
     public Set<UUID> fetchServerUUIDs() {
-        return db.query(ServerQueries.fetchServerNames()).keySet();
+        return db.query(ServerQueries.fetchServerNames()).keySet().stream()
+                .map(ServerUUID::asUUID)
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -73,8 +87,6 @@ public class CommonQueriesImplementation implements CommonQueries {
     public boolean doesDBHaveTable(String table) {
         DBType dbType = db.getType();
         switch (dbType) {
-            case H2:
-                return db.query(H2SchemaQueries.doesTableExist(table));
             case SQLITE:
                 return db.query(SQLiteSchemaQueries.doesTableExist(table));
             case MYSQL:
@@ -88,8 +100,6 @@ public class CommonQueriesImplementation implements CommonQueries {
     public boolean doesDBHaveTableColumn(String table, String column) {
         DBType dbType = db.getType();
         switch (dbType) {
-            case H2:
-                return db.query(H2SchemaQueries.doesColumnExist(table, column));
             case MYSQL:
                 return db.query(MySQLSchemaQueries.doesColumnExist(table, column));
             case SQLITE:
@@ -97,5 +107,15 @@ public class CommonQueriesImplementation implements CommonQueries {
             default:
                 throw new IllegalStateException("Unsupported Database Type: " + dbType.getName());
         }
+    }
+
+    @Override
+    public double fetchActivityIndexOf(UUID playerUUID, long epochMs) {
+        return db.query(new PlayerContainerQuery(playerUUID)).getActivityIndex(epochMs, config.get(TimeSettings.ACTIVE_PLAY_THRESHOLD)).getValue();
+    }
+
+    @Override
+    public String getActivityGroupForIndex(double activityIndex) {
+        return ActivityIndex.getGroup(activityIndex);
     }
 }

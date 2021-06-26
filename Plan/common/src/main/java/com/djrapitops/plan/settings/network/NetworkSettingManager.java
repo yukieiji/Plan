@@ -19,6 +19,7 @@ package com.djrapitops.plan.settings.network;
 import com.djrapitops.plan.SubSystem;
 import com.djrapitops.plan.exceptions.EnableException;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.*;
 import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
@@ -31,10 +32,9 @@ import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.transactions.StoreConfigTransaction;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -42,9 +42,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
  * - Database update operations related to server configs
  * - File update operations from database related to server configs
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class NetworkSettingManager implements SubSystem {
@@ -98,7 +98,6 @@ public class NetworkSettingManager implements SubSystem {
 
         watcher = prepareFileWatcher();
         watcher.start();
-        logger.debug("Server Settings folder FileWatcher started.");
 
         scheduleDBCheckTask();
     }
@@ -110,10 +109,10 @@ public class NetworkSettingManager implements SubSystem {
         }
     }
 
-    public static UUID getServerUUIDFromFilename(File file) {
+    public static ServerUUID getServerUUIDFromFilename(File file) {
         String fileName = file.getName();
         String uuidString = fileName.substring(0, fileName.length() - 4);
-        return UUID.fromString(uuidString);
+        return ServerUUID.fromString(uuidString);
     }
 
     private FileWatcher prepareFileWatcher() {
@@ -135,7 +134,7 @@ public class NetworkSettingManager implements SubSystem {
 
     private void addFileToWatchList(FileWatcher fileWatcher, File file) {
         try {
-            UUID serverUUID = getServerUUIDFromFilename(file);
+            ServerUUID serverUUID = getServerUUIDFromFilename(file);
 
             fileWatcher.addToWatchlist(new WatchedFile(file, () -> updateConfigInDB(file, serverUUID)));
         } catch (IndexOutOfBoundsException | IllegalArgumentException ignore) {
@@ -145,40 +144,37 @@ public class NetworkSettingManager implements SubSystem {
 
     private void scheduleDBCheckTask() {
         long checkPeriod = TimeAmount.toTicks(config.get(TimeSettings.CONFIG_UPDATE_INTERVAL), TimeUnit.MILLISECONDS);
-        runnableFactory.create("Config Update DB Checker", new AbsRunnable() {
-            @Override
-            public void run() {
-                updateConfigFromDBIfUpdated();
-            }
-        }).runTaskTimerAsynchronously(checkPeriod, checkPeriod);
+        runnableFactory.create(this::updateConfigFromDBIfUpdated)
+                .runTaskTimerAsynchronously(checkPeriod, checkPeriod);
     }
 
     private File createServerSettingsFolder() {
         try {
             File serverConfigFolder = files.getFileFromPluginFolder("serverConfiguration");
-            Files.createDirectories(serverConfigFolder.toPath());
+            Path dir = serverConfigFolder.toPath();
+            if (!Files.isSymbolicLink(dir)) Files.createDirectories(dir);
             return serverConfigFolder;
         } catch (IOException e) {
             throw new EnableException("Could not initialize NetworkSettingManager: " + e.getMessage(), e);
         }
     }
 
-    private File getServerConfigFile(UUID serverUUID) {
+    private File getServerConfigFile(ServerUUID serverUUID) {
         return new File(serverSettingsFolder, serverUUID + ".yml");
     }
 
     private void updateConfigFromDBIfUpdated() {
         Database database = dbSystem.getDatabase();
-        Set<UUID> serverUUIDs = database.query(ServerQueries.fetchPlanServerInformation()).keySet();
+        Set<ServerUUID> serverUUIDs = database.query(ServerQueries.fetchPlanServerInformation()).keySet();
         // Remove the proxy server from the list
         serverUUIDs.remove(serverInfo.getServerUUID());
 
-        for (UUID serverUUID : serverUUIDs) {
+        for (ServerUUID serverUUID : serverUUIDs) {
             updateConfigFromDBIfUpdated(database, serverUUID);
         }
     }
 
-    private void updateConfigFromDBIfUpdated(Database database, UUID serverUUID) {
+    private void updateConfigFromDBIfUpdated(Database database, ServerUUID serverUUID) {
         File configFile = getServerConfigFile(serverUUID);
         long lastModified = configFile.exists() ? configFile.lastModified() : -1;
 
@@ -197,7 +193,7 @@ public class NetworkSettingManager implements SubSystem {
         }
     }
 
-    public void updateConfigInDB(File file, UUID serverUUID) {
+    public void updateConfigInDB(File file, ServerUUID serverUUID) {
         if (!file.exists()) {
             return;
         }
@@ -207,8 +203,6 @@ public class NetworkSettingManager implements SubSystem {
         try (ConfigReader reader = new ConfigReader(file.toPath())) {
             Config config = reader.read();
             database.executeTransaction(new StoreConfigTransaction(serverUUID, config, file.lastModified()));
-            String serverName = config.getNode(PluginSettings.SERVER_NAME.getPath()).map(ConfigNode::getString).orElse("Unknown");
-            logger.debug("Server config '" + serverName + "' in db now up to date.");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

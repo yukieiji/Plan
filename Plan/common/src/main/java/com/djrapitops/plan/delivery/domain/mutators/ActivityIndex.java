@@ -18,7 +18,7 @@ package com.djrapitops.plan.delivery.domain.mutators;
 
 import com.djrapitops.plan.delivery.domain.container.DataContainer;
 import com.djrapitops.plan.delivery.formatting.Formatter;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.HtmlLang;
 
@@ -74,7 +74,7 @@ public class ActivityIndex {
         value = calculate(container);
     }
 
-    public ActivityIndex(List<Session> sessions, long date, long playtimeMsThreshold) {
+    public ActivityIndex(List<FinishedSession> sessions, long date, long playtimeMsThreshold) {
         this.playtimeMsThreshold = playtimeMsThreshold;
 
         this.date = date;
@@ -101,11 +101,11 @@ public class ActivityIndex {
             };
         }
         return new String[]{
-                locale.get(HtmlLang.INDEX_VERY_ACTIVE).toString(),
-                locale.get(HtmlLang.INDEX_ACTIVE).toString(),
-                locale.get(HtmlLang.INDEX_REGULAR).toString(),
-                locale.get(HtmlLang.INDEX_IRREGULAR).toString(),
-                locale.get(HtmlLang.INDEX_INACTIVE).toString()
+                locale.getString(HtmlLang.INDEX_VERY_ACTIVE),
+                locale.getString(HtmlLang.INDEX_ACTIVE),
+                locale.getString(HtmlLang.INDEX_REGULAR),
+                locale.getString(HtmlLang.INDEX_IRREGULAR),
+                locale.getString(HtmlLang.INDEX_INACTIVE)
         };
     }
 
@@ -174,5 +174,19 @@ public class ActivityIndex {
 
     public String getGroup() {
         return getGroup(value);
+    }
+
+    public String getGroup(Locale locale) {
+        if (value >= VERY_ACTIVE) {
+            return locale.getString(HtmlLang.INDEX_VERY_ACTIVE);
+        } else if (value >= ACTIVE) {
+            return locale.getString(HtmlLang.INDEX_ACTIVE);
+        } else if (value >= REGULAR) {
+            return locale.getString(HtmlLang.INDEX_REGULAR);
+        } else if (value >= IRREGULAR) {
+            return locale.getString(HtmlLang.INDEX_IRREGULAR);
+        } else {
+            return locale.getString(HtmlLang.INDEX_INACTIVE);
+        }
     }
 }

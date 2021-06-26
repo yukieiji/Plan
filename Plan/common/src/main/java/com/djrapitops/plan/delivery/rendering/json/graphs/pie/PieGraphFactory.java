@@ -19,6 +19,7 @@ package com.djrapitops.plan.delivery.rendering.json.graphs.pie;
 import com.djrapitops.plan.delivery.domain.mutators.ActivityIndex;
 import com.djrapitops.plan.gathering.domain.GMTimes;
 import com.djrapitops.plan.gathering.domain.WorldTimes;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.WorldAliasSettings;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
@@ -30,12 +31,11 @@ import com.djrapitops.plan.settings.theme.ThemeVal;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Factory class for different objects representing HTML pie graphs.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class PieGraphFactory {
@@ -60,12 +60,16 @@ public class PieGraphFactory {
         return new ActivityPie(activityData, colors, ActivityIndex.getGroups(locale));
     }
 
-    public Pie serverPreferencePie(Map<UUID, String> serverNames, Map<UUID, WorldTimes> serverWorldTimes) {
+    public Pie serverPreferencePie(Map<ServerUUID, String> serverNames, Map<ServerUUID, WorldTimes> serverWorldTimes) {
         return new ServerPreferencePie(serverNames, serverWorldTimes, locale.get(GenericLang.UNKNOWN).toString());
     }
 
-    public Pie serverPreferencePie(Map<String, Long> serverPlaytimes) {
-        return new ServerPreferencePie(serverPlaytimes);
+    public Pie serverPreferencePie(Map<String, Long> playtimeByServerName) {
+        return new ServerPreferencePie(playtimeByServerName);
+    }
+
+    public Pie joinAddressPie(Map<String, Integer> joinAddresses) {
+        return new JoinAddressPie(joinAddresses);
     }
 
     public WorldPie worldPie(WorldTimes worldTimes) {
@@ -73,7 +77,7 @@ public class PieGraphFactory {
         Map<String, Long> playtimePerAlias = worldAliasSettings.getPlaytimePerAlias(worldTimes);
         Map<String, GMTimes> gmTimesPerAlias = worldAliasSettings.getGMTimesPerAlias(worldTimes);
         String[] colors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
-        boolean orderByPercentage = config.isTrue(DisplaySettings.ORDER_WORLD_PIE_BY_PERC);
+        boolean orderByPercentage = config.isTrue(DisplaySettings.ORDER_WORLD_PIE_BY_PERCENTAGE);
         return new WorldPie(playtimePerAlias, gmTimesPerAlias, colors, orderByPercentage);
     }
 }

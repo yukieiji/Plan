@@ -23,6 +23,7 @@ import com.djrapitops.plan.extension.icon.Family;
 import com.djrapitops.plan.extension.icon.Icon;
 import com.djrapitops.plan.extension.implementation.TabInformation;
 import com.djrapitops.plan.extension.implementation.results.*;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.SQLDB;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
@@ -50,9 +51,9 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
  * - {@link QueriedTables}
  * These utilities allow combining incomplete information.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionData>>> {
+public class ExtensionPlayerDataQuery implements Query<Map<ServerUUID, List<ExtensionData>>> {
 
     private final UUID playerUUID;
 
@@ -61,8 +62,8 @@ public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionD
     }
 
     @Override
-    public Map<UUID, List<ExtensionData>> executeQuery(SQLDB db) {
-        Map<UUID, List<ExtensionInformation>> extensionsByServerUUID = db.query(ExtensionInformationQueries.allExtensions());
+    public Map<ServerUUID, List<ExtensionData>> executeQuery(SQLDB db) {
+        Map<ServerUUID, List<ExtensionInformation>> extensionsByServerUUID = db.query(ExtensionInformationQueries.allExtensions());
         Map<Integer, ExtensionData.Builder> extensionDataByPluginID = db.query(fetchIncompletePlayerDataByPluginID());
 
         combine(extensionDataByPluginID, db.query(new ExtensionPlayerTablesQuery(playerUUID)));
@@ -88,11 +89,11 @@ public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionD
         }
     }
 
-    private Map<UUID, List<ExtensionData>> flatMapByServerUUID(Map<UUID, List<ExtensionInformation>> extensionsByServerUUID, Map<Integer, ExtensionData.Builder> extensionDataByPluginID) {
-        Map<UUID, List<ExtensionData>> extensionDataByServerUUID = new HashMap<>();
+    private Map<ServerUUID, List<ExtensionData>> flatMapByServerUUID(Map<ServerUUID, List<ExtensionInformation>> extensionsByServerUUID, Map<Integer, ExtensionData.Builder> extensionDataByPluginID) {
+        Map<ServerUUID, List<ExtensionData>> extensionDataByServerUUID = new HashMap<>();
 
-        for (Map.Entry<UUID, List<ExtensionInformation>> entry : extensionsByServerUUID.entrySet()) {
-            UUID serverUUID = entry.getKey();
+        for (Map.Entry<ServerUUID, List<ExtensionInformation>> entry : extensionsByServerUUID.entrySet()) {
+            ServerUUID serverUUID = entry.getKey();
             for (ExtensionInformation extensionInformation : entry.getValue()) {
                 ExtensionData.Builder data = extensionDataByPluginID.get(extensionInformation.getId());
                 if (data == null) {
@@ -158,8 +159,8 @@ public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionD
             String tabName = Optional.ofNullable(set.getString("tab_name")).orElse("");
             ExtensionTabData.Builder extensionTab = tabData.getTab(pluginID, tabName, () -> extractTabInformation(tabName, set));
 
-            ExtensionDescriptive extensionDescriptive = extractDescriptive(set);
-            extractAndPutDataTo(extensionTab, extensionDescriptive, set);
+            ExtensionDescription extensionDescription = extractDescription(set);
+            extractAndPutDataTo(extensionTab, extensionDescription, set);
         }
         return tabData;
     }
@@ -181,40 +182,40 @@ public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionD
         );
     }
 
-    private void extractAndPutDataTo(ExtensionTabData.Builder extensionTab, ExtensionDescriptive descriptive, ResultSet set) throws SQLException {
+    private void extractAndPutDataTo(ExtensionTabData.Builder extensionTab, ExtensionDescription description, ResultSet set) throws SQLException {
         boolean booleanValue = set.getBoolean(ExtensionPlayerValueTable.BOOLEAN_VALUE);
         if (!set.wasNull()) {
-            extensionTab.putBooleanData(new ExtensionBooleanData(descriptive, booleanValue));
+            extensionTab.putBooleanData(new ExtensionBooleanData(description, booleanValue));
             return;
         }
 
         double doubleValue = set.getDouble(ExtensionPlayerValueTable.DOUBLE_VALUE);
         if (!set.wasNull()) {
-            extensionTab.putDoubleData(new ExtensionDoubleData(descriptive, doubleValue));
+            extensionTab.putDoubleData(new ExtensionDoubleData(description, doubleValue));
             return;
         }
 
         double percentageValue = set.getDouble(ExtensionPlayerValueTable.PERCENTAGE_VALUE);
         if (!set.wasNull()) {
-            extensionTab.putPercentageData(new ExtensionDoubleData(descriptive, percentageValue));
+            extensionTab.putPercentageData(new ExtensionDoubleData(description, percentageValue));
             return;
         }
 
         long numberValue = set.getLong(ExtensionPlayerValueTable.LONG_VALUE);
         if (!set.wasNull()) {
             FormatType formatType = FormatType.getByName(set.getString(ExtensionProviderTable.FORMAT_TYPE)).orElse(FormatType.NONE);
-            extensionTab.putNumberData(new ExtensionNumberData(descriptive, formatType, numberValue));
+            extensionTab.putNumberData(new ExtensionNumberData(description, formatType, numberValue));
             return;
         }
 
         String stringValue = set.getString(ExtensionPlayerValueTable.STRING_VALUE);
         if (stringValue != null) {
             boolean isPlayerName = set.getBoolean("is_player_name");
-            extensionTab.putStringData(new ExtensionStringData(descriptive, isPlayerName, stringValue));
+            extensionTab.putStringData(new ExtensionStringData(description, isPlayerName, stringValue));
         }
     }
 
-    private ExtensionDescriptive extractDescriptive(ResultSet set) throws SQLException {
+    private ExtensionDescription extractDescription(ResultSet set) throws SQLException {
         String name = set.getString("provider_name");
         String text = set.getString(ExtensionProviderTable.TEXT);
         String description = set.getString(ExtensionProviderTable.DESCRIPTION);
@@ -225,7 +226,7 @@ public class ExtensionPlayerDataQuery implements Query<Map<UUID, List<ExtensionD
         Color color = Color.getByName(set.getString("provider_icon_color")).orElse(Color.NONE);
         Icon icon = new Icon(family, iconName, color);
 
-        return new ExtensionDescriptive(name, text, description, icon, priority);
+        return new ExtensionDescription(name, text, description, icon, priority);
     }
 
     private Icon extractTabIcon(ResultSet set) throws SQLException {

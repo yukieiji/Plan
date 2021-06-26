@@ -18,12 +18,11 @@ package com.djrapitops.plan.storage.database.queries;
 
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.delivery.domain.auth.User;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.GeoInfo;
-import com.djrapitops.plan.gathering.domain.Session;
 import com.djrapitops.plan.gathering.domain.TPS;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.DatabaseTestPreparer;
-import com.djrapitops.plan.storage.database.H2DB;
 import com.djrapitops.plan.storage.database.SQLiteDB;
 import com.djrapitops.plan.storage.database.queries.objects.*;
 import com.djrapitops.plan.storage.database.transactions.BackupCopyTransaction;
@@ -47,10 +46,12 @@ public interface DatabaseBackupTest extends DatabaseTestPreparer {
     default void saveDataForBackup() {
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[0]));
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[1]));
-        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime, TestConstants.PLAYER_ONE_NAME, serverUUID()));
-        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime, TestConstants.PLAYER_TWO_NAME, serverUUID()));
+        db().executeTransaction(new PlayerServerRegisterTransaction(playerUUID, RandomData::randomTime,
+                TestConstants.PLAYER_ONE_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
+        db().executeTransaction(new PlayerServerRegisterTransaction(player2UUID, RandomData::randomTime,
+                TestConstants.PLAYER_TWO_NAME, serverUUID(), TestConstants.GET_PLAYER_HOSTNAME));
 
-        Session session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
+        FinishedSession session = RandomData.randomSession(serverUUID(), worlds, playerUUID, player2UUID);
         execute(DataStoreQueries.storeSession(session));
 
         db().executeTransaction(
@@ -94,33 +95,7 @@ public interface DatabaseBackupTest extends DatabaseTestPreparer {
             assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllTPSData());
             assertQueryResultIsEqual(db(), backup, ServerQueries.fetchPlanServerInformation());
             assertQueryResultIsEqual(db(), backup, WebUserQueries.fetchAllUsers());
-        } finally {
-            backup.close();
-        }
-    }
 
-    @Test
-    default void testBackupAndRestoreH2() throws Exception {
-        File tempFile = Files.createTempFile(system().getPlanFiles().getDataFolder().toPath(), "backup-", ".db").toFile();
-        tempFile.deleteOnExit();
-        H2DB backup = dbSystem().getH2Factory().usingFile(tempFile);
-        backup.setTransactionExecutorServiceProvider(MoreExecutors::newDirectExecutorService);
-        try {
-            backup.init();
-
-            saveDataForBackup();
-
-            backup.executeTransaction(new BackupCopyTransaction(db(), backup));
-
-            assertQueryResultIsEqual(db(), backup, BaseUserQueries.fetchAllBaseUsers());
-            assertQueryResultIsEqual(db(), backup, UserInfoQueries.fetchAllUserInformation());
-            assertQueryResultIsEqual(db(), backup, NicknameQueries.fetchAllNicknameData());
-            assertQueryResultIsEqual(db(), backup, GeoInfoQueries.fetchAllGeoInformation());
-            assertQueryResultIsEqual(db(), backup, SessionQueries.fetchAllSessions());
-            assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllWorldNames());
-            assertQueryResultIsEqual(db(), backup, LargeFetchQueries.fetchAllTPSData());
-            assertQueryResultIsEqual(db(), backup, ServerQueries.fetchPlanServerInformation());
-            assertQueryResultIsEqual(db(), backup, WebUserQueries.fetchAllUsers());
         } finally {
             backup.close();
         }

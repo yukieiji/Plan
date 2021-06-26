@@ -16,7 +16,6 @@
  */
 package com.djrapitops.plan.settings.config;
 
-import com.djrapitops.plugin.utilities.Verify;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -34,7 +33,7 @@ import java.util.Map;
  * <p>
  * ConfigReader can write a single file at a time, so it is NOT thread safe.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ConfigWriter {
 
@@ -64,15 +63,13 @@ public class ConfigWriter {
      * @throws IllegalStateException If the Path is null
      */
     public void write(ConfigNode writing) throws IOException {
-        Verify.nullCheck(outputPath, () -> new IllegalStateException("Output path was null."));
+        if (outputPath == null) throw new IllegalStateException("Output path was null.");
 
         ConfigNode storedParent = writing.parent;
         writing.updateParent(null);
 
-        Path directory = outputPath.getParent();
-        if (!directory.toRealPath().toFile().isDirectory()) {
-            Files.createDirectories(directory);
-        }
+        Path dir = outputPath.getParent();
+        if (!Files.isSymbolicLink(dir)) Files.createDirectories(dir);
         Files.write(outputPath, createLines(writing), StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
 
         writing.updateParent(storedParent);
@@ -98,7 +95,10 @@ public class ConfigWriter {
         Map<String, ConfigNode> children = writing.childNodes;
         for (String key : writing.getNodeOrder()) {
             ConfigNode node = children.get(key);
-            if (node.value == null && node.nodeOrder.isEmpty()) {
+            // node is null:       Inconsistent config node state
+            // value is null:      Has no value (empty)
+            // nodeOrder is empty: Has no children
+            if (node == null || node.value == null && node.nodeOrder.isEmpty()) {
                 continue;
             }
 

@@ -16,7 +16,12 @@
  */
 package com.djrapitops.plan.modules;
 
-import com.djrapitops.plan.PlanPlugin;
+import com.djrapitops.plan.DataService;
+import com.djrapitops.plan.DataSvc;
+import com.djrapitops.plan.delivery.webserver.cache.JSONFileStorage;
+import com.djrapitops.plan.delivery.webserver.cache.JSONMemoryStorageShim;
+import com.djrapitops.plan.delivery.webserver.cache.JSONStorage;
+import com.djrapitops.plan.gathering.importing.importers.Importer;
 import com.djrapitops.plan.settings.config.ExtensionSettings;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.locale.Locale;
@@ -26,19 +31,29 @@ import com.djrapitops.plan.utilities.logging.ErrorLogger;
 import com.djrapitops.plan.utilities.logging.PluginErrorLogger;
 import dagger.Module;
 import dagger.Provides;
+import dagger.multibindings.ElementsIntoSet;
+import net.playeranalytics.plugin.PluginInformation;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
  * Module for binding object instances found inside other systems.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Module
 public class SystemObjectProvidingModule {
+
+    @Provides
+    @ElementsIntoSet
+    Set<Importer> emptyImporterSet() {
+        return new HashSet<>();
+    }
 
     @Provides
     @Singleton
@@ -61,21 +76,36 @@ public class SystemObjectProvidingModule {
 
     @Provides
     @Singleton
-    JarResource.StreamFunction provideJarStreamFunction(PlanPlugin plugin) {
-        return plugin::getResource;
+    JarResource.StreamFunction provideJarStreamFunction(PluginInformation pluginInformation) {
+        return pluginInformation::getResourceFromJar;
     }
 
     @Provides
     @Singleton
     @Named("dataFolder")
-    File provideDataFolder(PlanPlugin plugin) {
-        return plugin.getDataFolder();
+    File provideDataFolder(PluginInformation pluginInformation) {
+        return pluginInformation.getDataFolder();
     }
 
     @Provides
     @Singleton
     ErrorLogger provideErrorLogger(PluginErrorLogger errorLogger) {
         return errorLogger;
+    }
+
+    @Provides
+    @Singleton
+    DataService provideDataService(DataSvc dataService) {
+        return dataService;
+    }
+
+    @Provides
+    @Singleton
+    JSONStorage provideJSONStorage(
+            PlanConfig config,
+            JSONFileStorage jsonFileStorage
+    ) {
+        return new JSONMemoryStorageShim(config, jsonFileStorage);
     }
 
 }

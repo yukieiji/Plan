@@ -35,7 +35,7 @@ import java.util.*;
  * Currently very similar to {@link PlayerPluginTab}.
  * This will become more complex once tables are added, since some big tables will be moved to their own tabs.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ServerPluginTabs {
 
@@ -89,7 +89,7 @@ public class ServerPluginTabs {
         if (serverData.isEmpty()) {
             nav = new StringBuilder(NavLink.main(Icon.called("cubes").build(), tabID, "Overview (No Data)").toHtml());
             tab = wrapInWideColumnTab(
-                    "overview", "<div class=\"card\"><div class=\"card-body\"><p>No Extension Data</p></div></div>"
+                    "Overview", "<div class=\"card\"><div class=\"card-body\"><p>No Extension Data</p></div></div>"
             );
         } else {
             nav = new StringBuilder(NavLink.main(Icon.called("cubes").build(), tabID, "Overview").toHtml());
@@ -117,7 +117,7 @@ public class ServerPluginTabs {
             }
 
             String tabName = extensionInformation.getPluginName();
-            tabBuilder.append(wrapInWideColumnTab(tabName, wrapInContainer(extensionInformation, tabsElement)));
+            tabBuilder.append(wrapInWideColumnTab(tabName, wrapInWideContainer(extensionInformation, tabsElement)));
             nav.append(NavLink.main(Icon.fromExtensionIcon(extensionInformation.getIcon()), "plugins-" + tabName, tabName).toHtml());
         }
         return tabBuilder.toString();
@@ -164,7 +164,7 @@ public class ServerPluginTabs {
                 "<h1 class=\"h3 mb-0 text-gray-800\"><i class=\"sidebar-toggler fa fa-fw fa-bars\"></i>${serverName} &middot; Plugins Overview</h1>${backButton}" +
                 "</div>" +
                 // End Page heading
-                "<div class=\"card-columns\">" + content + "</div></div></div>";
+                "<div class=\"row\" data-masonry='{\"percentPosition\": true}'>" + content + "</div></div></div>";
     }
 
     private TabsElement.Tab wrapToTabElementTab(ExtensionTabData tabData) {
@@ -172,16 +172,14 @@ public class ServerPluginTabs {
         String tabContentHtml = buildContentHtml(tabData);
 
         String tabName = tabInformation.getTabName();
-        return new TabsElement.Tab(tabName.isEmpty()
-                ? Icon.called("info-circle").build().toHtml() + " General"
-                : Icon.fromExtensionIcon(tabInformation.getTabIcon()).toHtml() + ' ' + tabName,
-                tabContentHtml);
+        return tabName.isEmpty() ? new TabsElement.Tab(Icon.called("info-circle").build(), "General", tabContentHtml)
+                : new TabsElement.Tab(Icon.fromExtensionIcon(tabInformation.getTabIcon()), tabName, tabContentHtml);
     }
 
     private String buildContentHtml(ExtensionTabData tabData) {
         TabInformation tabInformation = tabData.getTabInformation();
 
-        ElementOrder[] order = tabInformation.getTabElementOrder().orElse(ElementOrder.values());
+        List<ElementOrder> order = tabInformation.getTabElementOrder();
         String values = buildValuesHtml(tabData);
         String valuesHtml = values.isEmpty() ? "" : "<div class=\"card-body\">" + values + "</div>";
         String tablesHtml = buildTablesHtml(tabData);
@@ -207,7 +205,7 @@ public class ServerPluginTabs {
     private String buildTablesHtml(ExtensionTabData tabData) {
         StringBuilder builder = new StringBuilder();
         for (ExtensionTableData tableData : tabData.getTableData()) {
-            builder.append(tableData.getHtmlTable().buildHtml());
+            builder.append(tableData.getHtmlTable().toHtml());
         }
         return builder.toString();
     }
@@ -215,30 +213,41 @@ public class ServerPluginTabs {
     private String buildValuesHtml(ExtensionTabData tabData) {
         StringBuilder builder = new StringBuilder();
         for (String key : tabData.getValueOrder()) {
-            tabData.getBoolean(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue()));
-            tabData.getDouble(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(decimalFormatter)));
-            tabData.getPercentage(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(percentageFormatter)));
-            tabData.getNumber(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(numberFormatters.get(data.getFormatType()))));
-            tabData.getString(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue()));
+            tabData.getBoolean(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue()));
+            tabData.getDouble(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(decimalFormatter)));
+            tabData.getPercentage(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(percentageFormatter)));
+            tabData.getNumber(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(numberFormatters.get(data.getFormatType()))));
+            tabData.getString(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue()));
         }
         return builder.toString();
     }
 
-    private void append(StringBuilder builder, ExtensionDescriptive descriptive, String formattedValue) {
-        Optional<String> description = descriptive.getDescription();
-        if (description.isPresent()) {
-            builder.append("<p title=\"").append(description.get()).append("\">");
+    private void append(StringBuilder builder, ExtensionDescription description, String formattedValue) {
+        Optional<String> textDescription = description.getDescription();
+        if (textDescription.isPresent()) {
+            builder.append("<p title=\"").append(textDescription.get()).append("\">");
         } else {
             builder.append("<p>");
         }
-        builder.append(Icon.fromExtensionIcon(descriptive.getIcon()))
-                .append(' ').append(descriptive.getText()).append("<span class=\"float-right\"><b>").append(formattedValue).append("</b></span></p>");
+        builder.append(Icon.fromExtensionIcon(description.getIcon()))
+                .append(' ').append(description.getText()).append("<span class=\"float-end\"><b>").append(formattedValue).append("</b></span></p>");
     }
 
     private String wrapInContainer(ExtensionInformation information, String tabsElement) {
+        return "<div class=\"col-lg-6 col-xxl-4\">" +
+                "<div class=\"card shadow mb-4\">" +
+                "<div class=\"card-header py-3\">" +
+                "<h6 class=\"m-0 fw-bold col-black\">" + Icon.fromExtensionIcon(information.getIcon()) + ' ' + information.getPluginName() + "</h6>" +
+                "</div>" +
+                tabsElement +
+                "</div>" +
+                "</div>";
+    }
+
+    private String wrapInWideContainer(ExtensionInformation information, String tabsElement) {
         return "<div class=\"card shadow mb-4\">" +
                 "<div class=\"card-header py-3\">" +
-                "<h6 class=\"m-0 font-weight-bold col-black\">" + Icon.fromExtensionIcon(information.getIcon()) + ' ' + information.getPluginName() + "</h6>" +
+                "<h6 class=\"m-0 fw-bold col-black\">" + Icon.fromExtensionIcon(information.getIcon()) + ' ' + information.getPluginName() + "</h6>" +
                 "</div>" +
                 tabsElement +
                 "</div>";

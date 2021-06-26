@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.storage.database.queries.objects;
 
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryAllStatement;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
@@ -34,7 +35,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 /**
  * Queries for fetching different user identifiers in the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class UserIdentifierQueries {
 
@@ -69,7 +70,7 @@ public class UserIdentifierQueries {
      * @param serverUUID UUID of the Plan server.
      * @return Set of UUIDs.
      */
-    public static Query<Set<UUID>> fetchPlayerUUIDsOfServer(UUID serverUUID) {
+    public static Query<Set<UUID>> fetchPlayerUUIDsOfServer(ServerUUID serverUUID) {
         String sql = SELECT +
                 UsersTable.TABLE_NAME + '.' + UsersTable.USER_UUID + ',' +
                 FROM + UsersTable.TABLE_NAME +
@@ -149,7 +150,7 @@ public class UserIdentifierQueries {
      * Query database for a Player name matching a specific player's UUID.
      *
      * @param playerUUID UUID of the Player
-     * @return Optional: name if found, empty if not - Case is stored unless using a H2 database.
+     * @return Optional: name if found, empty if not.
      */
     public static Query<Optional<String>> fetchPlayerNameOf(UUID playerUUID) {
         String sql = Select.from(UsersTable.TABLE_NAME, UsersTable.USER_NAME).where(UsersTable.USER_UUID + "=?").toString();

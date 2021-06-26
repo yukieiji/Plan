@@ -16,9 +16,7 @@
  */
 package com.djrapitops.plan.storage.database.transactions.commands;
 
-import com.djrapitops.plan.delivery.domain.WebUser;
 import com.djrapitops.plan.delivery.webserver.auth.ActiveCookieStore;
-import com.djrapitops.plan.storage.database.queries.objects.WebUserQueries;
 import com.djrapitops.plan.storage.database.sql.tables.SecurityTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
@@ -30,9 +28,9 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.DELETE_FROM;
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 
 /**
- * Transaction to remove a Plan {@link WebUser} from the database.
+ * Transaction to remove a Plan {@link com.djrapitops.plan.delivery.domain.auth.User} from the database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class RemoveWebUserTransaction extends Transaction {
 
@@ -45,7 +43,7 @@ public class RemoveWebUserTransaction extends Transaction {
     @Override
     protected void performOperations() {
         // Logout the user
-        query(WebUserQueries.fetchUser(username)).ifPresent(ActiveCookieStore::removeCookie);
+        ActiveCookieStore.removeUserCookie(username);
 
         String sql = DELETE_FROM + SecurityTable.TABLE_NAME + WHERE + SecurityTable.USERNAME + "=?";
 

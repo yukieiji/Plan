@@ -16,7 +16,6 @@
  */
 package com.djrapitops.plan.settings.locale;
 
-import com.djrapitops.plugin.utilities.Verify;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 
@@ -27,7 +26,7 @@ import java.util.Map;
 /**
  * Represents a Message that can be modified by the caller.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class Message {
 
@@ -38,12 +37,14 @@ public class Message {
     }
 
     public String toString(Serializable... p) {
-        Verify.nullCheck(p);
+        if (p == null) throw new IllegalArgumentException("null arguments were given!");
 
         Map<String, Serializable> replaceMap = new HashMap<>();
 
         for (int i = 0; i < p.length; i++) {
-            replaceMap.put(String.valueOf(i), p[i].toString());
+            Serializable value = p[i];
+            if (value == null) throw new IllegalArgumentException("null is not a valid argument!");
+            replaceMap.put(String.valueOf(i), value.toString());
         }
 
         StringSubstitutor sub = new StringSubstitutor(replaceMap);

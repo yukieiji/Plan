@@ -16,17 +16,20 @@
  */
 package com.djrapitops.plan.delivery.formatting;
 
-import com.djrapitops.plugin.utilities.Format;
+import org.apache.commons.lang3.RegExUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
- * Formatter for entity names, that capitalizes the first word and removes symbols and numbers.
+ * Formatter for entity names, that capitalizes the first word and removes symbols.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class EntityNameFormatter implements Formatter<String> {
 
     @Override
     public String apply(String name) {
-        return new Format(name).removeNumbers().removeSymbols().capitalize().toString();
+        return StringUtils.capitalize(
+                RegExUtils.removeAll(name, "[^a-zA-Z0-9_\\\\s]*").toLowerCase()
+        );
     }
 }

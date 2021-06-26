@@ -30,7 +30,7 @@ import com.djrapitops.plan.storage.database.transactions.patches.Version10Patch;
  * {@link UserInfoOptimizationPatch}
  * {@link com.djrapitops.plan.storage.database.transactions.patches.RegisterDateMinimizationPatch}
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class UserInfoTable {
 
@@ -42,14 +42,16 @@ public class UserInfoTable {
     public static final String REGISTERED = "registered";
     public static final String OP = "opped";
     public static final String BANNED = "banned";
+    public static final String JOIN_ADDRESS = "join_address";
 
     public static final String INSERT_STATEMENT = "INSERT INTO " + TABLE_NAME + " (" +
             USER_UUID + ',' +
             REGISTERED + ',' +
             SERVER_UUID + ',' +
             BANNED + ',' +
+            JOIN_ADDRESS + ',' +
             OP +
-            ") VALUES (?, ?, ?, ?, ?)";
+            ") VALUES (?, ?, ?, ?, ?, ?)";
 
     private UserInfoTable() {
         /* Static information class */
@@ -60,6 +62,7 @@ public class UserInfoTable {
                 .column(ID, Sql.INT).primaryKey()
                 .column(USER_UUID, Sql.varchar(36)).notNull()
                 .column(SERVER_UUID, Sql.varchar(36)).notNull()
+                .column(JOIN_ADDRESS, Sql.varchar(255))
                 .column(REGISTERED, Sql.LONG).notNull()
                 .column(OP, Sql.BOOL).notNull().defaultValue(false)
                 .column(BANNED, Sql.BOOL).notNull().defaultValue(false)

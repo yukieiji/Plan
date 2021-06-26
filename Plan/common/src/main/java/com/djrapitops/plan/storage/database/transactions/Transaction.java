@@ -17,28 +17,28 @@
 package com.djrapitops.plan.storage.database.transactions;
 
 import com.djrapitops.plan.exceptions.database.DBOpException;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.DBType;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.SQLDB;
 import com.djrapitops.plan.storage.database.queries.Query;
+import com.djrapitops.plan.storage.database.queries.QueryAPIQuery;
+import com.djrapitops.plan.storage.database.queries.QueryStatement;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.utilities.Verify;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
 
 import java.sql.*;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents a database transaction.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public abstract class Transaction {
 
-    // SQLite version on 1.8.8 does not support savepoints, see createSavePoint() method
+    // SQLite version on 1.8.8 does not support save points, see createSavePoint() method
     private static final AtomicBoolean SUPPORTS_SAVE_POINTS = new AtomicBoolean(true);
     // Limit for Deadlock attempts.
     private static final int ATTEMPT_LIMIT = 5;
@@ -58,16 +58,11 @@ public abstract class Transaction {
     }
 
     public void executeTransaction(SQLDB db) {
-        Verify.nullCheck(db, () -> new IllegalArgumentException("Given database was null"));
-        Verify.isFalse(success, () -> new IllegalStateException("Transaction has already been executed"));
+        if (db == null) throw new IllegalArgumentException("Given database was null");
+        if (success) throw new IllegalStateException("Transaction has already been executed");
 
         this.db = db;
         this.dbType = db.getType();
-
-        if (!shouldBeExecuted()) {
-            success = true;
-            return;
-        }
 
         attempts++; // Keeps track how many attempts have been made to avoid infinite recursion.
 
@@ -81,9 +76,12 @@ public abstract class Transaction {
         }
 
         try {
-            initializeTransaction(db);
-            performOperations();
-            if (connection != null) connection.commit();
+            initializeConnection(db);
+            if (shouldBeExecuted()) {
+                initializeTransaction(db);
+                performOperations();
+                if (connection != null) connection.commit();
+            }
             success = true;
         } catch (SQLException statementFail) {
             manageFailure(statementFail); // Throws a DBOpException.
@@ -99,9 +97,7 @@ public abstract class Transaction {
         // Retry if deadlock occurs.
         int errorCode = statementFail.getErrorCode();
         boolean mySQLDeadlock = dbType == DBType.MYSQL && errorCode == 1213;
-        boolean h2Deadlock = dbType == DBType.H2 && errorCode == 40001;
-        boolean deadlocked = mySQLDeadlock || h2Deadlock
-                || statementFail instanceof SQLTransactionRollbackException;
+        boolean deadlocked = mySQLDeadlock || statementFail instanceof SQLTransactionRollbackException;
         if (deadlocked && attempts < ATTEMPT_LIMIT) {
             executeTransaction(db); // Recurse to attempt again.
             return;
@@ -110,12 +106,8 @@ public abstract class Transaction {
         if (dbType == DBType.MYSQL && errorCode == 1205) {
             if (!db.isUnderHeavyLoad()) {
                 db.getLogger().warn("Database appears to be under heavy load. Dropping some unimportant transactions and adding short pauses for next 10 minutes.");
-                db.getRunnableFactory().create("Increase load", new AbsRunnable() {
-                    @Override
-                    public void run() {
-                        db.assumeNoMoreHeavyLoad();
-                    }
-                }).runTaskLaterAsynchronously(TimeAmount.toTicks(10, TimeUnit.MINUTES));
+                db.getRunnableFactory().create(db::assumeNoMoreHeavyLoad)
+                        .runTaskLaterAsynchronously(TimeAmount.toTicks(10, TimeUnit.MINUTES));
             }
             db.increaseHeavyLoadDelay();
             executeTransaction(db); // Recurse to attempt again.
@@ -133,13 +125,13 @@ public abstract class Transaction {
 
     private String rollbackTransaction() {
         String rollbackStatusMsg = ", Transaction was rolled back.";
-        boolean hasNoSavepoints = !SUPPORTS_SAVE_POINTS.get();
-        if (hasNoSavepoints) {
+        boolean hasNoSavePoints = !SUPPORTS_SAVE_POINTS.get();
+        if (hasNoSavePoints) {
             rollbackStatusMsg = ", additionally rollbacks are not supported on this server version.";
         } else {
             // Rollbacks are supported.
             try {
-                if (Verify.notNull(connection, savepoint)) {
+                if (connection != null && savepoint != null) {
                     connection.rollback(savepoint);
                 }
             } catch (SQLException rollbackFail) {
@@ -166,12 +158,19 @@ public abstract class Transaction {
      */
     protected abstract void performOperations();
 
-    private void initializeTransaction(SQLDB db) {
+    private void initializeConnection(SQLDB db) {
         try {
             this.connection = db.getConnection();
-            createSavePoint();
         } catch (SQLException e) {
             throw new DBOpException(getClass().getSimpleName() + " initialization failed: " + e.getMessage(), e);
+        }
+    }
+
+    private void initializeTransaction(SQLDB db) {
+        try {
+            createSavePoint();
+        } catch (SQLException e) {
+            throw new DBOpException(getClass().getSimpleName() + " save point initialization failed: " + e.getMessage(), e);
         }
     }
 
@@ -195,7 +194,13 @@ public abstract class Transaction {
     }
 
     protected <T> T query(Query<T> query) {
-        return query.executeQuery(db);
+        if (query instanceof QueryStatement) {
+            return ((QueryStatement<T>) query).executeWithConnection(connection);
+        } else if (query instanceof QueryAPIQuery) {
+            return ((QueryAPIQuery<T>) query).executeWithConnection(connection);
+        } else {
+            return query.executeQuery(db);
+        }
     }
 
     protected boolean execute(Executable executable) {
@@ -212,8 +217,9 @@ public abstract class Transaction {
     }
 
     protected void executeSwallowingExceptions(String... statements) {
-        Verify.nullCheck(statements);
+        if (statements == null) return;
         for (String statement : statements) {
+            if (statement == null) continue;
             try {
                 execute(statement);
             } catch (DBOpException ignore) {
@@ -226,7 +232,9 @@ public abstract class Transaction {
         transaction.db = db;
         transaction.dbType = dbType;
         transaction.connection = this.connection;
-        transaction.performOperations();
+        if (transaction.shouldBeExecuted()) {
+            transaction.performOperations();
+        }
         transaction.connection = null;
         transaction.dbType = null;
         transaction.db = null;
@@ -236,7 +244,7 @@ public abstract class Transaction {
         return db.getState();
     }
 
-    protected UUID getServerUUID() {
+    protected ServerUUID getServerUUID() {
         return db.getServerUUIDSupplier().get();
     }
 

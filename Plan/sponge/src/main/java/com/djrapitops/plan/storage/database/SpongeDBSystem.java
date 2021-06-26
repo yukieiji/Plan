@@ -19,7 +19,7 @@ package com.djrapitops.plan.storage.database;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DatabaseSettings;
 import com.djrapitops.plan.settings.locale.Locale;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -27,7 +27,7 @@ import javax.inject.Singleton;
 /**
  * DBSystem for Sponge.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class SpongeDBSystem extends DBSystem {
@@ -39,16 +39,14 @@ public class SpongeDBSystem extends DBSystem {
             Locale locale,
             MySQLDB mySQLDB,
             SQLiteDB.Factory sqLiteDB,
-            H2DB.Factory h2DB,
             PlanConfig config,
             PluginLogger logger
     ) {
-        super(locale, sqLiteDB, h2DB, logger);
+        super(locale, sqLiteDB, logger);
         this.config = config;
 
         databases.add(mySQLDB);
         databases.add(sqLiteDB.usingDefaultFile());
-        databases.add(h2DB.usingDefaultFile());
     }
 
     @Override

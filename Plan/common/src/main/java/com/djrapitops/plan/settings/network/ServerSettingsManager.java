@@ -17,8 +17,8 @@
 package com.djrapitops.plan.settings.network;
 
 import com.djrapitops.plan.SubSystem;
-import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.Config;
 import com.djrapitops.plan.settings.config.ConfigReader;
 import com.djrapitops.plan.settings.config.ConfigWriter;
@@ -32,9 +32,9 @@ import com.djrapitops.plan.storage.database.queries.objects.NewerConfigQuery;
 import com.djrapitops.plan.storage.database.transactions.StoreConfigTransaction;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -42,7 +42,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -53,7 +52,7 @@ import java.util.concurrent.TimeUnit;
  * - Database updating related to config.yml
  * - File update operations from database related to config.yml
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ServerSettingsManager implements SubSystem {
@@ -62,8 +61,8 @@ public class ServerSettingsManager implements SubSystem {
     private final PlanConfig config;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
-    private final TaskSystem taskSystem;
     private final ErrorLogger errorLogger;
+    private final RunnableFactory runnableFactory;
     private final PluginLogger logger;
     private FileWatcher watcher;
 
@@ -73,7 +72,7 @@ public class ServerSettingsManager implements SubSystem {
             PlanConfig config,
             DBSystem dbSystem,
             ServerInfo serverInfo,
-            TaskSystem taskSystem,
+            RunnableFactory runnableFactory,
             PluginLogger logger,
             ErrorLogger errorLogger
     ) {
@@ -81,7 +80,7 @@ public class ServerSettingsManager implements SubSystem {
         this.config = config;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
-        this.taskSystem = taskSystem;
+        this.runnableFactory = runnableFactory;
         this.logger = logger;
         this.errorLogger = errorLogger;
     }
@@ -90,7 +89,6 @@ public class ServerSettingsManager implements SubSystem {
     public void enable() {
         watcher = prepareFileWatcher();
         watcher.start();
-        logger.debug("Server Settings folder FileWatcher started.");
         scheduleDBCheckTask();
     }
 
@@ -109,7 +107,7 @@ public class ServerSettingsManager implements SubSystem {
         }
 
         Database database = dbSystem.getDatabase();
-        Optional<UUID> serverUUID = serverInfo.getServerUUIDSafe();
+        Optional<ServerUUID> serverUUID = serverInfo.getServerUUIDSafe();
         if (!serverUUID.isPresent()) {
             return;
         }
@@ -117,7 +115,6 @@ public class ServerSettingsManager implements SubSystem {
         try (ConfigReader reader = new ConfigReader(file.toPath())) {
             Config read = reader.read();
             database.executeTransaction(new StoreConfigTransaction(serverUUID.get(), read, file.lastModified()));
-            logger.debug("Server config saved to database.");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -125,19 +122,16 @@ public class ServerSettingsManager implements SubSystem {
 
     private void scheduleDBCheckTask() {
         long checkPeriod = TimeAmount.toTicks(config.get(TimeSettings.CONFIG_UPDATE_INTERVAL), TimeUnit.MILLISECONDS);
-        taskSystem.registerTask("Config Update DB Checker", new AbsRunnable() {
-            @Override
-            public void run() {
-                checkDBForNewConfigSettings(dbSystem.getDatabase());
-            }
-        }).runTaskTimerAsynchronously(checkPeriod, checkPeriod);
+
+        runnableFactory.create(() -> checkDBForNewConfigSettings(dbSystem.getDatabase()))
+                .runTaskTimerAsynchronously(checkPeriod, checkPeriod);
     }
 
     private void checkDBForNewConfigSettings(Database database) {
         File configFile = files.getConfigFile();
         long lastModified = configFile.exists() ? configFile.lastModified() : -1;
 
-        Optional<UUID> serverUUID = serverInfo.getServerUUIDSafe();
+        Optional<ServerUUID> serverUUID = serverInfo.getServerUUIDSafe();
         if (!serverUUID.isPresent()) {
             return;
         }

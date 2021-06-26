@@ -16,8 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
-import com.djrapitops.plan.extension.implementation.providers.DataProvider;
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
 import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
@@ -25,31 +26,30 @@ import com.djrapitops.plan.storage.database.transactions.ThrowawayTransaction;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 import static com.djrapitops.plan.storage.database.sql.tables.ExtensionServerValueTable.*;
 
 /**
- * Transaction to store method result of a {@link com.djrapitops.plan.extension.implementation.providers.DoubleDataProvider}.
+ * Transaction to store method result of a double.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StoreServerDoubleResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
 
     private final double value;
     private final boolean percentage;
 
-    public StoreServerDoubleResultTransaction(DataProvider<Double> provider, Parameters parameters, double value) {
-        this.pluginName = provider.getProviderInformation().getPluginName();
-        this.providerName = provider.getProviderInformation().getName();
+    public StoreServerDoubleResultTransaction(ProviderInformation info, Parameters parameters, double value) {
+        this.pluginName = info.getPluginName();
+        this.providerName = info.getName();
+        this.percentage = info.isPercentage();
         this.serverUUID = parameters.getServerUUID();
         this.value = value;
-        this.percentage = provider.getProviderInformation().isPercentage();
     }
 
     @Override

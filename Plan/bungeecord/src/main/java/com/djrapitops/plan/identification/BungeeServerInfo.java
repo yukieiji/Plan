@@ -23,16 +23,17 @@ import com.djrapitops.plan.identification.storage.ServerDBLoader;
 import com.djrapitops.plan.identification.storage.ServerFileLoader;
 import com.djrapitops.plan.identification.storage.ServerLoader;
 import com.djrapitops.plan.processing.Processing;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.locale.lang.PluginLang;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.UUID;
 
 /**
  * Manages Server information on the Bungee instance.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class BungeeServerInfo extends ServerInfo {
@@ -42,6 +43,8 @@ public class BungeeServerInfo extends ServerInfo {
 
     private final Processing processing;
     private final Addresses addresses;
+
+    private final Locale locale;
     private final PluginLogger logger;
 
     @Inject
@@ -51,6 +54,7 @@ public class BungeeServerInfo extends ServerInfo {
             ServerDBLoader fromDatabase,
             Processing processing,
             Addresses addresses,
+            Locale locale,
             PluginLogger logger
     ) {
         super(serverProperties);
@@ -58,15 +62,19 @@ public class BungeeServerInfo extends ServerInfo {
         this.fromDatabase = fromDatabase;
         this.processing = processing;
         this.addresses = addresses;
+        this.locale = locale;
         this.logger = logger;
     }
 
     @Override
     public void loadServerInfo() {
+        logger.info(locale.getString(PluginLang.LOADING_SERVER_INFO));
         checkIfDefaultIP();
 
         this.server = fromFile.load(null).orElseGet(() -> fromDatabase.load(null)
                 .orElseGet(this::registerServer));
+        this.server.setProxy(true); // Ensure isProxy if loaded from file
+
         processing.submitNonCritical(this::updateStorage);
     }
 
@@ -76,6 +84,7 @@ public class BungeeServerInfo extends ServerInfo {
         server.setWebAddress(address);
 
         fromDatabase.save(server);
+        server = fromDatabase.load(server.getUuid()).orElse(server);
         fromFile.save(server);
     }
 
@@ -86,7 +95,7 @@ public class BungeeServerInfo extends ServerInfo {
         String ip = serverProperties.getIp();
         if ("0.0.0.0".equals(ip)) {
             logger.error("IP setting still 0.0.0.0 - Configure Alternative_IP/IP that connects to the Proxy server.");
-            logger.info("Player Analytics partially enabled (Use /planbungee to reload config)");
+            logger.info("Player Analytics partially enabled (Use /planproxy reload to reload config)");
             throw new EnableException("IP setting still 0.0.0.0 - Configure Alternative_IP/IP that connects to the Proxy server.");
         }
     }
@@ -109,8 +118,8 @@ public class BungeeServerInfo extends ServerInfo {
      * @throws EnableException
      */
     private Server createServerObject() {
-        UUID serverUUID = generateNewUUID();
+        ServerUUID serverUUID = generateNewUUID();
         String accessAddress = addresses.getAccessAddress().orElseThrow(() -> new EnableException("Velocity can not have '0.0.0.0' or '' as an address. Set up 'Server.IP' setting."));
-        return new Server(-1, serverUUID, "BungeeCord", accessAddress);
+        return new Server(-1, serverUUID, "BungeeCord", accessAddress, true);
     }
 }

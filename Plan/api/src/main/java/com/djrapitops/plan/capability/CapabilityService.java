@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * <p>
  * See {@link Capability} for list of capabilities provided by the current version.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface CapabilityService {
 
@@ -50,7 +50,7 @@ public interface CapabilityService {
      * @param isEnabledListener The boolean given to the method tells if Plan has enabled successfully.
      */
     default void registerEnableListener(Consumer<Boolean> isEnabledListener) {
-        ListHolder.ENABLE_LISTENERS.get().add(isEnabledListener);
+        ListHolder.enableListeners.get().add(isEnabledListener);
     }
 
     /**
@@ -65,7 +65,7 @@ public interface CapabilityService {
     }
 
     class ListHolder {
-        static volatile AtomicReference<List<Consumer<Boolean>>> ENABLE_LISTENERS = new AtomicReference<>(
+        static final AtomicReference<List<Consumer<Boolean>>> enableListeners = new AtomicReference<>(
                 new CopyOnWriteArrayList<>()
         );
 

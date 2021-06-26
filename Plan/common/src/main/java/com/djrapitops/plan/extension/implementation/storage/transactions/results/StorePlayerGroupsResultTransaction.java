@@ -16,8 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
-import com.djrapitops.plan.extension.implementation.providers.DataProvider;
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
 import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionGroupsTable;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
@@ -32,22 +33,22 @@ import java.util.UUID;
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 
 /**
- * Transaction to store method result of a {@link com.djrapitops.plan.extension.implementation.providers.GroupDataProvider}.
+ * Transaction to store method result of player's groups.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StorePlayerGroupsResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
     private final UUID playerUUID;
 
     private final String[] value;
 
-    public StorePlayerGroupsResultTransaction(DataProvider<String[]> provider, Parameters parameters, String[] value) {
-        this.pluginName = provider.getProviderInformation().getPluginName();
-        this.providerName = provider.getProviderInformation().getName();
+    public StorePlayerGroupsResultTransaction(ProviderInformation information, Parameters parameters, String[] value) {
+        this.pluginName = information.getPluginName();
+        this.providerName = information.getName();
         this.serverUUID = parameters.getServerUUID();
         this.playerUUID = parameters.getPlayerUUID();
         this.value = value;

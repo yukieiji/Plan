@@ -17,7 +17,7 @@
 package com.djrapitops.plan.storage.database;
 
 import com.djrapitops.plan.settings.locale.Locale;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -25,7 +25,7 @@ import javax.inject.Singleton;
 /**
  * Bungee Database system that initializes MySQL object.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ProxyDBSystem extends DBSystem {
@@ -35,10 +35,9 @@ public class ProxyDBSystem extends DBSystem {
             Locale locale,
             MySQLDB mySQLDB,
             SQLiteDB.Factory sqLiteDB,
-            H2DB.Factory h2DB,
             PluginLogger logger
     ) {
-        super(locale, sqLiteDB, h2DB, logger);
+        super(locale, sqLiteDB, logger);
         databases.add(mySQLDB);
         db = mySQLDB;
     }

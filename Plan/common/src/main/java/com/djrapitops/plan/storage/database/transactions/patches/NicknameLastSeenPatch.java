@@ -17,6 +17,7 @@
 package com.djrapitops.plan.storage.database.transactions.patches;
 
 import com.djrapitops.plan.delivery.domain.Nickname;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.QueryAllStatement;
 import com.djrapitops.plan.storage.database.sql.building.Select;
 import com.djrapitops.plan.storage.database.sql.tables.NicknamesTable;
@@ -30,11 +31,17 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.AND;
 import static com.djrapitops.plan.storage.database.sql.building.Sql.WHERE;
 
+/**
+ * Adds last_seen to nickname table by populating it with the data in actions table, and removes the actions table.
+ * <p>
+ * Actions table contained nickname change events and change to "last seen" saved space on the interface.
+ *
+ * @author AuroraLS3
+ */
 public class NicknameLastSeenPatch extends Patch {
 
     @Override
@@ -57,9 +64,9 @@ public class NicknameLastSeenPatch extends Patch {
         executeSwallowingExceptions("CREATE TABLE IF NOT EXISTS plan_actions " +
                 "(action_id integer, date bigint, server_id integer, user_id integer, additional_info varchar(1))");
 
-        Map<Integer, UUID> serverUUIDsByID = getServerUUIDsByID();
-        Map<UUID, Integer> serverIDsByUUID = new HashMap<>();
-        for (Map.Entry<Integer, UUID> entry : serverUUIDsByID.entrySet()) {
+        Map<Integer, ServerUUID> serverUUIDsByID = getServerUUIDsByID();
+        Map<ServerUUID, Integer> serverIDsByUUID = new HashMap<>();
+        for (Map.Entry<Integer, ServerUUID> entry : serverUUIDsByID.entrySet()) {
             serverIDsByUUID.put(entry.getValue(), entry.getKey());
         }
 
@@ -69,25 +76,25 @@ public class NicknameLastSeenPatch extends Patch {
         executeSwallowingExceptions("DROP TABLE plan_actions");
     }
 
-    private Map<Integer, UUID> getServerUUIDsByID() {
+    private Map<Integer, ServerUUID> getServerUUIDsByID() {
         String sql = Select.from(ServerTable.TABLE_NAME,
                 ServerTable.SERVER_ID, ServerTable.SERVER_UUID)
                 .toString();
 
-        return query(new QueryAllStatement<Map<Integer, UUID>>(sql) {
+        return query(new QueryAllStatement<Map<Integer, ServerUUID>>(sql) {
             @Override
-            public Map<Integer, UUID> processResults(ResultSet set) throws SQLException {
-                Map<Integer, UUID> uuids = new HashMap<>();
+            public Map<Integer, ServerUUID> processResults(ResultSet set) throws SQLException {
+                Map<Integer, ServerUUID> uuids = new HashMap<>();
                 while (set.next()) {
                     int id = set.getInt(ServerTable.SERVER_ID);
-                    uuids.put(id, UUID.fromString(set.getString(ServerTable.SERVER_UUID)));
+                    uuids.put(id, ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID)));
                 }
                 return uuids;
             }
         });
     }
 
-    private Map<Integer, Set<Nickname>> getNicknamesByUserID(Map<Integer, UUID> serverUUIDsByID) {
+    private Map<Integer, Set<Nickname>> getNicknamesByUserID(Map<Integer, ServerUUID> serverUUIDsByID) {
         String fetchSQL = "SELECT * FROM plan_actions WHERE action_id=3 ORDER BY date DESC";
         return query(new QueryAllStatement<Map<Integer, Set<Nickname>>>(fetchSQL, 10000) {
             @Override
@@ -98,7 +105,7 @@ public class NicknameLastSeenPatch extends Patch {
                     long date = set.getLong("date");
                     int userID = set.getInt("user_id");
                     int serverID = set.getInt("server_id");
-                    UUID serverUUID = serverUUIDsByID.get(serverID);
+                    ServerUUID serverUUID = serverUUIDsByID.get(serverID);
                     Nickname nick = new Nickname(set.getString("additional_info"), date, serverUUID);
                     Set<Nickname> foundNicknames = map.computeIfAbsent(userID, Maps::createSet);
                     if (serverUUID == null || foundNicknames.contains(nick)) {
@@ -112,7 +119,7 @@ public class NicknameLastSeenPatch extends Patch {
         });
     }
 
-    private void updateLastUsed(Map<UUID, Integer> serverIDsByUUID, Map<Integer, Set<Nickname>> nicknames) {
+    private void updateLastUsed(Map<ServerUUID, Integer> serverIDsByUUID, Map<Integer, Set<Nickname>> nicknames) {
         String updateSQL = "UPDATE " + NicknamesTable.TABLE_NAME + " SET " + NicknamesTable.LAST_USED + "=?" +
                 WHERE + NicknamesTable.NICKNAME + "=?" +
                 AND + "user_id=?" +

@@ -21,20 +21,20 @@ import com.djrapitops.plan.delivery.formatting.Formatter;
 /**
  * Represents double data returned by a DoubleProvider or PercentageProvider method.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionDoubleData implements DescribedExtensionData {
 
-    private final ExtensionDescriptive descriptive;
+    private final ExtensionDescription description;
     private final double value;
 
-    public ExtensionDoubleData(ExtensionDescriptive descriptive, double value) {
-        this.descriptive = descriptive;
+    public ExtensionDoubleData(ExtensionDescription description, double value) {
+        this.description = description;
         this.value = value;
     }
 
-    public ExtensionDescriptive getDescriptive() {
-        return descriptive;
+    public ExtensionDescription getDescription() {
+        return description;
     }
 
     public String getFormattedValue(Formatter<Double> formatter) {

@@ -25,7 +25,7 @@ import java.util.UUID;
  * <p>
  * Plan calls the methods in DataExtension based on {@link CallEvents} defined by {@link }
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface Caller {
 
@@ -36,9 +36,9 @@ public interface Caller {
      *
      * @param playerUUID UUID of the player.
      * @param playerName Name of the player.
-     * @throws IllegalArgumentException If playerUUID or playerName is null.
+     * @throws IllegalArgumentException If playerUUID AND playerName is null.
      */
-    void updatePlayerData(UUID playerUUID, String playerName) throws IllegalArgumentException;
+    void updatePlayerData(UUID playerUUID, String playerName);
 
     /**
      * Calls all server methods of the associated {@link DataExtension}.

@@ -16,11 +16,11 @@
  */
 package com.djrapitops.plan.settings.config;
 
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.GMTimes;
-import com.djrapitops.plan.gathering.domain.Session;
 import com.djrapitops.plan.gathering.domain.WorldTimes;
 import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
@@ -29,8 +29,6 @@ import com.djrapitops.plan.settings.locale.lang.GenericLang;
 import com.djrapitops.plan.settings.locale.lang.HtmlLang;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.utilities.Verify;
 import dagger.Lazy;
 
 import javax.inject.Inject;
@@ -38,13 +36,14 @@ import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
  * Class responsible for managing config settings for World Aliases.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class WorldAliasSettings {
@@ -83,18 +82,18 @@ public class WorldAliasSettings {
      * @param world World name
      */
     public void addWorld(String world) {
-        Verify.isFalse(Verify.isEmpty(world), () -> new IllegalArgumentException("Attempted to save empty world alias"));
+        if (world == null || world.isEmpty()) throw new IllegalArgumentException("Attempted to save empty world alias");
 
         ConfigNode aliasSect = getAliasSection();
 
         String previousValue = aliasSect.getString(world);
-        if (Verify.isEmpty(previousValue)) {
+        if (previousValue == null || previousValue.isEmpty()) {
             aliasSect.set(world, world);
             processing.submitNonCritical(() -> {
                 try {
                     aliasSect.save();
                 } catch (IOException e) {
-                    errorLogger.log(L.ERROR, e, ErrorContext.builder().whatToDo("Fix write permissions to " + config.get().getConfigFilePath()).build());
+                    errorLogger.error(e, ErrorContext.builder().whatToDo("Fix write permissions to " + config.get().getConfigFilePath()).build());
                 }
             });
         }
@@ -156,18 +155,26 @@ public class WorldAliasSettings {
         return gmTimesPerAlias;
     }
 
-    public String getLongestWorldPlayed(Session session) {
-        ConfigNode aliases = getAliasSection();
-
-        if (!session.supports(SessionKeys.WORLD_TIMES)) {
+    public String getLongestWorldPlayed(ActiveSession session) {
+        Optional<WorldTimes> foundWorldTimes = session.getExtraData(WorldTimes.class);
+        if (!foundWorldTimes.isPresent()) {
             return locale.get().getString(HtmlLang.UNIT_NO_DATA);
         }
-        WorldTimes worldTimes = session.getValue(SessionKeys.WORLD_TIMES).orElse(new WorldTimes());
-        if (!session.supports(SessionKeys.END)) {
-            return worldTimes.getCurrentWorld()
-                    .map(currentWorld -> "Current: " + (aliases.contains(currentWorld) ? aliases.getString(currentWorld) : currentWorld))
-                    .orElse("Current: " + locale.get().getString(GenericLang.UNAVAILABLE));
+        WorldTimes worldTimes = foundWorldTimes.orElseGet(WorldTimes::new);
+
+        ConfigNode aliases = getAliasSection();
+        return worldTimes.getCurrentWorld()
+                .map(currentWorld -> "Current: " + (aliases.contains(currentWorld) ? aliases.getString(currentWorld) : currentWorld))
+                .orElse("Current: " + locale.get().getString(GenericLang.UNAVAILABLE));
+    }
+
+    public String getLongestWorldPlayed(FinishedSession session) {
+
+        Optional<WorldTimes> foundWorldTimes = session.getExtraData(WorldTimes.class);
+        if (!foundWorldTimes.isPresent()) {
+            return locale.get().getString(HtmlLang.UNIT_NO_DATA);
         }
+        WorldTimes worldTimes = foundWorldTimes.orElseGet(WorldTimes::new);
 
         Map<String, Long> playtimePerAlias = getPlaytimePerAlias(worldTimes);
         long total = worldTimes.getTotal();

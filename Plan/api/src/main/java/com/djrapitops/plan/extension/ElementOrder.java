@@ -16,7 +16,7 @@
  */
 package com.djrapitops.plan.extension;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -25,7 +25,7 @@ import java.util.List;
  * Used for determining in which order elements are placed on a {@link com.djrapitops.plan.extension.annotation.Tab} by
  * using {@link com.djrapitops.plan.extension.annotation.TabInfo}.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public enum ElementOrder {
     /**
@@ -61,17 +61,21 @@ public enum ElementOrder {
         }
 
         String[] split = serializedOrder.split(",");
+        ElementOrder[] deserialized = new ElementOrder[split.length];
 
-        List<ElementOrder> order = new ArrayList<>();
-        for (String elementName : split) {
+        for (int i = 0; i < split.length; i++) {
             try {
-                ElementOrder element = valueOf(elementName);
-                order.add(element);
+                ElementOrder element = valueOf(split[i]);
+                deserialized[i] = element;
             } catch (IllegalArgumentException ignore) {
                 /* Has been deleted */
             }
         }
 
-        return order.toArray(new ElementOrder[0]);
+        return deserialized;
+    }
+
+    public static List<ElementOrder> valuesAsList() {
+        return Arrays.asList(values());
     }
 }

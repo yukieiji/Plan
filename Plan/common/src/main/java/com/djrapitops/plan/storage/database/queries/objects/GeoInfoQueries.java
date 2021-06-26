@@ -17,12 +17,14 @@
 package com.djrapitops.plan.storage.database.queries.objects;
 
 import com.djrapitops.plan.gathering.domain.GeoInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryAllStatement;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
 import com.djrapitops.plan.storage.database.sql.tables.GeoInfoTable;
 import com.djrapitops.plan.storage.database.sql.tables.UserInfoTable;
 import com.djrapitops.plan.utilities.java.Lists;
+import org.apache.commons.text.TextStringBuilder;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,7 +36,7 @@ import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 /**
  * Queries for {@link GeoInfo} objects.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class GeoInfoQueries {
 
@@ -107,7 +109,7 @@ public class GeoInfoQueries {
         };
     }
 
-    public static Query<Map<UUID, List<GeoInfo>>> fetchServerGeoInformation(UUID serverUUID) {
+    public static Query<Map<UUID, List<GeoInfo>>> fetchServerGeoInformation(ServerUUID serverUUID) {
         String sql = SELECT + GeoInfoTable.TABLE_NAME + '.' + GeoInfoTable.USER_UUID + ',' +
                 GeoInfoTable.GEOLOCATION + ',' +
                 GeoInfoTable.LAST_USED +
@@ -157,7 +159,38 @@ public class GeoInfoQueries {
         };
     }
 
-    public static Query<Map<String, Integer>> serverGeolocationCounts(UUID serverUUID) {
+    public static Query<Map<String, Integer>> networkGeolocationCounts(Collection<UUID> playerUUIDs) {
+        String subQuery1 = SELECT +
+                GeoInfoTable.USER_UUID + ", " +
+                GeoInfoTable.GEOLOCATION + ", " +
+                GeoInfoTable.LAST_USED +
+                FROM + GeoInfoTable.TABLE_NAME +
+                WHERE + GeoInfoTable.USER_UUID + " IN ('" +
+                new TextStringBuilder().appendWithSeparators(playerUUIDs, "','").build() + "')";
+        String subQuery2 = SELECT +
+                GeoInfoTable.USER_UUID + ", " +
+                "MAX(" + GeoInfoTable.LAST_USED + ") as m" +
+                FROM + GeoInfoTable.TABLE_NAME +
+                GROUP_BY + GeoInfoTable.USER_UUID;
+        String sql = SELECT + GeoInfoTable.GEOLOCATION + ", COUNT(1) as c FROM " +
+                "(" + subQuery1 + ") AS q1" +
+                INNER_JOIN + "(" + subQuery2 + ") AS q2 ON q1.uuid = q2.uuid" +
+                WHERE + GeoInfoTable.LAST_USED + "=m" +
+                GROUP_BY + GeoInfoTable.GEOLOCATION;
+
+        return new QueryAllStatement<Map<String, Integer>>(sql) {
+            @Override
+            public Map<String, Integer> processResults(ResultSet set) throws SQLException {
+                Map<String, Integer> geolocationCounts = new HashMap<>();
+                while (set.next()) {
+                    geolocationCounts.put(set.getString(GeoInfoTable.GEOLOCATION), set.getInt("c"));
+                }
+                return geolocationCounts;
+            }
+        };
+    }
+
+    public static Query<Map<String, Integer>> serverGeolocationCounts(ServerUUID serverUUID) {
         String selectGeolocations = SELECT +
                 GeoInfoTable.USER_UUID + ", " +
                 GeoInfoTable.GEOLOCATION + ", " +
@@ -189,6 +222,36 @@ public class GeoInfoQueries {
                     geolocationCounts.put(set.getString(GeoInfoTable.GEOLOCATION), set.getInt("c"));
                 }
                 return geolocationCounts;
+            }
+        };
+    }
+
+    public static Query<List<String>> uniqueGeolocations() {
+        String sql = SELECT + GeoInfoTable.GEOLOCATION + FROM + GeoInfoTable.TABLE_NAME +
+                ORDER_BY + GeoInfoTable.GEOLOCATION + " ASC";
+        return new QueryAllStatement<List<String>>(sql) {
+            @Override
+            public List<String> processResults(ResultSet set) throws SQLException {
+                List<String> geolocations = new ArrayList<>();
+                while (set.next()) geolocations.add(set.getString(GeoInfoTable.GEOLOCATION));
+                return geolocations;
+            }
+        };
+    }
+
+    public static Query<Set<UUID>> uuidsOfPlayersWithGeolocations(List<String> selected) {
+        String sql = SELECT + GeoInfoTable.USER_UUID +
+                FROM + GeoInfoTable.TABLE_NAME +
+                WHERE + GeoInfoTable.GEOLOCATION +
+                " IN ('" +
+                new TextStringBuilder().appendWithSeparators(selected, "','") +
+                "')";
+        return new QueryAllStatement<Set<UUID>>(sql) {
+            @Override
+            public Set<UUID> processResults(ResultSet set) throws SQLException {
+                Set<UUID> geolocations = new HashSet<>();
+                while (set.next()) geolocations.add(UUID.fromString(set.getString(GeoInfoTable.USER_UUID)));
+                return geolocations;
             }
         };
     }

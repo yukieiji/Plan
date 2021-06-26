@@ -27,7 +27,7 @@ import java.util.List;
 /**
  * Interface for accessing plugin resources in jar or plugin files.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface Resource {
 
@@ -65,7 +65,10 @@ public interface Resource {
     String asString() throws IOException;
 
     /**
-     * @throws UncheckedIOException if fails to read the file
+     * Map to a WebResource used by {@link com.djrapitops.plan.delivery.web.ResourceService} APIs.
+     *
+     * @return The resource
+     * @throws UncheckedIOException if fails to read the file.
      */
     default WebResource asWebResource() {
         try {

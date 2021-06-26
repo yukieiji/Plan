@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Risto Lahtela
+ * Copyright (c) 2021 AuroraLS3
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,7 @@
  */
 package com.djrapitops.plan.settings.config;
 
-import com.djrapitops.plugin.utilities.Verify;
-
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,9 +33,9 @@ import java.util.Objects;
  * Configuration utility for storing settings in a .yml file.
  * <p>
  * Based on
- * https://github.com/Rsl1122/Abstract-Plugin-Framework/blob/72e221d3571ef200727713d10d3684c51e9f469d/AbstractPluginFramework/api/src/main/java/com/djrapitops/plugin/config/Config.java
+ * https://github.com/AuroraLS3/Abstract-Plugin-Framework/blob/72e221d3571ef200727713d10d3684c51e9f469d/AbstractPluginFramework/api/src/main/java/com/djrapitops/plugin/config/Config.java
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class Config extends ConfigNode {
 
@@ -46,14 +43,12 @@ public class Config extends ConfigNode {
 
     public Config(File configFile) {
         super("", null, null);
-        File folder = configFile.getParentFile();
         this.configFilePath = configFile.toPath();
+        Path dir = configFilePath.getParent();
 
         try {
-            Verify.isTrue(folder.exists() || folder.mkdirs(), () ->
-                    new FileNotFoundException("Folders could not be created for config file " + configFile.getAbsolutePath()));
-            Verify.isTrue(configFile.exists() || configFile.createNewFile(), () ->
-                    new FileNotFoundException("Could not create file: " + configFile.getAbsolutePath()));
+            if (!Files.isSymbolicLink(dir)) Files.createDirectories(dir);
+            if (!Files.exists(configFilePath)) Files.createFile(configFilePath);
             read();
             save();
         } catch (IOException e) {

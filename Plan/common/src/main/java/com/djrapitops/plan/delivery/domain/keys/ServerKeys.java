@@ -29,7 +29,7 @@ import java.util.UUID;
 /**
  * Keys for the ServerContainer.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see ServerContainer For DataContainer.
  */
 public class ServerKeys {
@@ -45,7 +45,7 @@ public class ServerKeys {
     public static final Key<List<PlayerContainer>> OPERATORS = new Key<>(new Type<List<PlayerContainer>>() {}, "operators");
     public static final Key<Integer> PLAYER_COUNT = new Key<>(Integer.class, "player_count");
 
-    public static final Key<List<Session>> SESSIONS = CommonKeys.SESSIONS;
+    public static final Key<List<FinishedSession>> SESSIONS = CommonKeys.SESSIONS;
     public static final Key<List<Ping>> PING = CommonKeys.PING;
     public static final Key<WorldTimes> WORLD_TIMES = CommonKeys.WORLD_TIMES;
 

@@ -18,39 +18,59 @@ package com.djrapitops.plan;
 
 import com.djrapitops.plan.addons.placeholderapi.BukkitPlaceholderRegistrar;
 import com.djrapitops.plan.commands.use.BukkitCommand;
+import com.djrapitops.plan.commands.use.ColorScheme;
 import com.djrapitops.plan.commands.use.Subcommand;
 import com.djrapitops.plan.exceptions.EnableException;
 import com.djrapitops.plan.gathering.ServerShutdownSave;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.PluginLang;
 import com.djrapitops.plan.settings.theme.PlanColorScheme;
-import com.djrapitops.plugin.BukkitPlugin;
-import com.djrapitops.plugin.benchmarking.Benchmark;
-import com.djrapitops.plugin.command.ColorScheme;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.BukkitPlatformLayer;
+import net.playeranalytics.plugin.PlatformAbstractionLayer;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.server.PluginLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Main class for Bukkit that manages the plugin.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public class Plan extends BukkitPlugin implements PlanPlugin {
+public class Plan extends JavaPlugin implements PlanPlugin {
 
     private PlanSystem system;
     private Locale locale;
     private ServerShutdownSave serverShutdownSave;
 
+    private PluginLogger pluginLogger;
+    private RunnableFactory runnableFactory;
+    private PlatformAbstractionLayer abstractionLayer;
+
+    @Override
+    public void onLoad() {
+        abstractionLayer = new BukkitPlatformLayer(this);
+        pluginLogger = abstractionLayer.getPluginLogger();
+        runnableFactory = abstractionLayer.getRunnableFactory();
+    }
+
     @Override
     public void onEnable() {
-        PlanBukkitComponent component = DaggerPlanBukkitComponent.builder().plan(this).build();
+        PlanBukkitComponent component = DaggerPlanBukkitComponent.builder()
+                .plan(this)
+                .abstractionLayer(abstractionLayer)
+                .server(getServer())
+                .build();
         try {
-            timings.start("Enable");
             system = component.system();
             serverShutdownSave = component.serverShutdownSave();
             locale = system.getLocaleSystem().getLocale();
@@ -59,21 +79,20 @@ public class Plan extends BukkitPlugin implements PlanPlugin {
             registerMetrics();
             registerPlaceholderAPIExtension(component.placeholders());
 
-            logger.debug("Verbose debug messages are enabled.");
-            String benchTime = " (" + timings.end("Enable").map(Benchmark::toDurationString).orElse("-") + ")";
-            logger.info(locale.getString(PluginLang.ENABLED) + benchTime);
+            pluginLogger.info(locale.getString(PluginLang.ENABLED));
         } catch (AbstractMethodError e) {
-            logger.error("Plugin ran into AbstractMethodError - Server restart is required. Likely cause is updating the jar without a restart.");
+            pluginLogger.error("Plugin ran into AbstractMethodError - Server restart is required. Likely cause is updating the jar without a restart.");
         } catch (EnableException e) {
-            logger.error("----------------------------------------");
-            logger.error("Error: " + e.getMessage());
-            logger.error("----------------------------------------");
-            logger.error("Plugin Failed to Initialize Correctly. If this issue is caused by config settings you can use /plan reload");
+            pluginLogger.error("----------------------------------------");
+            pluginLogger.error("Error: " + e.getMessage());
+            pluginLogger.error("----------------------------------------");
+            pluginLogger.error("Plugin Failed to Initialize Correctly. If this issue is caused by config settings you can use /plan reload");
             onDisable();
         } catch (Exception e) {
-            Logger.getGlobal().log(Level.SEVERE, this.getClass().getSimpleName() + "-v" + getVersion(), e);
-            logger.error("Plugin Failed to Initialize Correctly. If this issue is caused by config settings you can use /plan reload");
-            logger.error("This error should be reported at https://github.com/Rsl1122/Plan-PlayerAnalytics/issues");
+            String version = abstractionLayer.getPluginInformation().getVersion();
+            getLogger().log(Level.SEVERE, e, () -> this.getClass().getSimpleName() + "-v" + version);
+            pluginLogger.error("Plugin Failed to Initialize Correctly. If this issue is caused by config settings you can use /plan reload");
+            pluginLogger.error("This error should be reported at https://github.com/plan-player-analytics/Plan/issues");
             onDisable();
         }
         registerCommand(component.planCommand().build());
@@ -84,16 +103,14 @@ public class Plan extends BukkitPlugin implements PlanPlugin {
 
     private void registerPlaceholderAPIExtension(BukkitPlaceholderRegistrar placeholders) {
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-            runnableFactory.create("Placeholders Registrar", new AbsRunnable() {
-                @Override
-                public void run() {
-                    try {
-                        placeholders.register();
-                    } catch (Exception | NoClassDefFoundError | NoSuchMethodError failed) {
-                        logger.warn("Failed to register PlaceholderAPI placeholders: " + failed.toString());
+            runnableFactory.create(() -> {
+                        try {
+                            placeholders.register();
+                        } catch (Exception | NoClassDefFoundError | NoSuchMethodError failed) {
+                            pluginLogger.warn("Failed to register PlaceholderAPI placeholders: " + failed.toString());
+                        }
                     }
-                }
-            }).runTask();
+            ).runTask();
         }
     }
 
@@ -102,59 +119,55 @@ public class Plan extends BukkitPlugin implements PlanPlugin {
         // Spigot 1.14 requires Sync events to be fired from a server thread.
         // Registering a service fires a sync event, and bStats registers a service,
         // so this has to be run on the server thread.
-        runnableFactory.create("Register Metrics task", new AbsRunnable() {
-            @Override
-            public void run() {
-                new BStatsBukkit(plugin).registerMetrics();
-            }
-        }).runTask();
+        runnableFactory.create(() -> new BStatsBukkit(plugin).registerMetrics()).runTask();
     }
 
     @Override
     public ColorScheme getColorScheme() {
-        return PlanColorScheme.create(system.getConfigSystem().getConfig(), logger);
+        return PlanColorScheme.create(system.getConfigSystem().getConfig(), pluginLogger);
     }
 
-    /**
-     * Disables the plugin.
-     */
     @Override
     public void onDisable() {
+        storeSessionsOnShutdown();
+        cancelAllTasks();
+        if (system != null) system.disable();
+
+        pluginLogger.info(Locale.getStringNullSafe(locale, PluginLang.DISABLED));
+    }
+
+    private void storeSessionsOnShutdown() {
         if (serverShutdownSave != null) {
-            serverShutdownSave.performSave();
+            Optional<Future<?>> complete = serverShutdownSave.performSave();
+            if (complete.isPresent()) {
+                try {
+                    complete.get().get(4, TimeUnit.SECONDS); // wait for completion for 4s
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    pluginLogger.error("Failed to save sessions to database on shutdown: " + e.getCause().getMessage());
+                } catch (TimeoutException e) {
+                    pluginLogger.info(Locale.getStringNullSafe(locale, PluginLang.DISABLED_UNSAVED_SESSIONS_TIMEOUT));
+                }
+            }
         }
-        if (system != null) {
-            system.disable();
-        }
-
-        logger.info(locale != null ? locale.getString(PluginLang.DISABLED) : PluginLang.DISABLED.getDefault());
     }
 
-    @Override
-    public String getVersion() {
-        return getDescription().getVersion();
-    }
-
-    @Override
-    public void onReload() {
-        // Nothing to be done, systems are disabled
-    }
-
-    @Override
-    public boolean isReloading() {
-        return reloading;
+    public void cancelAllTasks() {
+        runnableFactory.cancelAllKnownTasks();
+        Bukkit.getScheduler().cancelTasks(this);
     }
 
     @Override
     public void registerCommand(Subcommand command) {
         if (command == null) {
-            logger.warn("Attempted to register a null command!");
+            pluginLogger.warn("Attempted to register a null command!");
             return;
         }
         for (String name : command.getAliases()) {
             PluginCommand registering = getCommand(name);
             if (registering == null) {
-                logger.warn("Attempted to register '" + name + "'-command, but it is not in plugin.yml!");
+                pluginLogger.warn("Attempted to register '" + name + "'-command, but it is not in plugin.yml!");
                 continue;
             }
             registering.setExecutor(new BukkitCommand(runnableFactory, system.getErrorLogger(), command));

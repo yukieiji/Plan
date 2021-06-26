@@ -18,6 +18,7 @@ package com.djrapitops.plan.commands.subcommands;
 
 import com.djrapitops.plan.commands.use.Arguments;
 import com.djrapitops.plan.commands.use.CMDSender;
+import com.djrapitops.plan.commands.use.ColorScheme;
 import com.djrapitops.plan.commands.use.MessageBuilder;
 import com.djrapitops.plan.delivery.domain.auth.User;
 import com.djrapitops.plan.delivery.rendering.html.Html;
@@ -31,9 +32,7 @@ import com.djrapitops.plan.settings.locale.lang.CommandLang;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
-import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
 import com.djrapitops.plan.storage.database.queries.objects.WebUserQueries;
-import com.djrapitops.plugin.command.ColorScheme;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -43,7 +42,7 @@ import java.util.UUID;
 /**
  * Implementation of commands that send a link to the command sender.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class LinkCommands {
@@ -158,11 +157,8 @@ public class LinkCommands {
             throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_PLAYER_NOT_FOUND, identifier));
         }
 
-        String playerName = dbSystem.getDatabase().query(UserIdentifierQueries.fetchPlayerNameOf(playerUUID))
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_PLAYER_NOT_FOUND_REGISTER, identifier)));
-
         if (sender.hasPermission(Permissions.PLAYER_OTHER) || playerUUID.equals(senderUUID)) {
-            String address = getAddress(sender) + "/player/" + Html.encodeToURL(playerName);
+            String address = getAddress(sender) + "/player/" + playerUUID;
             sender.buildMessage()
                     .addPart(colors.getMainColor() + locale.getString(CommandLang.LINK_PLAYER))
                     .apply(builder -> linkTo(builder, sender, address))
@@ -198,8 +194,9 @@ public class LinkCommands {
                 .addPart(colors.getMainColor() + locale.getString(CommandLang.LINK_NETWORK))
                 .apply(builder -> linkTo(builder, sender, address))
                 .send();
-        dbSystem.getDatabase().query(ServerQueries.fetchProxyServerInformation())
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.NOTIFY_NO_NETWORK)));
+        if (!dbSystem.getDatabase().query(ServerQueries.fetchProxyServerInformation()).isPresent()) {
+            throw new IllegalArgumentException(locale.getString(CommandLang.NOTIFY_NO_NETWORK));
+        }
     }
 
     /**
@@ -239,11 +236,8 @@ public class LinkCommands {
             throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_PLAYER_NOT_FOUND, identifier));
         }
 
-        String playerName = dbSystem.getDatabase().query(UserIdentifierQueries.fetchPlayerNameOf(playerUUID))
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_PLAYER_NOT_FOUND_REGISTER, identifier)));
-
         if (sender.hasPermission(Permissions.JSON_OTHER) || playerUUID.equals(senderUUID)) {
-            String address = getAddress(sender) + "/player/" + Html.encodeToURL(playerName) + "/raw";
+            String address = getAddress(sender) + "/player/" + playerUUID + "/raw";
             sender.buildMessage()
                     .addPart(colors.getMainColor() + locale.getString(CommandLang.LINK_JSON))
                     .apply(builder -> linkTo(builder, sender, address))

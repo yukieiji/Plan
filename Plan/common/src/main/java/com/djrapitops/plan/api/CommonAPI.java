@@ -21,6 +21,7 @@ import com.djrapitops.plan.api.data.ServerContainer;
 import com.djrapitops.plan.data.plugin.PluginData;
 import com.djrapitops.plan.delivery.rendering.html.Html;
 import com.djrapitops.plan.exceptions.database.DBOpException;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.identification.UUIDUtility;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.queries.Query;
@@ -28,8 +29,7 @@ import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQue
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -37,11 +37,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * PlanAPI extension for all implementations.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @deprecated Plan API v4 has been deprecated, use the APIv5 instead (https://github.com/plan-player-analytics/Plan/wiki/APIv5).
  */
 @Singleton
@@ -94,7 +95,7 @@ public class CommonAPI implements PlanAPI {
         try {
             return queryDB(UserIdentifierQueries.fetchAllPlayerNames());
         } catch (DBOpException e) {
-            errorLogger.log(L.ERROR, this.getClass(), e);
+            errorLogger.error(e);
             return new HashMap<>();
         }
     }
@@ -106,12 +107,13 @@ public class CommonAPI implements PlanAPI {
 
     @Override
     public ServerContainer fetchServerContainer(UUID serverUUID) {
-        return new ServerContainer(queryDB(ContainerFetchQueries.fetchServerContainer(serverUUID)));
+        return new ServerContainer(new com.djrapitops.plan.delivery.domain.container.ServerContainer());
     }
 
     @Override
     public Collection<UUID> fetchServerUUIDs() {
-        return queryDB(ServerQueries.fetchPlanServerInformation()).keySet();
+        return queryDB(ServerQueries.fetchPlanServerInformation()).keySet()
+                .stream().map(ServerUUID::asUUID).collect(Collectors.toSet());
     }
 
     @Override

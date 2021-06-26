@@ -6,7 +6,11 @@
     <property name="localeCountry" value="EN"/>
     <property name="localeLanguage" value="en"/>
 
-    <module name="RegexpHeader">
+    <module name="SuppressionSingleFilter"> <!-- Skip license check for package-info.java files -->
+        <property name="checks" value="RegexpHeader"/>
+        <property name="files" value="package-info.java"/>
+    </module>
+    <module name="RegexpHeader"> <!-- License check -->
         <property name="headerFile" value="${config_loc}/java.header"/>
     </module>
     <module name="FileLength">
@@ -65,8 +69,8 @@
 
         <!-- Metrics -->
         <module name="ClassFanOutComplexity">
-            <!-- This value is high. Notable: SQLDB: 57 -->
-            <property name="max" value="60"/>
+            <!-- This value is high. Notable: SQLDB: 61 -->
+            <property name="max" value="65"/>
         </module>
         <module name="CyclomaticComplexity">
             <!-- This value is high. Notable: ThemeConfig: 16 -->

@@ -21,12 +21,11 @@ import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DatabaseSettings;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.storage.database.DBSystem;
-import com.djrapitops.plan.storage.database.H2DB;
 import com.djrapitops.plan.storage.database.MySQLDB;
 import com.djrapitops.plan.storage.database.SQLiteDB;
-import com.djrapitops.plugin.logging.console.PluginLogger;
 import dagger.Module;
 import dagger.Provides;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Singleton;
 
@@ -38,15 +37,13 @@ public class DBSystemModule {
             PlanConfig config,
             Locale locale,
             SQLiteDB.Factory sqLiteDB,
-            H2DB.Factory h2Factory,
             MySQLDB mySQLDB,
             PluginLogger logger
     ) {
-        return new DBSystem(locale, sqLiteDB, h2Factory, logger) {
+        return new DBSystem(locale, sqLiteDB, logger) {
             @Override
             public void enable() throws EnableException {
                 databases.add(sqLiteDB.usingDefaultFile());
-                databases.add(h2Factory.usingDefaultFile());
                 databases.add(mySQLDB);
                 String dbType = config.get(DatabaseSettings.TYPE).toLowerCase().trim();
                 db = getActiveDatabaseByName(dbType);

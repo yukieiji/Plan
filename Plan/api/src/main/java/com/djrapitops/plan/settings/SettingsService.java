@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  * <p>
  * Requires Capability SETTINGS_API
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface SettingsService {
 
@@ -66,7 +66,7 @@ public interface SettingsService {
     List<String> getStringList(String path, Supplier<List<String>> defaultValue);
 
     class Holder {
-        static volatile AtomicReference<SettingsService> service = new AtomicReference<>();
+        static final AtomicReference<SettingsService> service = new AtomicReference<>();
 
         private Holder() {
             /* Static variable holder */

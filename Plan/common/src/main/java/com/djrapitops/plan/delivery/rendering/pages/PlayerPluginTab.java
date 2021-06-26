@@ -31,7 +31,7 @@ import java.util.*;
 /**
  * Responsible for generating /player page plugin tabs based on DataExtension API data.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayerPluginTab implements Comparable<PlayerPluginTab> {
 
@@ -139,7 +139,7 @@ public class PlayerPluginTab implements Comparable<PlayerPluginTab> {
                 "<h1 class=\"h3 mb-0 text-gray-800\"><i class=\"sidebar-toggler fa fa-fw fa-bars\"></i>" + serverName + " &middot; Plugins Overview</h1>${backButton}" +
                 "</div>" +
                 // End Page heading
-                "<div class=\"card-columns\">" + content + "</div></div></div>";
+                "<div class=\"row\" data-masonry='{\"percentPosition\": true}'>" + content + "</div></div></div>";
     }
 
     private TabsElement.Tab wrapToTabElementTab(ExtensionTabData tabData) {
@@ -147,16 +147,14 @@ public class PlayerPluginTab implements Comparable<PlayerPluginTab> {
         String tabContentHtml = buildContentHtml(tabData);
 
         String tabName = tabInformation.getTabName();
-        return new TabsElement.Tab(tabName.isEmpty()
-                ? Icon.called("info-circle").build().toHtml() + " General"
-                : Icon.fromExtensionIcon(tabInformation.getTabIcon()).toHtml() + ' ' + tabName,
-                tabContentHtml);
+        return tabName.isEmpty() ? new TabsElement.Tab(Icon.called("info-circle").build(), "General", tabContentHtml)
+                : new TabsElement.Tab(Icon.fromExtensionIcon(tabInformation.getTabIcon()), tabName, tabContentHtml);
     }
 
     private String buildContentHtml(ExtensionTabData tabData) {
         TabInformation tabInformation = tabData.getTabInformation();
 
-        ElementOrder[] order = tabInformation.getTabElementOrder().orElse(ElementOrder.values());
+        List<ElementOrder> order = tabInformation.getTabElementOrder();
         String values = buildValuesHtml(tabData);
         String valuesHtml = values.isEmpty() ? "" : "<div class=\"card-body\">" + values + "</div>";
         String tablesHtml = buildTablesHtml(tabData);
@@ -185,7 +183,7 @@ public class PlayerPluginTab implements Comparable<PlayerPluginTab> {
             if (tableData.isWideTable()) {
                 hasWideTable = true;
             }
-            builder.append(tableData.getHtmlTable().buildHtml());
+            builder.append(tableData.getHtmlTable().toHtml());
         }
         return builder.toString();
     }
@@ -193,34 +191,36 @@ public class PlayerPluginTab implements Comparable<PlayerPluginTab> {
     private String buildValuesHtml(ExtensionTabData tabData) {
         StringBuilder builder = new StringBuilder();
         for (String key : tabData.getValueOrder()) {
-            tabData.getBoolean(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue()));
-            tabData.getDouble(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(decimalFormatter)));
-            tabData.getPercentage(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(percentageFormatter)));
-            tabData.getNumber(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue(numberFormatters.get(data.getFormatType()))));
-            tabData.getString(key).ifPresent(data -> append(builder, data.getDescriptive(), data.getFormattedValue()));
+            tabData.getBoolean(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue()));
+            tabData.getDouble(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(decimalFormatter)));
+            tabData.getPercentage(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(percentageFormatter)));
+            tabData.getNumber(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue(numberFormatters.get(data.getFormatType()))));
+            tabData.getString(key).ifPresent(data -> append(builder, data.getDescription(), data.getFormattedValue()));
         }
         return builder.toString();
     }
 
-    private void append(StringBuilder builder, ExtensionDescriptive descriptive, String formattedValue) {
-        Optional<String> description = descriptive.getDescription();
-        if (description.isPresent()) {
-            builder.append("<p title=\"").append(description.get()).append("\">");
+    private void append(StringBuilder builder, ExtensionDescription description, String formattedValue) {
+        Optional<String> textDescription = description.getDescription();
+        if (textDescription.isPresent()) {
+            builder.append("<p title=\"").append(textDescription.get()).append("\">");
         } else {
             builder.append("<p>");
         }
-        builder.append(Icon.fromExtensionIcon(descriptive.getIcon()))
-                .append(' ').append(descriptive.getText()).append("<span class=\"float-right\"><b>").append(formattedValue).append("</b></span></p>");
+        builder.append(Icon.fromExtensionIcon(description.getIcon()))
+                .append(' ').append(description.getText()).append("<span class=\"float-end\"><b>").append(formattedValue).append("</b></span></p>");
     }
 
     private String wrapInContainer(ExtensionInformation information, String tabsElement) {
         String colWidth = hasWideTable ? "col-md-8 col-lg-8" : "col-md-4 col-lg-4";
         // TODO move large tables to their own tabs
-        return "<div class=\"card shadow mb-4\">" +
+        return "<div class=\"col-lg-6 col-xxl-4\">" +
+                "<div class=\"card shadow mb-4\">" +
                 "<div class=\"card-header py-3\">" +
-                "<h6 class=\"m-0 font-weight-bold col-black\">" + Icon.fromExtensionIcon(information.getIcon()) + ' ' + information.getPluginName() + "</h6>" +
+                "<h6 class=\"m-0 fw-bold col-black\">" + Icon.fromExtensionIcon(information.getIcon()) + ' ' + information.getPluginName() + "</h6>" +
                 "</div>" +
                 tabsElement +
+                "</div>" +
                 "</div>";
     }
 

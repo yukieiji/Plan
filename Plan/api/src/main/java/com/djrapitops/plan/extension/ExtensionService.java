@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.extension;
 
+import com.djrapitops.plan.extension.builder.ExtensionDataBuilder;
 import com.djrapitops.plan.extension.extractor.ExtensionExtractor;
 
 import java.util.Optional;
@@ -33,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * - Register your {@link DataExtension} with {@link ExtensionService#register(DataExtension)}
  * - Catch a possible IllegalArgumentException in case the DataExtension implementation is invalid.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface ExtensionService {
 
@@ -61,6 +62,16 @@ public interface ExtensionService {
     Optional<Caller> register(DataExtension extension);
 
     /**
+     * Obtain a new {@link ExtensionDataBuilder}, it is recommended to use {@link DataExtension#newExtensionDataBuilder()}.
+     * <p>
+     * Requires Capability DATA_EXTENSION_BUILDER_API
+     *
+     * @param extension Extension for which this builder is.
+     * @return a new builder.
+     */
+    ExtensionDataBuilder newExtensionDataBuilder(DataExtension extension);
+
+    /**
      * Unregister your {@link DataExtension} implementation.
      * <p>
      * This method should be used if calling methods on the DataExtension suddenly becomes unavailable, due to
@@ -71,7 +82,7 @@ public interface ExtensionService {
     void unregister(DataExtension extension);
 
     class Holder {
-        static volatile AtomicReference<ExtensionService> service = new AtomicReference<>();
+        static final AtomicReference<ExtensionService> service = new AtomicReference<>();
 
         private Holder() {
             /* Static variable holder */

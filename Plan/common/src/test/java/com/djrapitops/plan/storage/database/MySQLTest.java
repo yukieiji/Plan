@@ -18,8 +18,10 @@ package com.djrapitops.plan.storage.database;
 
 import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.delivery.DeliveryUtilities;
+import com.djrapitops.plan.extension.ExtensionSvc;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.database.queries.*;
 import com.djrapitops.plan.storage.database.transactions.StoreServerInformationTransaction;
@@ -36,10 +38,11 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import utilities.DBPreparer;
 import utilities.RandomData;
+import utilities.TestConstants;
+import utilities.TestErrorLogger;
 
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
@@ -50,7 +53,7 @@ import static org.mockito.Mockito.when;
  * The setup assumes CI environment with MySQL service running.
  * 'MYSQL_DB' database should be created before the test.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see DatabaseTest
  * @see ExtensionsDatabaseTest
  * @see utilities.CIProperties for assumed MySQL setup.
@@ -58,7 +61,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MySQLTest implements DatabaseTest,
         DatabaseBackupTest,
-        //ExtensionsDatabaseTest, TODO Test hangs forever for some reason, investigate later.
+        ExtensionsDatabaseTest,
         ActivityIndexQueriesTest,
         GeolocationQueriesTest,
         NicknameQueriesTest,
@@ -88,6 +91,7 @@ class MySQLTest implements DatabaseTest,
 
     @BeforeEach
     void setUp() {
+        TestErrorLogger.throwErrors(true);
         db().executeTransaction(new Patch() {
             @Override
             public boolean hasBeenApplied() {
@@ -106,7 +110,7 @@ class MySQLTest implements DatabaseTest,
         db().executeTransaction(new CreateTablesTransaction());
         db().executeTransaction(new RemoveEverythingTransaction());
 
-        db().executeTransaction(new StoreServerInformationTransaction(new Server(serverUUID(), "ServerName", "")));
+        db().executeTransaction(new StoreServerInformationTransaction(new Server(serverUUID(), TestConstants.SERVER_NAME, "")));
         assertEquals(serverUUID(), ((SQLDB) db()).getServerUUIDSupplier().get());
     }
     @AfterAll
@@ -121,7 +125,7 @@ class MySQLTest implements DatabaseTest,
     }
 
     @Override
-    public UUID serverUUID() {
+    public ServerUUID serverUUID() {
         return component.serverInfo().getServerUUID();
     }
 
@@ -143,6 +147,11 @@ class MySQLTest implements DatabaseTest,
     @Override
     public DeliveryUtilities deliveryUtilities() {
         return component.deliveryUtilities();
+    }
+
+    @Override
+    public ExtensionSvc extensionService() {
+        return component.extensionService();
     }
 
     @Override

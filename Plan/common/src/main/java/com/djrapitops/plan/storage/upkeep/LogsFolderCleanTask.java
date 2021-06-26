@@ -16,27 +16,28 @@
  */
 package com.djrapitops.plan.storage.upkeep;
 
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.storage.file.PlanFiles;
-import com.djrapitops.plugin.logging.console.PluginLogger;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Task in charge of removing old log files
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
-public class LogsFolderCleanTask extends AbsRunnable {
+public class LogsFolderCleanTask extends TaskSystem.Task {
 
     private final File folder;
     private final PlanConfig config;
@@ -71,9 +72,17 @@ public class LogsFolderCleanTask extends AbsRunnable {
         }
     }
 
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        long delay = TimeAmount.toTicks(30L, TimeUnit.SECONDS);
+        runnableFactory.create(this).runTaskLaterAsynchronously(delay);
+    }
+
     private void cleanFolder() {
         long now = System.currentTimeMillis();
-        for (File file : Objects.requireNonNull(folder.listFiles())) {
+        File[] files = folder.listFiles();
+        if (files == null) return;
+        for (File file : files) {
             long forDaysMs = TimeUnit.DAYS.toMillis(config.get(PluginSettings.KEEP_LOGS_DAYS));
             if (now - file.lastModified() > (forDaysMs > 0 ? forDaysMs : TimeUnit.DAYS.toMillis(1L))) {
                 try {

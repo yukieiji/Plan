@@ -26,7 +26,7 @@ import java.nio.file.Path;
 /**
  * Test utility for creating a dagger PlanComponent using a mocked Plan.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class VelocityMockComponent {
 
@@ -43,7 +43,6 @@ public class VelocityMockComponent {
         if (planMock == null) {
             planMock = PlanVelocityMocker.setUp()
                     .withDataFolder(tempDir.toFile())
-                    .withResourceFetchingFromJar()
                     .withProxy()
                     .getPlanMock();
         }
@@ -52,7 +51,11 @@ public class VelocityMockComponent {
 
     public PlanSystem getPlanSystem() throws Exception {
         if (component == null) {
-            component = DaggerPlanVelocityComponent.builder().plan(getPlanMock()).build();
+            PlanVelocity planMock = getPlanMock();
+            component = DaggerPlanVelocityComponent.builder()
+                    .plan(planMock)
+                    .abstractionLayer(new TestPlatformAbstractionLayer(this.planMock))
+                    .build();
         }
         return component.system();
     }

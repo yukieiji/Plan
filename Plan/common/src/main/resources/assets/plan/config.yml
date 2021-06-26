@@ -1,7 +1,7 @@
 # -----------------------------------------------------
 # Plan Bukkit Configuration file
 # More information about each setting:
-# https://github.com/Rsl1122/Plan-PlayerAnalytics/wiki/Bukkit-Configuration
+# https://github.com/plan-player-analytics/Plan/wiki/Bukkit-Configuration
 # -----------------------------------------------------
 Server:
   ServerName: Plan
@@ -9,10 +9,9 @@ Server:
 Plugin:
   Logging:
     # More information about Locale
-    # https://github.com/Rsl1122/Plan-PlayerAnalytics/wiki/Localization
+    # https://github.com/plan-player-analytics/Plan/wiki/Localization
     Locale: default
     Create_new_locale_file_on_next_enable: false
-    Debug: false
     Dev: false
     Delete_logs_after_days: 7
   Update_notifications:
@@ -22,7 +21,7 @@ Plugin:
   Configuration:
     Allow_proxy_to_manage_settings: true
 # -----------------------------------------------------
-# Supported databases: SQLite, H2, MySQL
+# Supported databases: SQLite, MySQL
 # -----------------------------------------------------
 Database:
   Type: SQLite
@@ -34,12 +33,10 @@ Database:
     Database: Plan
     # Launch options to append after mysql driver address
     Launch_options: "?rewriteBatchedStatements=true&useSSL=false&serverTimezone=UTC"
-  H2:
-    User: root
-    Password: minecraft
+    Max_connections: 8
 # -----------------------------------------------------
 # More information about SSL Certificate Settings:
-# https://github.com/Rsl1122/Plan-PlayerAnalytics/wiki/SSL-Certificate-%28HTTPS%29-Set-Up
+# https://github.com/plan-player-analytics/Plan/wiki/SSL-Certificate-%28HTTPS%29-Set-Up
 # -----------------------------------------------------
 Webserver:
   Port: 8804
@@ -49,6 +46,15 @@ Webserver:
   # InternalIP usually does not need to be changed, only change it if you know what you're doing!
   # 0.0.0.0 allocates Internal (local) IP automatically for the WebServer.
   Internal_IP: 0.0.0.0
+  Cache:
+    Reduced_refresh_barrier: 15
+      Unit: SECONDS
+    Invalidate_query_results_on_disk_after: 7
+      Unit: DAYS
+    Invalidate_disk_cache_after: 2
+      Unit: DAYS
+    Invalidate_memory_cache_after: 5
+      Unit: MINUTES
   Security:
     SSL_certificate:
       KeyStore_path: Cert.jks
@@ -61,10 +67,16 @@ Webserver:
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     CORS:
       Allow_origin: "*"
+    # Allows using the whitelist with a reverse-proxy.
+    # ! Make sure non-proxy access is not possible, it would allow IP spoofing !
+    Use_X-Forwarded-For_Header: false
     IP_whitelist: false
       Whitelist:
         - "192.168.0.0"
         - "0:0:0:0:0:0:0:1"
+    # Does not affect existing cookies
+    Cookies_expire_after: 2
+      Unit: HOURS
   Disable_Webserver: false
   External_Webserver_address: https://www.example.address
 # -----------------------------------------------------
@@ -118,7 +130,7 @@ Time:
 # -----------------------------------------------------
 Display_options:
   # More information about Themes:
-  # https://github.com/Rsl1122/Plan-PlayerAnalytics/wiki/Themes
+  # https://github.com/plan-player-analytics/Plan/wiki/Themes
   Theme: default
   Sessions:
     Show_on_page: 50

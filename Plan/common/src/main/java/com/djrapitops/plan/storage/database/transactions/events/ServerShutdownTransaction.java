@@ -16,27 +16,29 @@
  */
 package com.djrapitops.plan.storage.database.transactions.events;
 
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.cache.SessionCache;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.storage.database.queries.LargeStoreQueries;
-import com.djrapitops.plan.storage.database.transactions.Transaction;
+import com.djrapitops.plan.storage.database.transactions.ThrowawayTransaction;
 
 import java.util.Collection;
 
 /**
  * Transaction to store sessions on server shutdown.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-public class ServerShutdownTransaction extends Transaction {
+public class ServerShutdownTransaction extends ThrowawayTransaction {
 
-    private final Collection<Session> unsavedSessions;
+    private final Collection<FinishedSession> unsavedSessions;
 
-    public ServerShutdownTransaction(Collection<Session> unsavedSessions) {
+    public ServerShutdownTransaction(Collection<FinishedSession> unsavedSessions) {
         this.unsavedSessions = unsavedSessions;
     }
 
     @Override
     protected void performOperations() {
         execute(LargeStoreQueries.storeAllSessionsWithKillAndWorldData(unsavedSessions));
+        SessionCache.clear();
     }
 }

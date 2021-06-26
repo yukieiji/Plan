@@ -20,7 +20,7 @@ import com.djrapitops.plan.SubSystem;
 import com.djrapitops.plan.exceptions.EnableException;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.file.PlanFiles;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
@@ -37,7 +37,7 @@ import static com.djrapitops.plan.settings.theme.ThemeVal.*;
  * <p>
  * Change config setting Theme.Base to select one.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class Theme implements SubSystem {

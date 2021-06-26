@@ -23,21 +23,23 @@
  */
 package com.djrapitops.plan.gathering.timed;
 
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.transactions.events.PingStoreTransaction;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectedEvent;
 import net.md_5.bungee.api.event.ServerDisconnectEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.Listeners;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -50,10 +52,11 @@ import java.util.concurrent.TimeUnit;
  * @author BrainStone
  */
 @Singleton
-public class BungeePingCounter extends AbsRunnable implements Listener {
+public class BungeePingCounter extends TaskSystem.Task implements Listener {
 
     private final Map<UUID, List<DateObj<Integer>>> playerHistory;
 
+    private final Listeners listeners;
     private final PlanConfig config;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
@@ -61,11 +64,13 @@ public class BungeePingCounter extends AbsRunnable implements Listener {
 
     @Inject
     public BungeePingCounter(
+            Listeners listeners,
             PlanConfig config,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             RunnableFactory runnableFactory
     ) {
+        this.listeners = listeners;
         this.config = config;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
@@ -102,6 +107,18 @@ public class BungeePingCounter extends AbsRunnable implements Listener {
         }
     }
 
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        Long startDelay = config.get(TimeSettings.PING_SERVER_ENABLE_DELAY);
+        if (startDelay < TimeUnit.HOURS.toMillis(1L) && config.isTrue(DataGatheringSettings.PING)) {
+            listeners.registerListener(this);
+
+            long delay = TimeAmount.toTicks(startDelay, TimeUnit.MILLISECONDS);
+            long period = 40L;
+            runnableFactory.create(this).runTaskTimerAsynchronously(delay, period);
+        }
+    }
+
     public void addPlayer(ProxiedPlayer player) {
         playerHistory.put(player.getUniqueId(), new ArrayList<>());
     }
@@ -121,12 +138,9 @@ public class BungeePingCounter extends AbsRunnable implements Listener {
         if (pingDelay >= TimeUnit.HOURS.toMillis(2L)) {
             return;
         }
-        runnableFactory.create("Add Player to Ping list", new AbsRunnable() {
-            @Override
-            public void run() {
-                if (player.isConnected()) {
-                    addPlayer(player);
-                }
+        runnableFactory.create(() -> {
+            if (player.isConnected()) {
+                addPlayer(player);
             }
         }).runTaskLater(TimeAmount.toTicks(pingDelay, TimeUnit.MILLISECONDS));
     }

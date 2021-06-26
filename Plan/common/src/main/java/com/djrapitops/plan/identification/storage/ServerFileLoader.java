@@ -18,6 +18,7 @@ package com.djrapitops.plan.identification.storage;
 
 import com.djrapitops.plan.exceptions.EnableException;
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.Config;
 import com.djrapitops.plan.settings.config.ConfigNode;
 import com.djrapitops.plan.settings.config.ConfigReader;
@@ -30,7 +31,6 @@ import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 @Singleton
 public class ServerFileLoader extends Config implements ServerLoader {
@@ -61,7 +61,7 @@ public class ServerFileLoader extends Config implements ServerLoader {
     }
 
     @Override
-    public Optional<Server> load(UUID loaded) {
+    public Optional<Server> load(ServerUUID loaded) {
         try {
             if (!prepared) prepare();
 
@@ -69,13 +69,13 @@ public class ServerFileLoader extends Config implements ServerLoader {
             if (serverUUIDString == null) return Optional.empty();
 
             Integer id = getInteger("Server.ID");
-            UUID serverUUID = UUID.fromString(serverUUIDString);
+            ServerUUID serverUUID = ServerUUID.fromString(serverUUIDString);
             String name = config.getNode(PluginSettings.SERVER_NAME.getPath())
                     .map(ConfigNode::getString)
-                    .orElse("BungeeCord");
+                    .orElse("Proxy");
             String address = getString("Server.Web_address");
 
-            return Optional.of(new Server(id, serverUUID, name, address));
+            return Optional.of(new Server(id, serverUUID, name, address, false));
         } catch (IOException e) {
             throw new EnableException("Failed to read ServerInfoFile.yml: " + e.getMessage());
         }

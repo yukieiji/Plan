@@ -28,6 +28,7 @@ import com.djrapitops.plan.extension.icon.Color;
 import com.djrapitops.plan.extension.implementation.results.*;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.HtmlLang;
+import com.djrapitops.plan.utilities.java.Maps;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -38,14 +39,15 @@ import java.util.*;
  * <p>
  * See https://www.datatables.net/manual/data/orthogonal-data#HTML-5 for sort kinds
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayersTableJSONCreator {
 
     private final List<TablePlayer> players;
-    private final List<ExtensionDescriptive> extensionDescriptives;
+    private final List<ExtensionDescription> extensionDescriptions;
     private final Map<UUID, ExtensionTabData> extensionData;
     private final Locale locale;
+    private final boolean playersPage;
 
     private final boolean openPlayerPageInNewTab;
 
@@ -61,14 +63,27 @@ public class PlayersTableJSONCreator {
             Formatters formatters,
             Locale locale
     ) {
+        this(players, extensionData, openPlayerPageInNewTab, formatters, locale, false);
+    }
+
+    public PlayersTableJSONCreator(
+            List<TablePlayer> players,
+            Map<UUID, ExtensionTabData> extensionData,
+            // Settings
+            boolean openPlayerPageInNewTab,
+            Formatters formatters,
+            Locale locale,
+            boolean playersPage
+    ) {
         // Data
         this.players = players;
         this.extensionData = extensionData;
         this.locale = locale;
+        this.playersPage = playersPage;
 
-        extensionDescriptives = new ArrayList<>();
-        addExtensionDescriptives(extensionData);
-        extensionDescriptives.sort((one, two) -> String.CASE_INSENSITIVE_ORDER.compare(one.getName(), two.getName()));
+        extensionDescriptions = new ArrayList<>();
+        addExtensionDescriptions(extensionData);
+        extensionDescriptions.sort((one, two) -> String.CASE_INSENSITIVE_ORDER.compare(one.getName(), two.getName()));
 
         // Settings
         this.openPlayerPageInNewTab = openPlayerPageInNewTab;
@@ -82,55 +97,50 @@ public class PlayersTableJSONCreator {
         this.decimalFormatter = formatters.decimals();
     }
 
-    private void addExtensionDescriptives(Map<UUID, ExtensionTabData> extensionData) {
-        Set<String> foundDescriptives = new HashSet<>();
+    private void addExtensionDescriptions(Map<UUID, ExtensionTabData> extensionData) {
+        Set<String> foundDescriptions = new HashSet<>();
         for (ExtensionTabData tabData : extensionData.values()) {
-            for (ExtensionDescriptive descriptive : tabData.getDescriptives()) {
-                if (!foundDescriptives.contains(descriptive.getName())) {
-                    extensionDescriptives.add(descriptive);
-                    foundDescriptives.add(descriptive.getName());
+            for (ExtensionDescription description : tabData.getDescriptions()) {
+                if (!foundDescriptions.contains(description.getName())) {
+                    extensionDescriptions.add(description);
+                    foundDescriptions.add(description.getName());
                 }
             }
         }
     }
 
-    public String toJSONString() {
-        String data = createData();
-        String columnHeaders = createColumnHeaders();
-        return "{\"columns\":" + columnHeaders + ",\"data\":" + data + '}';
+    public Map<String, Object> toJSONMap() {
+        return Maps.builder(String.class, Object.class)
+                .put("columns", createColumnHeaders())
+                .put("data", createData())
+                .build();
     }
 
-    private String createData() {
-        StringBuilder dataJSON = new StringBuilder("[");
+    private List<Map<String, Object>> createData() {
+        List<Map<String, Object>> dataJson = new ArrayList<>();
 
-        int currentPlayerNumber = 0;
+        ExtensionTabData emptyExtensionData = new ExtensionTabData.Builder(null).build();
         for (TablePlayer player : players) {
             UUID playerUUID = player.getPlayerUUID();
             if (playerUUID == null) {
                 continue;
             }
 
-            if (currentPlayerNumber > 0) {
-                dataJSON.append(',');       // Previous item
-            }
-            dataJSON.append('{');           // Start new item
-
-            appendPlayerData(dataJSON, player);
-            appendExtensionData(dataJSON, extensionData.getOrDefault(playerUUID, new ExtensionTabData.Builder(null).build()));
-
-            dataJSON.append('}');           // Close new item
-
-            currentPlayerNumber++;
+            Map<String, Object> playerEntry = new HashMap<>();
+            addPlayerData(playerEntry, player);
+            addExtensionData(playerEntry, extensionData.getOrDefault(playerUUID, emptyExtensionData));
+            dataJson.add(playerEntry);
         }
-        return dataJSON.append(']').toString();
+        return dataJson;
     }
 
-    private void appendPlayerData(StringBuilder dataJSON, TablePlayer player) {
+    private void addPlayerData(Map<String, Object> dataJson, TablePlayer player) {
         String name = player.getName().orElse(player.getPlayerUUID().toString());
-        String url = "../player/" + Html.encodeToURL(name);
+        String url = (playersPage ? "./player/" : "../player/") +
+                Html.encodeToURL(player.getPlayerUUID().toString());
 
         int loginTimes = player.getSessionCount().orElse(0);
-        long playtime = player.getPlaytime().orElse(-1L);
+        long activePlaytime = player.getActivePlaytime().orElse(-1L);
         long registered = player.getRegistered().orElse(-1L);
         long lastSeen = player.getLastSeen().orElse(-1L);
 
@@ -143,82 +153,90 @@ public class PlayersTableJSONCreator {
 
         Html link = openPlayerPageInNewTab ? Html.LINK_EXTERNAL : Html.LINK;
 
-        dataJSON.append(makeDataEntry(link.create(url, StringUtils.replace(StringEscapeUtils.escapeHtml4(name), "\\", "\\\\")), "name")).append(',') // Backslashes escaped to prevent json errors
-                .append(makeDataEntry(activityIndex.getValue(), activityString, "index")).append(',')
-                .append(makeDataEntry(playtime, numberFormatters.get(FormatType.TIME_MILLISECONDS).apply(playtime), "playtime")).append(',')
-                .append(makeDataEntry(loginTimes, "sessions")).append(',')
-                .append(makeDataEntry(registered, numberFormatters.get(FormatType.DATE_YEAR).apply(registered), "registered")).append(',')
-                .append(makeDataEntry(lastSeen, numberFormatters.get(FormatType.DATE_YEAR).apply(lastSeen), "seen")).append(',')
-                .append(makeDataEntry(geolocation, "geolocation"));
+        putDataEntry(dataJson, link.create(url, StringUtils.replace(StringEscapeUtils.escapeHtml4(name), "\\", "\\\\") /* Backslashes escaped to prevent json errors */), "name");
+        putDataEntry(dataJson, activityIndex.getValue(), activityString, "index");
+        putDataEntry(dataJson, activePlaytime, numberFormatters.get(FormatType.TIME_MILLISECONDS).apply(activePlaytime), "activePlaytime");
+        putDataEntry(dataJson, loginTimes, "sessions");
+        putDataEntry(dataJson, registered, numberFormatters.get(FormatType.DATE_YEAR).apply(registered), "registered");
+        putDataEntry(dataJson, lastSeen, numberFormatters.get(FormatType.DATE_YEAR).apply(lastSeen), "seen");
+        putDataEntry(dataJson, geolocation, "geolocation");
     }
 
-    private String makeDataEntry(Object data, String dataName) {
-        return "\"" + dataName + "\":\"" + StringEscapeUtils.escapeJson(data.toString()) + "\"";
+    private void putDataEntry(Map<String, Object> dataJson, Object data, String dataName) {
+        dataJson.put(dataName, data.toString());
     }
 
-    private String makeDataEntry(Object data, String formatted, String dataName) {
-        return "\"" + dataName + "\":{\"v\":\"" + StringEscapeUtils.escapeJson(data.toString()) + "\", \"d\":\"" + StringEscapeUtils.escapeJson(formatted) + "\"}";
+    private void putDataEntry(Map<String, Object> dataJson, Object data, String formatted, String dataName) {
+        dataJson.put(dataName, Maps.builder(String.class, Object.class)
+                .put("v", data.toString())
+                .put("d", formatted)
+                .build());
     }
 
-    private void appendExtensionData(StringBuilder dataJSON, ExtensionTabData tabData) {
-        for (ExtensionDescriptive descriptive : extensionDescriptives) {
-            dataJSON.append(',');
-            String key = descriptive.getName();
-
-            // If it's a double, append a double
-            Optional<ExtensionDoubleData> doubleValue = tabData.getDouble(key);
-
-            if (doubleValue.isPresent()) {
-                dataJSON.append(makeDataEntry(doubleValue.get().getRawValue(), doubleValue.get().getFormattedValue(decimalFormatter), key));
-                continue;
-            }
-
-            Optional<ExtensionNumberData> numberValue = tabData.getNumber(key);
-            if (numberValue.isPresent()) {
-                ExtensionNumberData numberData = numberValue.get();
-                FormatType formatType = numberData.getFormatType();
-                dataJSON.append(makeDataEntry(numberData.getRawValue(), numberData.getFormattedValue(numberFormatters.get(formatType)), key));
-                continue;
-            }
-
-            // If it's a String append a String, otherwise the player has no value for this extension provider.
-            String stringValue = tabData.getString(key).map(ExtensionStringData::getFormattedValue).orElse("-");
-            dataJSON.append(makeDataEntry(stringValue, stringValue, key));
+    private void addExtensionData(Map<String, Object> dataJson, ExtensionTabData tabData) {
+        for (ExtensionDescription description : extensionDescriptions) {
+            addValue(dataJson, tabData, description.getName());
         }
     }
 
-    private String createColumnHeaders() {
-        StringBuilder columnHeaders = new StringBuilder("[");
+    private void addValue(Map<String, Object> dataJson, ExtensionTabData tabData, String key) {
+        // If it's a double, put a double
+        Optional<ExtensionDoubleData> doubleValue = tabData.getDouble(key);
+        if (doubleValue.isPresent()) {
+            putDataEntry(dataJson, doubleValue.get().getRawValue(), doubleValue.get().getFormattedValue(decimalFormatter), key);
+            return;
+        }
 
-        // Is the data for the column formatted
+        Optional<ExtensionNumberData> numberValue = tabData.getNumber(key);
+        if (numberValue.isPresent()) {
+            ExtensionNumberData numberData = numberValue.get();
+            FormatType formatType = numberData.getFormatType();
+            putDataEntry(dataJson, numberData.getRawValue(), numberData.getFormattedValue(numberFormatters.get(formatType)), key);
+            return;
+        }
 
-        columnHeaders
-                .append(makeColumnHeader(Icon.called("user") + " " + locale.get(HtmlLang.LABEL_NAME), "name")).append(',')
-                .append(makeFColumnHeader(Icon.called("check") + " " + locale.get(HtmlLang.LABEL_ACTIVITY_INDEX), "index")).append(',')
-                .append(makeFColumnHeader(Icon.called("clock").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_PLAYTIME), "playtime")).append(',')
-                .append(makeColumnHeader(Icon.called("calendar-plus").of(Family.REGULAR) + " " + locale.get(HtmlLang.SIDE_SESSIONS), "sessions")).append(',')
-                .append(makeFColumnHeader(Icon.called("user-plus") + " " + locale.get(HtmlLang.LABEL_REGISTERED), "registered")).append(',')
-                .append(makeFColumnHeader(Icon.called("calendar-check").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_LAST_SEEN), "seen")).append(',')
-                .append(makeColumnHeader(Icon.called("globe") + " " + locale.get(HtmlLang.TITLE_COUNTRY), "geolocation"));
-
-        appendExtensionHeaders(columnHeaders);
-
-        return columnHeaders.append(']').toString();
+        // If it's a String add a String, otherwise the player has no value for this extension provider.
+        String stringValue = tabData.getString(key).map(ExtensionStringData::getFormattedValue).orElse("-");
+        putDataEntry(dataJson, stringValue, stringValue, key);
     }
 
-    private String makeColumnHeader(String title, String dataProperty) {
-        return "{\"title\": \"" + StringEscapeUtils.escapeJson(title) + "\",\"data\":\"" + dataProperty + "\"}";
+    private List<Map<String, Object>> createColumnHeaders() {
+        List<Map<String, Object>> columnHeaders = new ArrayList<>();
+
+        columnHeaders.add(makeColumnHeader(Icon.called("user") + " " + locale.get(HtmlLang.LABEL_NAME), "name"));
+        columnHeaders.add(makeFColumnHeader(Icon.called("check") + " " + locale.get(HtmlLang.LABEL_ACTIVITY_INDEX), "index"));
+        columnHeaders.add(makeFColumnHeader(Icon.called("clock").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_ACTIVE_PLAYTIME), "activePlaytime"));
+        columnHeaders.add(makeColumnHeader(Icon.called("calendar-plus").of(Family.REGULAR) + " " + locale.get(HtmlLang.SIDE_SESSIONS), "sessions"));
+        columnHeaders.add(makeFColumnHeader(Icon.called("user-plus") + " " + locale.get(HtmlLang.LABEL_REGISTERED), "registered"));
+        columnHeaders.add(makeFColumnHeader(Icon.called("calendar-check").of(Family.REGULAR) + " " + locale.get(HtmlLang.LABEL_LAST_SEEN), "seen"));
+        columnHeaders.add(makeColumnHeader(Icon.called("globe") + " " + locale.get(HtmlLang.TITLE_COUNTRY), "geolocation"));
+
+        addExtensionHeaders(columnHeaders);
+
+        return columnHeaders;
     }
 
-    private String makeFColumnHeader(String title, String dataProperty) {
-        return "{\"title\": \"" + StringEscapeUtils.escapeJson(title) + "\",\"data\":{\"_\":\"" + dataProperty + ".v\",\"display\":\"" + dataProperty + ".d\"}}";
+    private Map<String, Object> makeColumnHeader(String title, String dataProperty) {
+        return Maps.builder(String.class, Object.class)
+                .put("title", title)
+                .put("data", dataProperty)
+                .build();
     }
 
-    private void appendExtensionHeaders(StringBuilder columnHeaders) {
-        for (ExtensionDescriptive provider : extensionDescriptives) {
-            columnHeaders.append(',');
+    private Map<String, Object> makeFColumnHeader(String title, String dataProperty) {
+        return Maps.builder(String.class, Object.class)
+                .put("title", title)
+                .put("data", Maps.builder(String.class, String.class)
+                        .put("_", dataProperty + ".v")
+                        .put("display", dataProperty + ".d")
+                        .build()
+                ).build();
+    }
+
+    private void addExtensionHeaders(List<Map<String, Object>> columnHeaders) {
+        for (ExtensionDescription provider : extensionDescriptions) {
             String headerText = Icon.fromExtensionIcon(provider.getIcon().setColor(Color.NONE)).toHtml().replace('"', '\'') + ' ' + provider.getText();
-            columnHeaders.append(makeFColumnHeader(headerText, provider.getName()));
+            columnHeaders.add(makeFColumnHeader(headerText, provider.getName()));
         }
     }
 }

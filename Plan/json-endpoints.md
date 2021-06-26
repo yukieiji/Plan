@@ -6,14 +6,14 @@ What the endpoints return is not detailed to save time, as this document is writ
 
 Parameters are given in the URL: `address/v1/<endpoint>?parameter=value&another=value`
 
-If invalid parameters are given the server will return 400 Bad Request.  
+If invalid parameters are given, the server will return 400 Bad Request.  
 The body of the response is the error message
 
 ## Endpoints
 
-### `GET /<playername>/raw` `GET /<player UUID>/raw`
+### `GET /player/<playername>/raw` `GET /player/<player UUID>/raw`
 
-Obtain all data in the database for a player.
+Obtain all data in the database for a player. (Note that this is an exception to the /v1/ endpoints)
 
 ### Tab endpoints
 

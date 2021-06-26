@@ -16,22 +16,25 @@
  */
 package com.djrapitops.plan.storage.database.queries;
 
-import com.djrapitops.plan.data.element.TableContainer;
+import com.djrapitops.plan.delivery.rendering.html.structure.HtmlTable;
 import com.djrapitops.plan.extension.CallEvents;
 import com.djrapitops.plan.extension.DataExtension;
-import com.djrapitops.plan.extension.ExtensionService;
 import com.djrapitops.plan.extension.ExtensionSvc;
+import com.djrapitops.plan.extension.NotReadyException;
 import com.djrapitops.plan.extension.annotation.*;
+import com.djrapitops.plan.extension.builder.ExtensionDataBuilder;
 import com.djrapitops.plan.extension.icon.Color;
 import com.djrapitops.plan.extension.icon.Icon;
 import com.djrapitops.plan.extension.implementation.results.*;
 import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionPlayerDataQuery;
 import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionServerDataQuery;
-import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionServerPlayerDataTableQuery;
+import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionServerTableDataQuery;
 import com.djrapitops.plan.extension.implementation.storage.transactions.results.RemoveUnsatisfiedConditionalPlayerResultsTransaction;
 import com.djrapitops.plan.extension.implementation.storage.transactions.results.RemoveUnsatisfiedConditionalServerResultsTransaction;
 import com.djrapitops.plan.extension.table.Table;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
+import com.djrapitops.plan.gathering.domain.WorldTimes;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.DatabaseTestPreparer;
 import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythingTransaction;
 import com.djrapitops.plan.storage.database.transactions.events.WorldNameStoreTransaction;
@@ -40,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import utilities.OptionalAssert;
 import utilities.RandomData;
 import utilities.TestConstants;
+import utilities.TestErrorLogger;
 
 import java.util.List;
 import java.util.Map;
@@ -51,17 +55,19 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Contains database tests for DataExtension API.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @BeforeEach
     default void unregisterExtensions() {
-        ExtensionService extensionService = system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
+        extensionService.register();
         extensionService.unregister(new PlayerExtension());
         extensionService.unregister(new ServerExtension());
         extensionService.unregister(new ConditionalExtension());
         extensionService.unregister(new TableExtension());
+        extensionService.unregister(new ThrowingExtension());
     }
 
     @Test
@@ -80,12 +86,12 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void extensionPlayerValuesAreStored() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new PlayerExtension());
         extensionService.updatePlayerValues(playerUUID, TestConstants.PLAYER_ONE_NAME, CallEvents.MANUAL);
 
-        Map<UUID, List<ExtensionData>> playerDataByServerUUID = db().query(new ExtensionPlayerDataQuery(playerUUID));
+        Map<ServerUUID, List<ExtensionData>> playerDataByServerUUID = db().query(new ExtensionPlayerDataQuery(playerUUID));
         List<ExtensionData> ofServer = playerDataByServerUUID.get(serverUUID());
         assertNotNull(ofServer);
         assertFalse(ofServer.isEmpty());
@@ -110,13 +116,11 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[1]));
 
         // Store a session to check against issue https://github.com/plan-player-analytics/Plan/issues/1039
-        Session session = new Session(playerUUID, serverUUID(), 32345L, worlds[0], "SURVIVAL");
-        session.endSession(42345L);
-        session.setWorldTimes(RandomData.randomWorldTimes(worlds));
+        ActiveSession session = new ActiveSession(playerUUID, serverUUID(), 32345L, worlds[0], "SURVIVAL");
+        session.getExtraData().put(WorldTimes.class, RandomData.randomWorldTimes(worlds));
+        execute(DataStoreQueries.storeSession(session.toFinishedSession(42345L)));
 
-        execute(DataStoreQueries.storeSession(session));
-
-        Map<UUID, ExtensionTabData> result = db().query(new ExtensionServerPlayerDataTableQuery(serverUUID(), 50));
+        Map<UUID, ExtensionTabData> result = db().query(new ExtensionServerTableDataQuery(serverUUID(), 50));
         assertEquals(1, result.size());
         ExtensionTabData playerData = result.get(playerUUID);
         assertNotNull(playerData);
@@ -130,7 +134,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void extensionServerValuesAreStored() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new ServerExtension());
         extensionService.updateServerValues(CallEvents.SERVER_EXTENSION_REGISTER);
@@ -152,7 +156,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void extensionServerAggregateQueriesWork() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new PlayerExtension());
         extensionService.updatePlayerValues(playerUUID, TestConstants.PLAYER_ONE_NAME, CallEvents.MANUAL);
@@ -176,13 +180,14 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
         List<ExtensionTableData> tableData = tabData.getTableData();
         assertEquals(1, tableData.size());
-        TableContainer table = tableData.get(0).getHtmlTable();
-        assertEquals("<tbody><tr><td>Group</td><td>1</td></tr></tbody>", table.parseBody());
+        HtmlTable table = tableData.get(0).getHtmlTable();
+        String result = table.toHtml();
+        assertTrue(result.contains("<tbody><tr><td>Group</td><td>1</td></tr></tbody>"), result);
     }
 
     @Test
     default void unsatisfiedPlayerConditionalResultsAreCleaned() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new ConditionalExtension());
 
@@ -236,7 +241,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void unsatisfiedServerConditionalResultsAreCleaned() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         ConditionalExtension.condition = true;
         extensionService.register(new ConditionalExtension());
@@ -287,7 +292,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void extensionServerTableValuesAreInserted() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new TableExtension());
         extensionService.updateServerValues(CallEvents.MANUAL);
@@ -305,26 +310,27 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         assertEquals(1, tableData.size());
         ExtensionTableData table = tableData.get(0);
 
-        TableContainer expected = new TableContainer(
-                "<i class=\" fa fa-gavel\"></i> first",
-                "<i class=\" fa fa-what\"></i> second",
-                "<i class=\" fa fa-question\"></i> third"
-        );
-        expected.setColor("amber");
-        expected.addRow("value", 3, 0.5, 400L);
+        HtmlTable expected = HtmlTable.fromExtensionTable(
+                Table.builder()
+                        .columnOne("first", Icon.called("gavel").build())
+                        .columnTwo("second", Icon.called("what").build())
+                        .columnThree("third", Icon.called("question").build())
+                        .addRow("value", 3, 0.5, 400L)
+                        .build(),
+                com.djrapitops.plan.delivery.rendering.html.icon.Color.AMBER);
 
-        assertEquals(expected.buildHtml(), table.getHtmlTable().buildHtml());
+        assertEquals(expected.toHtml(), table.getHtmlTable().toHtml());
     }
 
     @Test
     default void extensionPlayerTableValuesAreInserted() {
-        ExtensionSvc extensionService = (ExtensionSvc) system().getExtensionService();
+        ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new TableExtension());
         extensionService.updatePlayerValues(playerUUID, TestConstants.PLAYER_ONE_NAME, CallEvents.MANUAL);
         extensionService.updatePlayerValues(playerUUID, TestConstants.PLAYER_ONE_NAME, CallEvents.MANUAL);
 
-        Map<UUID, List<ExtensionData>> ofPlayer = db().query(new ExtensionPlayerDataQuery(playerUUID));
+        Map<ServerUUID, List<ExtensionData>> ofPlayer = db().query(new ExtensionPlayerDataQuery(playerUUID));
         assertFalse(ofPlayer.isEmpty());
 
         List<ExtensionData> ofServer = ofPlayer.get(serverUUID());
@@ -338,16 +344,30 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         assertEquals(1, tableData.size());
         ExtensionTableData table = tableData.get(0);
 
-        TableContainer expected = new TableContainer(
-                "<i class=\" fa fa-gavel\"></i> first",
-                "<i class=\" fa fa-what\"></i> second",
-                "<i class=\" fa fa-question\"></i> third"
-        );
-        expected.setColor("amber");
-        expected.addRow("value", 3, 0.5, 400L);
+        HtmlTable expected = HtmlTable.fromExtensionTable(
+                Table.builder()
+                        .columnOne("first", Icon.called("gavel").build())
+                        .columnTwo("second", Icon.called("what").build())
+                        .columnThree("third", Icon.called("question").build())
+                        .addRow("value", 3, 0.5, 400L)
+                        .build(),
+                com.djrapitops.plan.delivery.rendering.html.icon.Color.AMBER);
 
-        assertEquals(expected.buildHtml(), table.getHtmlTable().buildHtml());
+        assertEquals(expected.toHtml(), table.getHtmlTable().toHtml());
     }
+
+    @Test
+    default void extensionExceptionsAreCaught() {
+        TestErrorLogger.throwErrors(false);
+        ExtensionSvc extensionService = extensionService();
+        extensionService.register(new ThrowingExtension());
+
+        extensionService.updateServerValues(CallEvents.MANUAL);
+        extensionService.updatePlayerValues(playerUUID, TestConstants.PLAYER_ONE_NAME, CallEvents.MANUAL);
+        // 5 of the exceptions need to be logged, there are 8 exceptions total 3 of which are ignored.
+        assertEquals(5, TestErrorLogger.getCaught().size(), () -> "Not all exceptions got logged, logged exceptions: " + TestErrorLogger.getCaught().toString());
+    }
+
 
     @PluginInfo(name = "ConditionalExtension")
     class ConditionalExtension implements DataExtension {
@@ -486,6 +506,55 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
                     .columnFive("five", Icon.called("").build()) // Can handle null column in between and ignore the next column
                     .addRow("value", 3, 0.5, 400L)               // Can handle too many row values
                     .build();
+        }
+    }
+
+    @PluginInfo(name = "ThrowingExtension")
+    class ThrowingExtension implements DataExtension {
+        @BooleanProvider(text = "a boolean")
+        public boolean booleanMethod() {
+            throw new IllegalArgumentException("Failed to catch");
+        }
+
+        @BooleanProvider(text = "a boolean")
+        public boolean booleanPlayerMethod(UUID playerUUID) {
+            throw new NotReadyException();
+        }
+
+        @StringProvider(text = "a string")
+        public String stringMethod() {
+            throw new NoSuchMethodError();
+        }
+
+        @NumberProvider(text = "a string")
+        public long numberMethod() {
+            throw new UnsupportedOperationException();
+        }
+
+        @GroupProvider(text = "group")
+        public String[] groupMethod(UUID playerUUID) {
+            throw new NoClassDefFoundError();
+        }
+
+        @DataBuilderProvider
+        public ExtensionDataBuilder builder() {
+            return newExtensionDataBuilder()
+                    .addValue(String.class, () -> {
+                        throw new NotReadyException();
+                    });
+        }
+
+        @DataBuilderProvider
+        public ExtensionDataBuilder builder2() {
+            return newExtensionDataBuilder()
+                    .addValue(String.class, () -> {
+                        throw new NoClassDefFoundError();
+                    });
+        }
+
+        @DataBuilderProvider
+        public ExtensionDataBuilder builder3() {
+            throw new NoSuchMethodError();
         }
     }
 }

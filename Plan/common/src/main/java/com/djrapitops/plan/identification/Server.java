@@ -18,28 +18,29 @@ package com.djrapitops.plan.identification;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Represents a Server that is running Plan.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class Server implements Comparable<Server> {
-    private final UUID uuid;
+    private final ServerUUID uuid;
     private Integer id;
     private String name;
     private String webAddress;
+    private boolean proxy;
 
-    public Server(UUID uuid, String name, String webAddress) {
-        this(null, uuid, name, webAddress);
+    public Server(ServerUUID uuid, String name, String webAddress) {
+        this(null, uuid, name, webAddress, false);
     }
 
-    public Server(Integer id, UUID uuid, String name, String webAddress) {
+    public Server(Integer id, ServerUUID uuid, String name, String webAddress, boolean proxy) {
         this.id = id;
         this.uuid = uuid;
         this.name = name;
         this.webAddress = webAddress;
+        this.proxy = proxy;
     }
 
     public Optional<Integer> getId() {
@@ -50,7 +51,7 @@ public class Server implements Comparable<Server> {
         this.id = id;
     }
 
-    public UUID getUuid() {
+    public ServerUUID getUuid() {
         return uuid;
     }
 
@@ -58,8 +59,12 @@ public class Server implements Comparable<Server> {
         return name;
     }
 
-    public String getIdentifiableName() {
+    public static String getIdentifiableName(String name, int id) {
         return !"Plan".equalsIgnoreCase(name) ? name : "Server " + id;
+    }
+
+    public String getIdentifiableName() {
+        return getIdentifiableName(name, id);
     }
 
     public void setName(String name) {
@@ -105,7 +110,11 @@ public class Server implements Comparable<Server> {
     }
 
     public boolean isProxy() {
-        return "BungeeCord".equals(name);
+        return proxy;
+    }
+
+    public void setProxy(boolean proxy) {
+        this.proxy = proxy;
     }
 
     public boolean isNotProxy() {

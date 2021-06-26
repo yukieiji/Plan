@@ -16,8 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.storage.transactions.results;
 
-import com.djrapitops.plan.extension.implementation.providers.DataProvider;
+import com.djrapitops.plan.extension.implementation.ProviderInformation;
 import com.djrapitops.plan.extension.implementation.providers.Parameters;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.sql.tables.ExtensionProviderTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Executable;
@@ -38,25 +39,25 @@ import static com.djrapitops.plan.storage.database.sql.tables.ExtensionServerVal
  * - {@link com.djrapitops.plan.extension.annotation.DoubleProvider}
  * - {@link com.djrapitops.plan.extension.annotation.PercentageProvider}
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class StorePlayerDoubleResultTransaction extends ThrowawayTransaction {
 
     private final String pluginName;
-    private final UUID serverUUID;
+    private final ServerUUID serverUUID;
     private final String providerName;
     private final UUID playerUUID;
 
     private final double value;
     private final boolean percentage;
 
-    public StorePlayerDoubleResultTransaction(DataProvider<Double> provider, Parameters parameters, double value) {
-        this.pluginName = provider.getProviderInformation().getPluginName();
-        this.providerName = provider.getProviderInformation().getName();
+    public StorePlayerDoubleResultTransaction(ProviderInformation information, Parameters parameters, double value) {
+        this.pluginName = information.getPluginName();
+        this.providerName = information.getName();
         this.serverUUID = parameters.getServerUUID();
         this.playerUUID = parameters.getPlayerUUID();
         this.value = value;
-        this.percentage = provider.getProviderInformation().isPercentage();
+        this.percentage = information.isPercentage();
     }
 
     @Override

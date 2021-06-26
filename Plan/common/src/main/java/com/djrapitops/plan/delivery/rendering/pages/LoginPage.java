@@ -18,37 +18,47 @@ package com.djrapitops.plan.delivery.rendering.pages;
 
 import com.djrapitops.plan.delivery.formatting.PlaceholderReplacer;
 import com.djrapitops.plan.identification.ServerInfo;
-import com.djrapitops.plugin.api.Check;
+import com.djrapitops.plan.settings.locale.Locale;
+import com.djrapitops.plan.settings.theme.Theme;
+import com.djrapitops.plan.utilities.java.UnaryChain;
 
 /**
  * Html String generator for /login and /register page.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class LoginPage implements Page {
 
     private final String template;
     private final ServerInfo serverInfo;
+    private final Locale locale;
+    private final Theme theme;
 
     LoginPage(
             String htmlTemplate,
-            ServerInfo serverInfo
+            ServerInfo serverInfo,
+            Locale locale,
+            Theme theme
     ) {
         this.template = htmlTemplate;
         this.serverInfo = serverInfo;
+        this.locale = locale;
+        this.theme = theme;
     }
 
     @Override
     public String toHtml() {
         PlaceholderReplacer placeholders = new PlaceholderReplacer();
         placeholders.put("command", getCommand());
-        return placeholders.apply(template);
+        return UnaryChain.of(template)
+                .chain(theme::replaceThemeColors)
+                .chain(placeholders::apply)
+                .chain(locale::replaceLanguageInHtml)
+                .apply();
     }
 
     private String getCommand() {
-        if (serverInfo.getServer().isNotProxy()) return "plan";
-        if (Check.isBungeeAvailable()) return "planbungee";
-        if (Check.isVelocityAvailable()) return "planvelocity";
+        if (serverInfo.getServer().isProxy()) return "planproxy";
         return "plan";
     }
 }

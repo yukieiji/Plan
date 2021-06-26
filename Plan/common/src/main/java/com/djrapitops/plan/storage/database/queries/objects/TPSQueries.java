@@ -19,16 +19,18 @@ package com.djrapitops.plan.storage.database.queries.objects;
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.gathering.domain.TPS;
 import com.djrapitops.plan.gathering.domain.builders.TPSBuilder;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.queries.Query;
 import com.djrapitops.plan.storage.database.queries.QueryStatement;
-import com.djrapitops.plan.storage.database.sql.building.Select;
 import com.djrapitops.plan.storage.database.sql.tables.ServerTable;
 import com.djrapitops.plan.utilities.java.Lists;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static com.djrapitops.plan.storage.database.sql.building.Sql.*;
 import static com.djrapitops.plan.storage.database.sql.tables.TPSTable.*;
@@ -36,7 +38,7 @@ import static com.djrapitops.plan.storage.database.sql.tables.TPSTable.*;
 /**
  * Queries for {@link com.djrapitops.plan.gathering.domain.TPS} objects.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class TPSQueries {
 
@@ -44,28 +46,42 @@ public class TPSQueries {
         /* Static method class */
     }
 
-    public static Query<List<TPS>> fetchTPSDataOfServer(UUID serverUUID) {
-        String sql = Select.all(TABLE_NAME)
-                .where(SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID)
-                .toString();
+    public static Query<List<TPS>> fetchTPSDataOfServerInResolution(long after, long before, long resolution, ServerUUID serverUUID) {
+        return db -> {
+            String sql = SELECT +
+                    min("t." + DATE) + " as " + DATE + ',' +
+                    min("t." + TPS) + " as " + TPS + ',' +
+                    max("t." + PLAYERS_ONLINE) + " as " + PLAYERS_ONLINE + ',' +
+                    max("t." + RAM_USAGE) + " as " + RAM_USAGE + ',' +
+                    max("t." + CPU_USAGE) + " as " + CPU_USAGE + ',' +
+                    max("t." + ENTITIES) + " as " + ENTITIES + ',' +
+                    max("t." + CHUNKS) + " as " + CHUNKS + ',' +
+                    max("t." + FREE_DISK) + " as " + FREE_DISK +
+                    FROM + TABLE_NAME + " t" +
+                    WHERE + SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID +
+                    AND + DATE + ">=?" +
+                    AND + DATE + "<?" +
+                    GROUP_BY + floor(DATE + "/?") +
+                    ORDER_BY + DATE;
 
-        return new QueryStatement<List<TPS>>(sql, 50000) {
-            @Override
-            public void prepare(PreparedStatement statement) throws SQLException {
-                statement.setString(1, serverUUID.toString());
-            }
-
-            @Override
-            public List<TPS> processResults(ResultSet set) throws SQLException {
-                List<TPS> data = new ArrayList<>();
-                while (set.next()) {
-
-                    com.djrapitops.plan.gathering.domain.TPS tps = extractTPS(set);
-
-                    data.add(tps);
+            return db.query(new QueryStatement<List<TPS>>(sql, 50000) {
+                @Override
+                public void prepare(PreparedStatement statement) throws SQLException {
+                    statement.setString(1, serverUUID.toString());
+                    statement.setLong(2, after);
+                    statement.setLong(3, before);
+                    statement.setLong(4, resolution);
                 }
-                return data;
-            }
+
+                @Override
+                public List<TPS> processResults(ResultSet set) throws SQLException {
+                    List<TPS> data = new ArrayList<>();
+                    while (set.next()) {
+                        data.add(extractTPS(set));
+                    }
+                    return data;
+                }
+            });
         };
     }
 
@@ -82,11 +98,12 @@ public class TPSQueries {
                 .toTPS();
     }
 
-    public static Query<List<TPS>> fetchTPSDataOfServer(long after, long before, UUID serverUUID) {
-        String sql = Select.all(TABLE_NAME)
-                .where(SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID)
-                .and(DATE + ">=?").and(DATE + "<=?")
-                .toString();
+    public static Query<List<TPS>> fetchTPSDataOfServer(long after, long before, ServerUUID serverUUID) {
+        String sql = SELECT + "*" + FROM + TABLE_NAME +
+                WHERE + SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID +
+                AND + DATE + ">=?" +
+                AND + DATE + "<=?" +
+                ORDER_BY + DATE;
 
         return new QueryStatement<List<TPS>>(sql, 50000) {
             @Override
@@ -108,7 +125,30 @@ public class TPSQueries {
         };
     }
 
-    public static Query<List<DateObj<Integer>>> fetchPlayersOnlineOfServer(long after, long before, UUID serverUUID) {
+    public static Query<List<DateObj<Integer>>> fetchViewPreviewGraphData(ServerUUID serverUUID) {
+        String sql = SELECT + min(DATE) + " as " + DATE + ',' +
+                max(PLAYERS_ONLINE) + " as " + PLAYERS_ONLINE +
+                FROM + TABLE_NAME +
+                WHERE + SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID +
+                GROUP_BY + floor(DATE + "/?");
+
+        return new QueryStatement<List<DateObj<Integer>>>(sql) {
+            @Override
+            public void prepare(PreparedStatement statement) throws SQLException {
+                statement.setString(1, serverUUID.toString());
+                statement.setLong(2, TimeUnit.MINUTES.toMillis(15));
+            }
+
+            @Override
+            public List<DateObj<Integer>> processResults(ResultSet set) throws SQLException {
+                List<DateObj<Integer>> ofServer = new ArrayList<>();
+                while (set.next()) ofServer.add(new DateObj<>(set.getLong(DATE), set.getInt(PLAYERS_ONLINE)));
+                return ofServer;
+            }
+        };
+    }
+
+    public static Query<List<DateObj<Integer>>> fetchPlayersOnlineOfServer(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + ServerTable.SERVER_UUID + ',' + DATE + ',' + PLAYERS_ONLINE +
                 FROM + TABLE_NAME +
                 INNER_JOIN + ServerTable.TABLE_NAME + " on " + ServerTable.TABLE_NAME + '.' + ServerTable.SERVER_ID + '=' + SERVER_ID +
@@ -136,7 +176,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Map<UUID, List<TPS>>> fetchTPSDataOfAllServersBut(long after, long before, UUID leaveOut) {
+    public static Query<Map<ServerUUID, List<TPS>>> fetchTPSDataOfAllServersBut(long after, long before, ServerUUID leaveOut) {
         String sql = SELECT + '*' +
                 FROM + TABLE_NAME +
                 INNER_JOIN + ServerTable.TABLE_NAME + " on " + ServerTable.TABLE_NAME + '.' + ServerTable.SERVER_ID + '=' + SERVER_ID +
@@ -144,20 +184,24 @@ public class TPSQueries {
                 AND + ServerTable.INSTALLED + "=?" +
                 AND + DATE + "<?" +
                 AND + DATE + ">?";
-        return new QueryStatement<Map<UUID, List<TPS>>>(sql, 1000) {
+        return new QueryStatement<Map<ServerUUID, List<TPS>>>(sql, 1000) {
             @Override
             public void prepare(PreparedStatement statement) throws SQLException {
-                statement.setString(1, leaveOut.toString());
+                if (leaveOut != null) {
+                    statement.setString(1, leaveOut.toString());
+                } else {
+                    statement.setNull(1, Types.VARCHAR);
+                }
                 statement.setBoolean(2, true);
                 statement.setLong(3, before);
                 statement.setLong(4, after);
             }
 
             @Override
-            public Map<UUID, List<TPS>> processResults(ResultSet set) throws SQLException {
-                Map<UUID, List<TPS>> byServer = new HashMap<>();
+            public Map<ServerUUID, List<TPS>> processResults(ResultSet set) throws SQLException {
+                Map<ServerUUID, List<TPS>> byServer = new HashMap<>();
                 while (set.next()) {
-                    UUID serverUUID = UUID.fromString(set.getString(ServerTable.SERVER_UUID));
+                    ServerUUID serverUUID = ServerUUID.fromString(set.getString(ServerTable.SERVER_UUID));
                     List<TPS> ofServer = byServer.computeIfAbsent(serverUUID, Lists::create);
                     ofServer.add(extractTPS(set));
                 }
@@ -166,7 +210,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Optional<DateObj<Integer>>> fetchPeakPlayerCount(UUID serverUUID, long afterDate) {
+    public static Query<Optional<DateObj<Integer>>> fetchPeakPlayerCount(ServerUUID serverUUID, long afterDate) {
         String subQuery = '(' + SELECT + "MAX(" + PLAYERS_ONLINE + ')' + FROM + TABLE_NAME + WHERE + SERVER_ID + "=" + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + DATE + ">= ?)";
         String sql = SELECT +
@@ -199,11 +243,11 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Optional<DateObj<Integer>>> fetchAllTimePeakPlayerCount(UUID serverUUID) {
+    public static Query<Optional<DateObj<Integer>>> fetchAllTimePeakPlayerCount(ServerUUID serverUUID) {
         return fetchPeakPlayerCount(serverUUID, 0);
     }
 
-    public static Query<Optional<TPS>> fetchLatestTPSEntryForServer(UUID serverUUID) {
+    public static Query<Optional<TPS>> fetchLatestTPSEntryForServer(ServerUUID serverUUID) {
         String sql = SELECT + "*" +
                 FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
@@ -234,7 +278,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Double> averageTPS(long after, long before, UUID serverUUID) {
+    public static Query<Double> averageTPS(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + TPS + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + TPS + ">=0" +
@@ -255,7 +299,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Double> averageCPU(long after, long before, UUID serverUUID) {
+    public static Query<Double> averageCPU(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + CPU_USAGE + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + CPU_USAGE + ">=0" +
@@ -276,7 +320,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> averageRAM(long after, long before, UUID serverUUID) {
+    public static Query<Long> averageRAM(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + RAM_USAGE + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + RAM_USAGE + ">=0" +
@@ -297,7 +341,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> averageChunks(long after, long before, UUID serverUUID) {
+    public static Query<Long> averageChunks(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + CHUNKS + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + CHUNKS + ">=0" +
@@ -318,7 +362,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> averageEntities(long after, long before, UUID serverUUID) {
+    public static Query<Long> averageEntities(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + ENTITIES + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + ENTITIES + ">=0" +
@@ -339,7 +383,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> maxFreeDisk(long after, long before, UUID serverUUID) {
+    public static Query<Long> maxFreeDisk(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "MAX(" + FREE_DISK + ") as free" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + FREE_DISK + ">=0" +
@@ -360,7 +404,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> minFreeDisk(long after, long before, UUID serverUUID) {
+    public static Query<Long> minFreeDisk(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "MIN(" + FREE_DISK + ") as free" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + FREE_DISK + ">=0" +
@@ -381,7 +425,7 @@ public class TPSQueries {
         };
     }
 
-    public static Query<Long> averageFreeDisk(long after, long before, UUID serverUUID) {
+    public static Query<Long> averageFreeDisk(long after, long before, ServerUUID serverUUID) {
         String sql = SELECT + "AVG(" + FREE_DISK + ") as average" + FROM + TABLE_NAME +
                 WHERE + SERVER_ID + '=' + ServerTable.STATEMENT_SELECT_SERVER_ID +
                 AND + FREE_DISK + ">=0" +

@@ -25,8 +25,7 @@ import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.storage.file.Resource;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.TextStringBuilder;
 
@@ -44,7 +43,7 @@ import java.util.function.Supplier;
 /**
  * ResourceService implementation.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ResourceSvc implements ResourceService {
@@ -146,7 +145,7 @@ public class ResourceSvc implements ResourceService {
                 return getOrWriteCustomized(fileName, source);
             }
         } catch (IOException e) {
-            errorLogger.log(L.WARN, e, ErrorContext.builder()
+            errorLogger.warn(e, ErrorContext.builder()
                     .whatToDo("Report this or provide " + fileName + " in " + files.getCustomizationDirectory())
                     .related("Fetching resource", "Of: " + pluginName, fileName).build());
         }
@@ -176,17 +175,18 @@ public class ResourceSvc implements ResourceService {
         byte[] bytes = original.asBytes();
         OpenOption[] overwrite = {StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
         Path to = files.getCustomizationDirectory().resolve(fileName);
-        Files.createDirectories(to.getParent());
+        Path dir = to.getParent();
+        if (!Files.isSymbolicLink(dir)) Files.createDirectories(dir);
         Files.write(to, bytes, overwrite);
         return original;
     }
 
     @Override
-    public void addScriptsToResource(String pluginName, String fileName, Position position, String... jsSrcs) {
-        checkParams(pluginName, fileName, position, jsSrcs);
+    public void addScriptsToResource(String pluginName, String fileName, Position position, String... jsSources) {
+        checkParams(pluginName, fileName, position, jsSources);
 
         String snippet = new TextStringBuilder("<script src=\"")
-                .appendWithSeparators(jsSrcs, "\"></script><script src=\"")
+                .appendWithSeparators(jsSources, "\"></script><script src=\"")
                 .append("\"></script>").build();
         snippets.add(new Snippet(pluginName, fileName, position, snippet));
         if (!"Plan".equals(pluginName)) {
@@ -194,7 +194,7 @@ public class ResourceSvc implements ResourceService {
         }
     }
 
-    public void checkParams(String pluginName, String fileName, Position position, String[] jsSrcs) {
+    public void checkParams(String pluginName, String fileName, Position position, String[] jsSources) {
         if (pluginName == null || pluginName.isEmpty()) {
             throw new IllegalArgumentException("'pluginName' can't be '" + pluginName + "'!");
         }
@@ -207,17 +207,17 @@ public class ResourceSvc implements ResourceService {
         if (position == null) {
             throw new IllegalArgumentException("'position' can't be null!");
         }
-        if (jsSrcs == null || jsSrcs.length == 0) {
+        if (jsSources == null || jsSources.length == 0) {
             throw new IllegalArgumentException("Can't add snippets to resource without snippets!");
         }
     }
 
     @Override
-    public void addStylesToResource(String pluginName, String fileName, Position position, String... cssSrcs) {
-        checkParams(pluginName, fileName, position, cssSrcs);
+    public void addStylesToResource(String pluginName, String fileName, Position position, String... cssSources) {
+        checkParams(pluginName, fileName, position, cssSources);
 
         String snippet = new TextStringBuilder("<link href=\"")
-                .appendWithSeparators(cssSrcs, "\" rel=\"stylesheet\"></link><link href=\"")
+                .appendWithSeparators(cssSources, "\" rel=\"stylesheet\"></link><link href=\"")
                 .append("\" rel=\"stylesheet\">").build();
         snippets.add(new Snippet(pluginName, fileName, position, snippet));
         if (!"Plan".equals(pluginName)) {

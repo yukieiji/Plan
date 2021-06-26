@@ -18,23 +18,28 @@
         if (selectedColor === null) {
             window.localStorage.setItem('themeColor', currentColor);
         }
-        $('body').removeClass('theme-' + currentColor).addClass('theme-' + nextColor);
+        const bodyElement = document.querySelector('body');
+        bodyElement.classList.remove(`theme-${currentColor}`);
+        bodyElement.classList.add(`theme-${nextColor}`);
+
         if (!nextColor || nextColor == currentColor) {
             return;
         }
 
-        let bgElementSelector = '';
         bgElements.map(element => element + '.bg-' + currentColor + ":not(.color-chooser)")
-            .forEach(selector => bgElementSelector += selector + ',');
-        $(bgElementSelector.substr(0, bgElementSelector.length - 1))
-            .removeClass('bg-' + currentColor)
-            .addClass('bg-' + nextColor);
-        let textElementSelector = '';
+            .forEach(selector => {
+                document.querySelectorAll(selector).forEach(element => {
+                    element.classList.remove(`bg-${currentColor}`);
+                    element.classList.add(`bg-${nextColor}`);
+                });
+            });
         textElements.map(element => element + '.col-' + currentColor)
-            .forEach(selector => textElementSelector += selector + ',');
-        $(textElementSelector.substr(0, textElementSelector.length - 1))
-            .removeClass('col-' + currentColor)
-            .addClass('col-' + nextColor);
+            .forEach(selector => {
+                document.querySelectorAll(selector).forEach(element => {
+                    element.classList.remove(`col-${currentColor}`);
+                    element.classList.add(`col-${nextColor}`);
+                });
+            });
         if (nextColor != 'night') {
             window.localStorage.setItem('themeColor', nextColor);
         }
@@ -43,27 +48,22 @@
 
     // Set the color changing function for all color change buttons
     function enableColorSetters() {
-        function colorSetter(i) {
-            return function () {
-                setColor(colors[i]);
-            }
-        }
-
-        for (let i in colors) {
-            const color = colors[i];
-            const func = colorSetter(i);
-            $('#choose-' + color)
-                .on('click', func)
-                .addClass('bg-' + color);
+        for (const color of colors) {
+            const selector = document.getElementById(`choose-${color}`);
+            selector.removeAttribute('disabled');
+            selector.classList.remove('disabled');
+            selector.classList.add(`bg-${color}`);
+            selector.addEventListener('click', () => setColor(color));
         }
     }
 
     enableColorSetters();
 
     function disableColorSetters() {
-        for (i in colors) {
-            const color = colors[i];
-            $('#choose-' + color).addClass('disabled').unbind('click');
+        for (const color of colors) {
+            const selector = document.getElementById(`choose-${color}`);
+            selector.classList.add('disabled');
+            selector.setAttribute('disabled', 'true');
         }
     }
 
@@ -150,16 +150,16 @@
         `.bg-lime {background-color: ${lime};color: #eee8d5;}` +
         `.bg-yellow {background-color: ${yellow};color: #eee8d5;}` +
         `.bg-amber {background-color: ${amber};color: #eee8d5;}` +
-        `.badge-warning {background-color: ${warningColor};color: #eee8d5;}` +
+        `.bg-warning {background-color: ${warningColor};color: #eee8d5;}` +
         `.bg-orange {background-color: ${orange};color: #eee8d5;}` +
         `.bg-deep-orange {background-color: ${deepOrange};color: #eee8d5;}` +
-        `.badge-danger {background-color: ${dangerColor};color: #eee8d5;}` +
+        `.bg-danger {background-color: ${dangerColor};color: #eee8d5;}` +
         `.bg-brown {background-color: ${brown};color: #eee8d5;}` +
         `.bg-grey {background-color: ${grey};color: #eee8d5;}` +
         `.bg-blue-grey {background-color: ${blueGrey};color: #eee8d5;}` +
         `.bg-black {background-color: ${black};color: #eee8d5;}` +
-        `.bg-plan {background-color: ${planColor};color: #eee8d5;}` +
-        `.badge-success {background-color: ${successColor};color: #eee8d5;}` +
+        `.bg-plan,.page-item.active .page-link {background-color: ${planColor};color: #eee8d5;}` +
+        `.bg-success {background-color: ${successColor};color: #eee8d5;}` +
         `.bg-night {background-color: #44475a;color: #eee8d5;}` +
         `.bg-red-outline {outline-color: ${red};border-color: ${red};}` +
         `.bg-pink-outline {outline-color: ${pink};border-color: ${pink};}` +
@@ -211,18 +211,22 @@
             // Background colors from dracula theme
             $('head').append('<style id="nightmode">' +
                 '#content {background-color:#282a36;}' +
-                '.card,.bg-white,.modal-content,.page-loader,.nav-tabs .nav-link:hover,.nav-tabs,hr,form .btn{background-color:#44475a;border-color:#6272a4!important;}' +
+                '.btn {color: #eee8d5;}' +
+                '.card,.bg-white,.modal-content,.page-loader,.nav-tabs .nav-link:hover,.nav-tabs,hr,form .btn, .btn-outline-secondary{background-color:#44475a!important;border-color:#6272a4!important;}' +
                 '.bg-white.collapse-inner {border:1px solid;}' +
                 '.card-header {background-color:#44475a;border-color:#6272a4;}' +
-                '#content,.col-black,.text-gray-900,.text-gray-800,.collapse-item,.modal-title,.modal-body,.page-loader,.close,.fc-title,.fc-time,pre,.table-dark{color:#eee8d5 !important;}' +
+                '#content,.col-black,.text-gray-900,.text-gray-800,.collapse-item,.modal-title,.modal-body,.page-loader,.fc-title,.fc-time,pre,.table-dark,input::placeholder{color:#eee8d5 !important;}' +
                 '.collapse-item:hover,.nav-link.active {background-color: #606270 !important;}' +
                 '.nav-tabs .nav-link.active {background-color: #44475a !important;border-color:#6272a4 #6272a4 #44475a !important;}' +
                 '.fc-today {background:#646e8c !important}' +
-                '.fc-popover-body,.fc-popover-header {background-color: #44475a;color: #eee8d5;}' +
+                '.fc-popover-body,.fc-popover-header{background-color: #44475a !important;color: #eee8d5 !important;}' +
+                'select,input,.dataTables_paginate .page-item:not(.active) a,.input-group-text,.input-group-text > * {background-color:#44475a !important;border-color:#6272a4 !important;color: #eee8d5 !important;}' +
                 nightModeColors +
                 '</style>');
             // Turn bright tables to dark
             $('.table').addClass('table-dark');
+            // Turn modal close buttons light
+            document.querySelectorAll('button.btn-close').forEach(element => { element.classList.add('btn-close-white'); })
             // Sidebar is grey when in night mode
             disableColorSetters();
             setColor('night');
@@ -231,8 +235,9 @@
             $('#nightmode').remove();
             // Turn dark tables bright again
             $('.table').removeClass('table-dark');
+            // Turn modal close buttons dark
+            document.querySelectorAll('button.btn-close').forEach(element => { element.classList.remove('btn-close-white'); })
             // Sidebar is colorful
-            $('.color-chooser').removeClass('disabled');
             enableColorSetters();
             setColor(window.localStorage.getItem('themeColor'));
         }
@@ -468,6 +473,7 @@
             Highcharts.setOptions(Highcharts.theme);
             updateGraphs();
         } catch (e) {
+            console.error(e);
         }
     }
 

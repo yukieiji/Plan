@@ -32,12 +32,18 @@ import java.util.regex.Pattern;
 /**
  * Represents loaded language information.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class Locale extends HashMap<Lang, Message> {
 
+    private static final Pattern FIND_SCRIPT = Pattern.compile("(<script id=[\"|'].*[\"|']>[\\s\\S]*?</script>|<script>[\\s\\S]*?</script>|<script src=[\"|'].*[\"|']></script>|<link [\\s\\S]*?>)");
+
     public static Locale forLangCodeString(PlanFiles files, String code) throws IOException {
         return forLangCode(LangCode.fromString(code), files);
+    }
+
+    public static String getStringNullSafe(Locale locale, Lang lang) {
+        return locale != null ? locale.getString(lang) : lang.getDefault();
     }
 
     private LangCode langCode;
@@ -107,9 +113,7 @@ public class Locale extends HashMap<Lang, Message> {
             return from;
         }
 
-        Pattern scripts = Pattern.compile("(<script id=[\"|'].*[\"|']>[\\s\\S]*?</script>|<script>[\\s\\S]*?</script>|<script src=[\"|'].*[\"|']></script>|<link [\\s\\S]*?>)");
-
-        Matcher scriptMatcher = scripts.matcher(from);
+        Matcher scriptMatcher = FIND_SCRIPT.matcher(from);
         List<String> foundScripts = new ArrayList<>();
         while (scriptMatcher.find()) {
             foundScripts.add(scriptMatcher.toMatchResult().group(0));
@@ -128,7 +132,7 @@ public class Locale extends HashMap<Lang, Message> {
 
         StringBuilder complete = new StringBuilder(translated.length());
 
-        String[] parts = scripts.split(translated.toString());
+        String[] parts = FIND_SCRIPT.split(translated.toString());
         for (int i = 0; i < parts.length; i++) {
             complete.append(parts[i]);
             if (i < parts.length - 1) {
@@ -178,6 +182,16 @@ public class Locale extends HashMap<Lang, Message> {
                 HtmlLang.LABEL_FREE_DISK_SPACE,
                 HtmlLang.LABEL_NEW_PLAYERS,
                 HtmlLang.LABEL_UNIQUE_PLAYERS,
+                HtmlLang.LABEL_ACTIVE_PLAYTIME,
+                HtmlLang.LABEL_AFK_TIME,
+                HtmlLang.LABEL_AVG_SESSION_LENGTH,
+                HtmlLang.LABEL_AVG_PLAYTIME,
+                HtmlLang.LABEL_AVG_ACTIVE_PLAYTIME,
+                HtmlLang.LABEL_AVG_AFK_TIME,
+                HtmlLang.LABEL_AVG_PLAYTIME,
+                HtmlLang.SIDE_GEOLOCATIONS,
+                HtmlLang.LABEL_PER_PLAYER,
+                HtmlLang.TITLE_JOIN_ADDRESSES
 
         }) {
             getNonDefault(extra).ifPresent(replacement ->

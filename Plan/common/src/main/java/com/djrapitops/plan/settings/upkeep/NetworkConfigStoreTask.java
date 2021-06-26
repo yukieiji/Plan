@@ -16,28 +16,36 @@
  */
 package com.djrapitops.plan.settings.upkeep;
 
+import com.djrapitops.plan.TaskSystem;
+import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.settings.network.NetworkSettingManager;
-import com.djrapitops.plugin.task.AbsRunnable;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Task on networks that stores server configs in /plugins/Plan/serverConfiguration in database on boot.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
-public class NetworkConfigStoreTask extends AbsRunnable {
+public class NetworkConfigStoreTask extends TaskSystem.Task {
 
     private final NetworkSettingManager networkSettingManager;
+    private final PlanConfig config;
 
     @Inject
     public NetworkConfigStoreTask(
+            PlanConfig config,
             NetworkSettingManager networkSettingManager
     ) {
+        this.config = config;
         this.networkSettingManager = networkSettingManager;
     }
 
@@ -47,11 +55,18 @@ public class NetworkConfigStoreTask extends AbsRunnable {
         cancel();
     }
 
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        long delay = TimeAmount.toTicks(config.get(TimeSettings.CONFIG_UPDATE_INTERVAL), TimeUnit.MILLISECONDS) + 40;
+
+        runnableFactory.create(this).runTaskLaterAsynchronously(delay);
+    }
+
     private void updateDBConfigs() {
         File[] configFiles = networkSettingManager.getConfigFiles();
 
         for (File configFile : configFiles) {
-            UUID serverUUID = NetworkSettingManager.getServerUUIDFromFilename(configFile);
+            ServerUUID serverUUID = NetworkSettingManager.getServerUUIDFromFilename(configFile);
             networkSettingManager.updateConfigInDB(configFile, serverUUID);
         }
     }

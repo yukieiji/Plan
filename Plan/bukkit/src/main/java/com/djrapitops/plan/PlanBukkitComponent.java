@@ -19,33 +19,35 @@ package com.djrapitops.plan;
 import com.djrapitops.plan.addons.placeholderapi.BukkitPlaceholderRegistrar;
 import com.djrapitops.plan.commands.PlanCommand;
 import com.djrapitops.plan.gathering.ServerShutdownSave;
-import com.djrapitops.plan.modules.APFModule;
-import com.djrapitops.plan.modules.PlaceholderModule;
-import com.djrapitops.plan.modules.ServerCommandModule;
-import com.djrapitops.plan.modules.SystemObjectProvidingModule;
+import com.djrapitops.plan.modules.*;
 import com.djrapitops.plan.modules.bukkit.BukkitPlanModule;
 import com.djrapitops.plan.modules.bukkit.BukkitServerPropertiesModule;
 import com.djrapitops.plan.modules.bukkit.BukkitSuperClassBindingModule;
+import com.djrapitops.plan.modules.bukkit.BukkitTaskModule;
 import dagger.BindsInstance;
 import dagger.Component;
+import net.playeranalytics.plugin.PlatformAbstractionLayer;
+import org.bukkit.Server;
 
 import javax.inject.Singleton;
 
 /**
  * Dagger Component that constructs the plugin systems running on Bukkit.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 @Component(modules = {
         BukkitPlanModule.class,
         SystemObjectProvidingModule.class,
-        APFModule.class,
+        PlatformAbstractionLayerModule.class,
+        FiltersModule.class,
         PlaceholderModule.class,
 
         ServerCommandModule.class,
         BukkitServerPropertiesModule.class,
-        BukkitSuperClassBindingModule.class
+        BukkitSuperClassBindingModule.class,
+        BukkitTaskModule.class
 })
 public interface PlanBukkitComponent {
 
@@ -61,7 +63,13 @@ public interface PlanBukkitComponent {
     interface Builder {
 
         @BindsInstance
-        Builder plan(Plan plan);
+        Builder plan(PlanPlugin plan);
+
+        @BindsInstance
+        Builder abstractionLayer(PlatformAbstractionLayer abstractionLayer);
+
+        @BindsInstance
+        Builder server(Server server);
 
         PlanBukkitComponent build();
     }

@@ -21,7 +21,7 @@ import com.djrapitops.plan.storage.database.sql.tables.*;
 /**
  * Transaction that creates the table schema of Plan database.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class CreateTablesTransaction extends OperationCriticalTransaction {
 
@@ -44,6 +44,7 @@ public class CreateTablesTransaction extends OperationCriticalTransaction {
         execute(WorldTimesTable.createTableSQL(dbType));
         execute(SecurityTable.createTableSQL(dbType));
         execute(SettingsTable.createTableSQL(dbType));
+        execute(CookieTable.createTableSQL(dbType));
 
         // DataExtension tables
         execute(ExtensionIconTable.createTableSQL(dbType));

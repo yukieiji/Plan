@@ -23,16 +23,18 @@
  */
 package com.djrapitops.plan.gathering.timed;
 
+import com.djrapitops.plan.TaskSystem;
 import com.djrapitops.plan.delivery.domain.DateObj;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.transactions.events.PingStoreTransaction;
 import com.djrapitops.plan.utilities.java.Reflection;
-import com.djrapitops.plugin.api.TimeAmount;
-import com.djrapitops.plugin.task.AbsRunnable;
-import com.djrapitops.plugin.task.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.RunnableFactory;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
+import net.playeranalytics.plugin.server.Listeners;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -60,23 +62,33 @@ import java.util.logging.Logger;
  * @author games647
  */
 @Singleton
-public class BukkitPingCounter extends AbsRunnable implements Listener {
+public class BukkitPingCounter extends TaskSystem.Task implements Listener {
 
     //the server is pinging the client every 40 Ticks (2 sec) - so check it then
     //https://github.com/bergerkiller/CraftSource/blob/master/net.minecraft.server/PlayerConnection.java#L178
 
-    private static boolean PING_METHOD_AVAILABLE;
+    private static boolean pingMethodAvailable;
 
-    private static MethodHandle PING_FIELD;
-    private static MethodHandle GET_HANDLE_METHOD;
+    private static MethodHandle pingField;
+    private static MethodHandle getHandleMethod;
+
+    private final Map<UUID, List<DateObj<Integer>>> playerHistory;
+
+    private final Listeners listeners;
+    private final PlanConfig config;
+    private final DBSystem dbSystem;
+    private final ServerInfo serverInfo;
+    private final RunnableFactory runnableFactory;
 
     @Inject
     public BukkitPingCounter(
+            Listeners listeners,
             PlanConfig config,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             RunnableFactory runnableFactory
     ) {
+        this.listeners = listeners;
         BukkitPingCounter.loadPingMethodDetails();
         this.config = config;
         this.dbSystem = dbSystem;
@@ -85,19 +97,13 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
         playerHistory = new HashMap<>();
     }
 
-    private final Map<UUID, List<DateObj<Integer>>> playerHistory;
-
-    private final PlanConfig config;
-    private final DBSystem dbSystem;
-    private final ServerInfo serverInfo;
-    private final RunnableFactory runnableFactory;
 
     private static void loadPingMethodDetails() {
-        PING_METHOD_AVAILABLE = isPingMethodAvailable();
+        pingMethodAvailable = isPingMethodAvailable();
 
         MethodHandle localHandle = null;
         MethodHandle localPing = null;
-        if (!PING_METHOD_AVAILABLE) {
+        if (!pingMethodAvailable) {
             try {
                 Class<?> craftPlayerClass = Reflection.getCraftBukkitClass("entity.CraftPlayer");
                 Class<?> entityPlayer = Reflection.getMinecraftClass("EntityPlayer");
@@ -121,8 +127,8 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
             }
         }
 
-        GET_HANDLE_METHOD = localHandle;
-        PING_FIELD = localPing;
+        getHandleMethod = localHandle;
+        pingField = localPing;
     }
 
     private static boolean isPingMethodAvailable() {
@@ -132,6 +138,17 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
             return true;
         } catch (ClassNotFoundException | NoSuchMethodException noSuchMethodEx) {
             return false;
+        }
+    }
+
+    @Override
+    public void register(RunnableFactory runnableFactory) {
+        Long startDelay = config.get(TimeSettings.PING_SERVER_ENABLE_DELAY);
+        if (startDelay < TimeUnit.HOURS.toMillis(1L) && config.isTrue(DataGatheringSettings.PING)) {
+            listeners.registerListener(this);
+            long delay = TimeAmount.toTicks(startDelay, TimeUnit.MILLISECONDS);
+            long period = 40L;
+            runnableFactory.create(this).runTaskTimer(delay, period);
         }
     }
 
@@ -173,7 +190,7 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
     }
 
     private int getPing(Player player) {
-        if (PING_METHOD_AVAILABLE) {
+        if (pingMethodAvailable) {
             // This method is from Paper
             return player.spigot().getPing();
         }
@@ -183,8 +200,8 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
 
     private int getReflectionPing(Player player) {
         try {
-            Object entityPlayer = GET_HANDLE_METHOD.invoke(player);
-            return (int) PING_FIELD.invoke(entityPlayer);
+            Object entityPlayer = getHandleMethod.invoke(player);
+            return (int) pingField.invoke(entityPlayer);
         } catch (Exception ex) {
             return -1;
         } catch (Throwable throwable) {
@@ -199,12 +216,9 @@ public class BukkitPingCounter extends AbsRunnable implements Listener {
         if (pingDelay >= TimeUnit.HOURS.toMillis(2L)) {
             return;
         }
-        runnableFactory.create("Add Player to Ping list", new AbsRunnable() {
-            @Override
-            public void run() {
-                if (player.isOnline()) {
-                    addPlayer(player);
-                }
+        runnableFactory.create(() -> {
+            if (player.isOnline()) {
+                addPlayer(player);
             }
         }).runTaskLater(TimeAmount.toTicks(pingDelay, TimeUnit.MILLISECONDS));
     }

@@ -18,6 +18,7 @@ package com.djrapitops.plan.delivery.webserver.resolver.json;
 
 import com.djrapitops.plan.delivery.rendering.json.*;
 import com.djrapitops.plan.delivery.web.resolver.CompositeResolver;
+import com.djrapitops.plan.delivery.webserver.cache.AsyncJSONResolverService;
 import com.djrapitops.plan.delivery.webserver.cache.DataID;
 import com.djrapitops.plan.identification.Identifiers;
 
@@ -27,17 +28,19 @@ import javax.inject.Singleton;
 /**
  * Root resolver for JSON requests, resolves /v1/ URLs.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class RootJSONResolver {
 
     private final Identifiers identifiers;
+    private final AsyncJSONResolverService asyncJSONResolverService;
     private final CompositeResolver resolver;
 
     @Inject
     public RootJSONResolver(
             Identifiers identifiers,
+            AsyncJSONResolverService asyncJSONResolverService,
             JSONFactory jsonFactory,
 
             GraphsJSONResolver graphsJSONResolver,
@@ -50,11 +53,15 @@ public class RootJSONResolver {
             PvPPvEJSONCreator pvPPvEJSONCreator,
             PlayerBaseOverviewJSONCreator playerBaseOverviewJSONCreator,
             PerformanceJSONCreator performanceJSONCreator,
+            ErrorsJSONResolver errorsJSONResolver,
 
             PlayerJSONResolver playerJSONResolver,
-            NetworkJSONResolver networkJSONResolver
+            NetworkJSONResolver networkJSONResolver,
+            FiltersJSONResolver filtersJSONResolver,
+            QueryJSONResolver queryJSONResolver
     ) {
         this.identifiers = identifiers;
+        this.asyncJSONResolverService = asyncJSONResolverService;
 
         resolver = CompositeResolver.builder()
                 .add("players", playersTableJSONResolver)
@@ -70,11 +77,14 @@ public class RootJSONResolver {
                 .add("performanceOverview", forJSON(DataID.PERFORMANCE_OVERVIEW, performanceJSONCreator))
                 .add("player", playerJSONResolver)
                 .add("network", networkJSONResolver.getResolver())
+                .add("filters", filtersJSONResolver)
+                .add("query", queryJSONResolver)
+                .add("errors", errorsJSONResolver)
                 .build();
     }
 
     private <T> ServerTabJSONResolver<T> forJSON(DataID dataID, ServerTabJSONCreator<T> tabJSONCreator) {
-        return new ServerTabJSONResolver<>(dataID, identifiers, tabJSONCreator);
+        return new ServerTabJSONResolver<>(dataID, identifiers, tabJSONCreator, asyncJSONResolverService);
     }
 
     public CompositeResolver getResolver() {

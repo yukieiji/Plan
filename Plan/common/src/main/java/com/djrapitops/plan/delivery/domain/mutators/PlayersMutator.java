@@ -21,13 +21,13 @@ import com.djrapitops.plan.delivery.domain.container.DataContainer;
 import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
 import com.djrapitops.plan.delivery.domain.keys.PlayerKeys;
 import com.djrapitops.plan.delivery.domain.keys.ServerKeys;
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.GeoInfo;
 import com.djrapitops.plan.gathering.domain.Ping;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.utilities.java.Lists;
 import com.djrapitops.plan.utilities.java.Maps;
-import com.djrapitops.plugin.api.TimeAmount;
+import net.playeranalytics.plugin.scheduling.TimeAmount;
 
 import java.util.*;
 import java.util.function.Function;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 /**
  * Mutator for a bunch of {@link PlayerContainer}s.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class PlayersMutator {
 
@@ -63,8 +63,8 @@ public class PlayersMutator {
         return filterBy(
                 player -> player.getValue(PlayerKeys.SESSIONS)
                         .map(sessions -> sessions.stream().anyMatch(session -> {
-                            long start = session.getValue(SessionKeys.START).orElse(-1L);
-                            long end = session.getValue(SessionKeys.END).orElse(-1L);
+                            long start = session.getStart();
+                            long end = session.getEnd();
                             return (after <= start && start <= before) || (after <= end && end <= before);
                         })).orElse(false)
         );
@@ -93,7 +93,7 @@ public class PlayersMutator {
         return filterBy(player -> player.getActivityIndex(date, msThreshold).getValue() >= limit);
     }
 
-    public PlayersMutator filterPlayedOnServer(UUID serverUUID) {
+    public PlayersMutator filterPlayedOnServer(ServerUUID serverUUID) {
         return filterBy(player -> !SessionsMutator.forContainer(player)
                 .filterPlayedOnServer(serverUUID)
                 .all().isEmpty()
@@ -123,7 +123,7 @@ public class PlayersMutator {
         return geolocations;
     }
 
-    public Map<String, List<Ping>> getPingPerCountry(UUID serverUUID) {
+    public Map<String, List<Ping>> getPingPerCountry(ServerUUID serverUUID) {
         Map<String, List<Ping>> pingPerCountry = new HashMap<>();
         for (PlayerContainer player : players) {
             Optional<GeoInfo> mostRecent = GeoInfoMutator.forContainer(player).mostRecent();
@@ -186,8 +186,10 @@ public class PlayersMutator {
     /**
      * Compares players in the mutator to other players in terms of player retention.
      *
-     * @param compareTo Players to compare to.
-     * @param dateLimit Epoch ms back limit, if the player registered after this their value is not used.
+     * @param compareTo           Players to compare to.
+     * @param dateLimit           Epoch ms back limit, if the player registered after this their value is not used.
+     * @param onlineResolver      Thing that figures out how many players were online at different dates.
+     * @param activityMsThreshold Threshold for activity index calculation.
      * @return Mutator containing the players that are considered to be retained.
      * @throws IllegalStateException If all players are rejected due to dateLimit.
      */
@@ -238,7 +240,7 @@ public class PlayersMutator {
         return new PlayersMutator(toBeRetained);
     }
 
-    public List<Session> getSessions() {
+    public List<FinishedSession> getSessions() {
         return players.stream()
                 .map(player -> player.getValue(PlayerKeys.SESSIONS).orElse(new ArrayList<>()))
                 .flatMap(Collection::stream)

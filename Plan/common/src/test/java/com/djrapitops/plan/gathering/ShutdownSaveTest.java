@@ -17,11 +17,12 @@
 package com.djrapitops.plan.gathering;
 
 import com.djrapitops.plan.PlanSystem;
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
 import com.djrapitops.plan.gathering.cache.SessionCache;
+import com.djrapitops.plan.gathering.domain.ActiveSession;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.gathering.domain.GMTimes;
-import com.djrapitops.plan.gathering.domain.Session;
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
@@ -30,22 +31,21 @@ import com.djrapitops.plan.storage.database.transactions.StoreServerInformationT
 import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythingTransaction;
 import com.djrapitops.plan.storage.database.transactions.events.PlayerRegisterTransaction;
 import com.djrapitops.plan.storage.database.transactions.events.WorldNameStoreTransaction;
-import com.djrapitops.plugin.logging.console.TestPluginLogger;
-import extension.PrintExtension;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import utilities.RandomData;
 import utilities.TestConstants;
-import utilities.dagger.DaggerPlanPluginComponent;
-import utilities.dagger.PlanPluginComponent;
-import utilities.mocks.PlanPluginMocker;
+import utilities.TestPluginLogger;
+import utilities.mocks.PluginMockComponent;
 
 import java.nio.file.Path;
-import java.util.Map;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -54,9 +54,8 @@ import static org.mockito.Mockito.when;
 /**
  * Test ensures that unsaved sessions are saved on server shutdown.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
-@ExtendWith(PrintExtension.class)
 class ShutdownSaveTest {
 
     private boolean shutdownStatus;
@@ -66,15 +65,8 @@ class ShutdownSaveTest {
 
     @BeforeEach
     void setupShutdownSaveObject(@TempDir Path temporaryFolder) throws Exception {
-        PlanPluginComponent pluginComponent = DaggerPlanPluginComponent.builder()
-                .bindTemporaryDirectory(temporaryFolder)
-                .plan(
-                        PlanPluginMocker.setUp()
-                                .withDataFolder(temporaryFolder.resolve("ShutdownSaveTest").toFile())
-                                .withLogging()
-                                .getPlanMock()
-                ).build();
-        PlanSystem system = pluginComponent.system();
+        PluginMockComponent pluginMockComponent = new PluginMockComponent(temporaryFolder);
+        PlanSystem system = pluginMockComponent.getPlanSystem();
 
         database = system.getDatabaseSystem().getSqLiteFactory().usingFileCalled("test");
         database.init();
@@ -107,7 +99,7 @@ class ShutdownSaveTest {
     private void storeNecessaryInformation() throws Exception {
         database.executeTransaction(new RemoveEverythingTransaction());
 
-        UUID serverUUID = TestConstants.SERVER_UUID;
+        ServerUUID serverUUID = TestConstants.SERVER_UUID;
         UUID playerUUID = TestConstants.PLAYER_ONE_UUID;
         String worldName = TestConstants.WORLD_ONE_NAME;
 
@@ -130,17 +122,8 @@ class ShutdownSaveTest {
     @Test
     void sessionsAreSavedOnServerShutdown() {
         shutdownStatus = true;
-        underTest.performSave();
-
-        database.init();
-        assertFalse(database.query(SessionQueries.fetchAllSessions()).isEmpty());
-        database.close();
-    }
-
-    @Test
-    void sessionsAreSavedOnJVMShutdown() {
-        ShutdownHook shutdownHook = new ShutdownHook(underTest);
-        shutdownHook.run();
+        Optional<Future<?>> save = underTest.performSave();
+        assertTrue(save.isPresent());
 
         database.init();
         assertFalse(database.query(SessionQueries.fetchAllSessions()).isEmpty());
@@ -148,29 +131,45 @@ class ShutdownSaveTest {
     }
 
     private void placeSessionToCache() {
-        UUID serverUUID = TestConstants.SERVER_UUID;
+        ServerUUID serverUUID = TestConstants.SERVER_UUID;
         UUID playerUUID = TestConstants.PLAYER_ONE_UUID;
         String worldName = TestConstants.WORLD_ONE_NAME;
 
-        Session session = new Session(playerUUID, serverUUID, 0L, worldName, GMTimes.getGMKeyArray()[0]);
+        ActiveSession session = new ActiveSession(playerUUID, serverUUID, 0L, worldName, GMTimes.getGMKeyArray()[0]);
 
         sessionCache.cacheSession(playerUUID, session);
     }
 
     @Test
-    public void endedSessionsHaveSameEndTime() {
+    void endedSessionsHaveSameEndTime() {
         for (int i = 0; i < 100; i++) {
             UUID playerUUID = UUID.randomUUID();
-            Session session = RandomData.randomUnfinishedSession(
+            ActiveSession session = RandomData.randomUnfinishedSession(
                     TestConstants.SERVER_UUID, new String[]{"w1", "w2"}, playerUUID
             );
             sessionCache.cacheSession(playerUUID, session);
         }
         long endTime = System.currentTimeMillis();
-        Map<UUID, Session> activeSessions = SessionCache.getActiveSessions();
-        underTest.prepareSessionsForStorage(activeSessions, endTime);
-        for (Session session : activeSessions.values()) {
-            assertEquals(endTime, session.getUnsafe(SessionKeys.END), () -> "One of the sessions had differing end time");
+        Collection<ActiveSession> activeSessions = SessionCache.getActiveSessions();
+        for (FinishedSession session : underTest.finishSessions(activeSessions, endTime)) {
+            assertEquals(endTime, session.getEnd(), () -> "One of the sessions had differing end time");
         }
+    }
+
+    @Test
+    void sessionsAreNotSavedWhenNotShuttingDown() {
+        for (int i = 0; i < 100; i++) {
+            UUID playerUUID = UUID.randomUUID();
+            ActiveSession session = RandomData.randomUnfinishedSession(
+                    TestConstants.SERVER_UUID, new String[]{"w1", "w2"}, playerUUID
+            );
+            sessionCache.cacheSession(playerUUID, session);
+        }
+
+        Optional<Future<?>> save = underTest.performSave();
+        assertFalse(save.isPresent());
+
+        List<FinishedSession> sessions = database.query(SessionQueries.fetchAllSessions());
+        assertEquals(0, sessions.size());
     }
 }

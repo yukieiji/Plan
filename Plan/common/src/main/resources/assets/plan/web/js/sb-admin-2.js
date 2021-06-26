@@ -19,7 +19,7 @@ function openTab(openIndex) {
     const tabWidthPercent = -100 / tabCount;
     const verticalScrollPercent = slideIndex * tabWidthPercent;
     content.style.transition = "0.5s";
-    content.style.transform = "translate3d(" + verticalScrollPercent + "%,0px,0)";
+    content.style.transform = `translate3d(${verticalScrollPercent}%,0px,0)`;
 }
 
 function openPage() {
@@ -37,16 +37,23 @@ function openPage() {
 
     if (uriHash.length > 1) {
         const bootstrapTabId = uriHash[1];
-        $('a[href="#' + bootstrapTabId + '"]').tab('show');
+        let tab = document.querySelector('a[href="#' + bootstrapTabId + '"]');
+        let tabInstance = bootstrap.Tab.getInstance(tab);
+
+        if (tabInstance) { // show tab if it has been instantiated
+            tabInstance.show();
+        } else { // create new Tab object and show the tab
+            new bootstrap.Tab(tab).show();
+        }
     }
 }
 
 // Prepare tabs for display
 content.style.transform = "translate3d(0px,0px,0)";
-content.style.width = (tabCount * 100) + "%";
+content.style.width = (Math.max(100, tabCount * 100)) + "%";
 content.style.opacity = "1";
 for (let tab of tabs) {
-    tab.style.width = (100 / tabCount) + "%";
+    tab.style.width = `${100 / tabCount}%`;
 }
 
 window.addEventListener('hashchange', openPage);
@@ -61,16 +68,23 @@ $('#accordionSidebar .nav-item a').click(event => {
 });
 
 // Persistent Bootstrap tabs
-$('.nav-tabs a.nav-link').click(event => {
-    const uriHash = (window.location.hash).split("&");
-    if (!uriHash) return;
-    const currentTab = uriHash[0];
-    const originalTargetId = event.currentTarget.href.split('#')[1];
-    if (history.replaceState) {
-        event.preventDefault();
-        history.replaceState(undefined, undefined, currentTab + '&' + originalTargetId);
-        openPage();
-    } else window.location.hash = currentTab + '&' + originalTargetId;
+document.querySelectorAll(".nav-tabs a.nav-link").forEach(item => {
+    item.addEventListener("click", event => {
+        let uriHash;
+        if (window.location.hash) {
+            uriHash = (window.location.hash).split("&");
+        } else {
+            window.location.hash = document.querySelector(".sidebar a.nav-link").href.split("#")[1]
+            uriHash = [window.location.hash];
+        }
+        const targetTab = event.currentTarget.href.split('#')[1];
+        if (history.replaceState) {
+            event.preventDefault();
+            history.replaceState(undefined, undefined, uriHash[0] + '&' + targetTab);
+            openPage();
+        } else
+            window.location.hash = uriHash[0] + '&' + targetTab;
+    });
 });
 
 let oldWidth = null;
@@ -81,17 +95,22 @@ function reduceSidebar() {
         return;
     }
 
-    const $body = $('body')
-    const closeModal = $('.sidebar-close-modal');
+    const body = document.querySelector('body');
+    const closeModal = document.querySelector('.sidebar-close-modal');
+    const isSidebarHidden = body.classList.contains('sidebar-hidden');
+    const isModalCloserHidden = closeModal.classList.contains('hidden');
     if ($(window).width() < 1350) {
-        if (!$body.hasClass('sidebar-hidden')) $body.addClass('sidebar-hidden');
-        if (!closeModal.hasClass('hidden')) closeModal.addClass('hidden');
+        if (!isSidebarHidden) body.classList.add('sidebar-hidden');
+        if (!isModalCloserHidden) closeModal.classList.add('hidden');
 
         // Close any open menu accordions when window is resized
-        $('.sidebar .collapse').collapse('hide');
-    } else if ($(window).width() > 1400 && $body.hasClass('sidebar-hidden')) {
-        $body.removeClass('sidebar-hidden');
-        if (!closeModal.hasClass('hidden')) closeModal.addClass('hidden');
+        document.querySelectorAll('.sidebar .collapse').forEach(element => {
+            let elCollapse = bootstrap.Collapse.getInstance(element);
+            if (elCollapse) { elCollapse.hide(); }
+        })
+    } else if ($(window).width() > 1400 && isSidebarHidden) {
+        body.classList.remove('sidebar-hidden');
+        if (!isModalCloserHidden) closeModal.classList.add('hidden');
     }
     oldWidth = newWidth;
 }
@@ -100,15 +119,20 @@ reduceSidebar();
 $(window).resize(reduceSidebar);
 
 function toggleSidebar() {
-    $('body').toggleClass('sidebar-hidden');
-    $('.sidebar .collapse').collapse('hide');
+    document.querySelector('body').classList.toggle('sidebar-hidden');
+    // Close any open menu accordions
+    document.querySelectorAll('.sidebar .collapse').forEach(element => {
+        let elCollapse = bootstrap.Collapse.getInstance(element);
+        if (elCollapse) { elCollapse.hide(); }
+    })
 
-    const closeModal = $('.sidebar-close-modal');
+    const closeModal = document.querySelector('.sidebar-close-modal');
     if ($(window).width() < 900) {
-        closeModal.toggleClass('hidden');
-    } else {
-        if (!closeModal.hasClass('hidden')) closeModal.addClass('hidden');
+        closeModal.classList.toggle('hidden');
+    } else if (!closeModal.classList.contains('hidden')) {
+        closeModal.classList.add('hidden');
     }
 }
 
-$('.sidebar-toggler,.sidebar-close-modal').on('click', toggleSidebar);
+document.querySelectorAll('.sidebar-toggler,.sidebar-close-modal')
+    .forEach(element => element.addEventListener('click', toggleSidebar));

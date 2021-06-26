@@ -33,7 +33,6 @@ import com.djrapitops.plan.exceptions.WebUserAuthException;
 import com.djrapitops.plan.exceptions.connection.ForbiddenException;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 import dagger.Lazy;
 
 import javax.inject.Inject;
@@ -48,12 +47,12 @@ import java.util.regex.Pattern;
  * - Some URLs are resolved with other PageResolvers pointed at pages.
  * - Some URLs point to resources that are resolved differently, those implementations are in this file.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class ResponseResolver {
 
-    private final DebugPageResolver debugPageResolver;
+    private final QueryPageResolver queryPageResolver;
     private final PlayersPageResolver playersPageResolver;
     private final PlayerPageResolver playerPageResolver;
     private final ServerPageResolver serverPageResolver;
@@ -65,6 +64,7 @@ public class ResponseResolver {
     private final LoginResolver loginResolver;
     private final LogoutResolver logoutResolver;
     private final RegisterResolver registerResolver;
+    private final ErrorsPageResolver errorsPageResolver;
     private final ErrorLogger errorLogger;
 
     private final ResolverService resolverService;
@@ -77,7 +77,7 @@ public class ResponseResolver {
             ResponseFactory responseFactory,
             Lazy<WebServer> webServer,
 
-            DebugPageResolver debugPageResolver,
+            QueryPageResolver queryPageResolver,
             PlayersPageResolver playersPageResolver,
             PlayerPageResolver playerPageResolver,
             ServerPageResolver serverPageResolver,
@@ -90,13 +90,14 @@ public class ResponseResolver {
             LoginResolver loginResolver,
             LogoutResolver logoutResolver,
             RegisterResolver registerResolver,
+            ErrorsPageResolver errorsPageResolver,
 
             ErrorLogger errorLogger
     ) {
         this.resolverService = resolverService;
         this.responseFactory = responseFactory;
         this.webServer = webServer;
-        this.debugPageResolver = debugPageResolver;
+        this.queryPageResolver = queryPageResolver;
         this.playersPageResolver = playersPageResolver;
         this.playerPageResolver = playerPageResolver;
         this.serverPageResolver = serverPageResolver;
@@ -108,13 +109,14 @@ public class ResponseResolver {
         this.loginResolver = loginResolver;
         this.logoutResolver = logoutResolver;
         this.registerResolver = registerResolver;
+        this.errorsPageResolver = errorsPageResolver;
         this.errorLogger = errorLogger;
     }
 
     public void registerPages() {
         String plugin = "Plan";
         resolverService.registerResolver(plugin, "/robots.txt", (NoAuthResolver) request -> Optional.of(responseFactory.robotsResponse()));
-        resolverService.registerResolver(plugin, "/debug", debugPageResolver);
+        resolverService.registerResolver(plugin, "/query", queryPageResolver);
         resolverService.registerResolver(plugin, "/players", playersPageResolver);
         resolverService.registerResolver(plugin, "/player", playerPageResolver);
         resolverService.registerResolver(plugin, "/favicon.ico", (NoAuthResolver) request -> Optional.of(responseFactory.faviconResponse()));
@@ -126,6 +128,8 @@ public class ResponseResolver {
         resolverService.registerResolver(plugin, "/auth/login", loginResolver);
         resolverService.registerResolver(plugin, "/auth/logout", logoutResolver);
         resolverService.registerResolver(plugin, "/auth/register", registerResolver);
+
+        resolverService.registerResolver(plugin, "/errors", errorsPageResolver);
 
         resolverService.registerResolverForMatches(plugin, Pattern.compile("^/$"), rootPageResolver);
         resolverService.registerResolverForMatches(plugin, Pattern.compile("^.*/(vendor|css|js|img)/.*"), staticResourceResolver);
@@ -145,8 +149,8 @@ public class ResponseResolver {
         } catch (WebUserAuthException e) {
             throw e; // Pass along
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(request).build());
-            return responseFactory.internalErrorResponse(e, request.getPath().asString());
+            errorLogger.error(e, ErrorContext.builder().related(request).build());
+            return responseFactory.internalErrorResponse(e, "Failed to get a response");
         }
     }
 

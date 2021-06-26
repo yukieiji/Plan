@@ -21,22 +21,30 @@ import com.djrapitops.plan.delivery.rendering.html.Html;
 /**
  * Represents double data returned by a DoubleProvider or PercentageProvider method.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class ExtensionStringData implements DescribedExtensionData {
 
-    private final ExtensionDescriptive descriptive;
+    private final ExtensionDescription description;
     private final boolean playerName;
     private String value;
 
-    public ExtensionStringData(ExtensionDescriptive descriptive, boolean playerName, String value) {
-        this.descriptive = descriptive;
+    public ExtensionStringData(ExtensionDescription description, boolean playerName, String value) {
+        this.description = description;
         this.playerName = playerName;
         this.value = value;
     }
 
-    public ExtensionDescriptive getDescriptive() {
-        return descriptive;
+    public static ExtensionStringData regularString(ExtensionDescription description, String value) {
+        return new ExtensionStringData(description, false, value);
+    }
+
+    public static ExtensionStringData playerName(ExtensionDescription description, String value) {
+        return new ExtensionStringData(description, true, value);
+    }
+
+    public ExtensionDescription getDescription() {
+        return description;
     }
 
     public String getFormattedValue() {

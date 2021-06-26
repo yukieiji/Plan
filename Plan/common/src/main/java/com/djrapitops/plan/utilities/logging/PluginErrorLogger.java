@@ -23,9 +23,8 @@ import com.djrapitops.plan.identification.properties.ServerProperties;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.utilities.java.Lists;
 import com.djrapitops.plan.version.VersionChecker;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
 import dagger.Lazy;
+import net.playeranalytics.plugin.server.PluginLogger;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -37,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -45,7 +45,7 @@ import java.util.stream.Stream;
 /**
  * New logger that logs errors to specific files.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 @Singleton
 public class PluginErrorLogger implements ErrorLogger {
@@ -75,26 +75,46 @@ public class PluginErrorLogger implements ErrorLogger {
     }
 
     @Override
-    public void log(L level, Throwable throwable, ErrorContext context) {
+    public void critical(Throwable throwable, ErrorContext context) {
+        error(throwable, context);
+        logger.error("CRITICAL error triggered a plugin shutdown.");
+        plugin.onDisable();
+    }
+
+    @Override
+    public void error(Throwable throwable, ErrorContext context) {
+        log(logger::error, throwable, context);
+    }
+
+    @Override
+    public void warn(Throwable throwable, ErrorContext context) {
+        log(logger::warn, throwable, context);
+    }
+
+    private void log(Consumer<String> logMethod, Throwable throwable, ErrorContext context) {
         String errorName = throwable.getClass().getSimpleName();
         String hash = hash(throwable);
         Path logsDir = files.getLogsDirectory();
         Path errorLog = logsDir.resolve(errorName + "-" + hash + ".txt");
+
         mergeAdditionalContext(throwable, context);
+
+        logToFile(errorLog, throwable, context, hash);
+        for (String message : buildConsoleMessage(errorLog, throwable, context)) {
+            logMethod.accept(message);
+        }
+    }
+
+    private void logToFile(Path errorLog, Throwable throwable, ErrorContext context, String hash) {
         if (Files.exists(errorLog)) {
             logExisting(errorLog, throwable, context, hash);
         } else {
             logNew(errorLog, throwable, context, hash);
         }
-        logToConsole(level, errorLog, throwable, context);
-        if (L.CRITICAL == level) {
-            plugin.getPluginLogger().error("CRITICAL error triggered a plugin shutdown.");
-            plugin.onDisable();
-        }
     }
 
     private void mergeAdditionalContext(Throwable throwable, ErrorContext context) {
-        Throwable cause = throwable.getCause();
+        Throwable cause = throwable;
         while (cause != null) {
             if (cause instanceof ExceptionWithContext) {
                 ((ExceptionWithContext) cause).getContext().ifPresent(context::merge);
@@ -179,15 +199,15 @@ public class PluginErrorLogger implements ErrorLogger {
         return firstContextLineIndex;
     }
 
-    private void logToConsole(L level, Path errorLog, Throwable throwable, ErrorContext context) {
+    private String[] buildConsoleMessage(Path errorLog, Throwable throwable, ErrorContext context) {
         String errorName = throwable.getClass().getSimpleName();
         String errorMsg = throwable.getMessage();
         String errorLocation = errorLog.toString();
-        logger.log(level,
+        return new String[]{
                 "Ran into " + errorName + " - logged to " + errorLocation,
                 "(INCLUDE CONTENTS OF THE FILE IN ANY REPORTS)",
                 context.getWhatToDo().map(td -> "What to do: " + td).orElse("Error msg: \"" + errorMsg + "\"")
-        );
+        };
     }
 
     private void logNew(Path errorLog, Throwable throwable, ErrorContext context, String hash) {
@@ -203,7 +223,8 @@ public class PluginErrorLogger implements ErrorLogger {
 
     private void writeNew(Path errorLog, Throwable throwable, List<String> lines) {
         try {
-            Files.createDirectories(errorLog.getParent());
+            Path dir = errorLog.getParent();
+            if (!Files.isSymbolicLink(dir)) Files.createDirectories(dir);
             Files.write(errorLog, lines, StandardOpenOption.CREATE_NEW, StandardOpenOption.APPEND);
         } catch (IOException e) {
             throwable.addSuppressed(e);

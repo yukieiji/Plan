@@ -18,7 +18,9 @@ package com.djrapitops.plan.commands.subcommands;
 
 import com.djrapitops.plan.commands.use.Arguments;
 import com.djrapitops.plan.commands.use.CMDSender;
+import com.djrapitops.plan.commands.use.ColorScheme;
 import com.djrapitops.plan.delivery.domain.auth.User;
+import com.djrapitops.plan.delivery.webserver.auth.ActiveCookieStore;
 import com.djrapitops.plan.delivery.webserver.auth.FailReason;
 import com.djrapitops.plan.delivery.webserver.auth.RegistrationBin;
 import com.djrapitops.plan.exceptions.database.DBOpException;
@@ -34,9 +36,7 @@ import com.djrapitops.plan.storage.database.transactions.commands.RemoveWebUserT
 import com.djrapitops.plan.utilities.PassEncryptUtil;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.command.ColorScheme;
-import com.djrapitops.plugin.logging.L;
-import com.djrapitops.plugin.logging.console.PluginLogger;
+import net.playeranalytics.plugin.server.PluginLogger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -52,6 +52,7 @@ public class RegistrationCommands {
     private final Locale locale;
     private final ColorScheme colors;
     private final DBSystem dbSystem;
+    private final ActiveCookieStore activeCookieStore;
     private final LinkCommands linkCommands;
     private final Confirmation confirmation;
     private final PluginLogger logger;
@@ -62,6 +63,7 @@ public class RegistrationCommands {
             Locale locale,
             ColorScheme colors,
             DBSystem dbSystem,
+            ActiveCookieStore activeCookieStore,
             LinkCommands linkCommands,
             Confirmation confirmation,
             PluginLogger logger,
@@ -71,6 +73,7 @@ public class RegistrationCommands {
         this.colors = colors;
 
         this.dbSystem = dbSystem;
+        this.activeCookieStore = activeCookieStore;
         this.linkCommands = linkCommands;
         this.confirmation = confirmation;
         this.logger = logger;
@@ -120,9 +123,11 @@ public class RegistrationCommands {
                 .filter(arg -> sender.hasPermission(Permissions.REGISTER_OTHER)) // argument only allowed with register other permission
                 .orElseGet(() -> getPermissionLevel(sender));
 
-        if (sender.getUUID().isPresent() && sender.getPlayerName().isPresent()) {
-            String playerName = sender.getPlayerName().get();
-            UUID linkedToUUID = sender.getUUID().get();
+        Optional<UUID> senderUUID = sender.getUUID();
+        Optional<String> senderName = sender.getPlayerName();
+        if (senderUUID.isPresent() && senderName.isPresent()) {
+            String playerName = senderName.get();
+            UUID linkedToUUID = senderUUID.get();
             String username = arguments.get(1).orElse(playerName);
             registerUser(new User(username, playerName, linkedToUUID, passwordHash, permissionLevel, Collections.emptyList()), sender, permissionLevel);
         } else {
@@ -161,7 +166,7 @@ public class RegistrationCommands {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (DBOpException | ExecutionException e) {
-            errorLogger.log(L.WARN, e, ErrorContext.builder().related(sender, user, permissionLevel).build());
+            errorLogger.warn(e, ErrorContext.builder().related(sender, user, permissionLevel).build());
         }
     }
 
@@ -217,15 +222,32 @@ public class RegistrationCommands {
                     sender.send(colors.getMainColor() + locale.getString(CommandLang.UNREGISTER, presentUser.getUsername()));
                     database.executeTransaction(new RemoveWebUserTransaction(username))
                             .get(); // Wait for completion
+                    ActiveCookieStore.removeUserCookie(username);
                     sender.send(locale.getString(CommandLang.PROGRESS_SUCCESS));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException e) {
-                    errorLogger.log(L.WARN, e, ErrorContext.builder().related("unregister command", sender, sender.getPlayerName().orElse("console"), arguments).build());
+                    errorLogger.warn(e, ErrorContext.builder().related("unregister command", sender, sender.getPlayerName().orElse("console"), arguments).build());
                 }
             } else {
                 sender.send(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_CANCELLED_UNREGISTER, presentUser.getUsername()));
             }
         });
+    }
+
+
+    public void onLogoutCommand(CMDSender sender, Arguments arguments) {
+        Optional<String> username = arguments.get(0);
+        if (!username.isPresent()) {
+            throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_REQ_ONE_ARG, locale.getString(HelpLang.ARG_USERNAME) + "/*"));
+        }
+
+        String loggingOut = username.get();
+
+        if ("*".equals(loggingOut)) {
+            activeCookieStore.removeAll();
+        } else {
+            ActiveCookieStore.removeUserCookie(loggingOut);
+        }
     }
 }

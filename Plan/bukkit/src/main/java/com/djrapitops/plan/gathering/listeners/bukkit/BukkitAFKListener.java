@@ -21,7 +21,6 @@ import com.djrapitops.plan.settings.Permissions;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
-import com.djrapitops.plugin.logging.L;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -38,13 +37,13 @@ import java.util.UUID;
  * <p>
  * Additional Listener calls in PlayerOnlineListener to avoid having HIGHEST priority listeners.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  * @see PlayerOnlineListener
  */
 public class BukkitAFKListener implements Listener {
 
     // Static so that /reload does not cause afk tracking to fail.
-    static AFKTracker AFK_TRACKER;
+    static AFKTracker afkTracker;
 
     private final Map<UUID, Boolean> ignorePermissionInfo;
     private final ErrorLogger errorLogger;
@@ -58,8 +57,8 @@ public class BukkitAFKListener implements Listener {
     }
 
     private static void assignAFKTracker(PlanConfig config) {
-        if (AFK_TRACKER == null) {
-            AFK_TRACKER = new AFKTracker(config);
+        if (afkTracker == null) {
+            afkTracker = new AFKTracker(config);
         }
     }
 
@@ -71,16 +70,16 @@ public class BukkitAFKListener implements Listener {
 
             boolean ignored = ignorePermissionInfo.computeIfAbsent(uuid, keyUUID -> player.hasPermission(Permissions.IGNORE_AFK.getPermission()));
             if (ignored) {
-                AFK_TRACKER.hasIgnorePermission(uuid);
+                afkTracker.hasIgnorePermission(uuid);
                 ignorePermissionInfo.put(uuid, true);
                 return;
             } else {
                 ignorePermissionInfo.put(uuid, false);
             }
 
-            AFK_TRACKER.performedAction(uuid, time);
+            afkTracker.performedAction(uuid, time);
         } catch (Exception e) {
-            errorLogger.log(L.ERROR, e, ErrorContext.builder().related(event).build());
+            errorLogger.error(e, ErrorContext.builder().related(event).build());
         }
     }
 
@@ -100,7 +99,7 @@ public class BukkitAFKListener implements Listener {
         boolean isAfkCommand = event.getMessage().substring(1).toLowerCase().startsWith("afk");
         if (isAfkCommand) {
             UUID uuid = event.getPlayer().getUniqueId();
-            AFK_TRACKER.usedAfkCommand(uuid, System.currentTimeMillis());
+            afkTracker.usedAfkCommand(uuid, System.currentTimeMillis());
         }
     }
 

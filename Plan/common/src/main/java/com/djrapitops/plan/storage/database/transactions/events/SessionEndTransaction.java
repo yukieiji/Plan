@@ -16,42 +16,25 @@
  */
 package com.djrapitops.plan.storage.database.transactions.events;
 
-import com.djrapitops.plan.delivery.domain.keys.SessionKeys;
-import com.djrapitops.plan.delivery.webserver.cache.DataID;
-import com.djrapitops.plan.delivery.webserver.cache.JSONCache;
-import com.djrapitops.plan.gathering.domain.Session;
+import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.storage.database.queries.DataStoreQueries;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
 
 /**
  * Transaction for storing a session after a session has ended.
  *
- * @author Rsl1122
+ * @author AuroraLS3
  */
 public class SessionEndTransaction extends Transaction {
 
-    private final Session session;
+    private final FinishedSession session;
 
-    public SessionEndTransaction(Session session) {
+    public SessionEndTransaction(FinishedSession session) {
         this.session = session;
     }
 
     @Override
     protected void performOperations() {
         execute(DataStoreQueries.storeSession(session));
-
-        session.getValue(SessionKeys.SERVER_UUID)
-                .ifPresent(serverUUID -> JSONCache.invalidate(
-                        serverUUID,
-                        DataID.SESSIONS,
-                        DataID.GRAPH_WORLD_PIE,
-                        DataID.GRAPH_PUNCHCARD,
-                        DataID.KILLS,
-                        DataID.ONLINE_OVERVIEW,
-                        DataID.SESSIONS_OVERVIEW,
-                        DataID.PVP_PVE,
-                        DataID.GRAPH_UNIQUE_NEW,
-                        DataID.GRAPH_CALENDAR
-                ));
     }
 }
