@@ -31,16 +31,19 @@ public class Server implements Comparable<Server> {
     private String webAddress;
     private boolean proxy;
 
-    public Server(ServerUUID uuid, String name, String webAddress) {
-        this(null, uuid, name, webAddress, false);
+    private final String planVersion;
+
+    public Server(ServerUUID uuid, String name, String webAddress, String planVersion) {
+        this(null, uuid, name, webAddress, false, planVersion);
     }
 
-    public Server(Integer id, ServerUUID uuid, String name, String webAddress, boolean proxy) {
+    public Server(Integer id, ServerUUID uuid, String name, String webAddress, boolean proxy, String planVersion) {
         this.id = id;
         this.uuid = uuid;
         this.name = name;
         this.webAddress = webAddress;
         this.proxy = proxy;
+        this.planVersion = planVersion;
     }
 
     public Optional<Integer> getId() {
@@ -59,12 +62,15 @@ public class Server implements Comparable<Server> {
         return name;
     }
 
-    public static String getIdentifiableName(String name, int id) {
-        return !"Plan".equalsIgnoreCase(name) ? name : "Server " + id;
+    public static String getIdentifiableName(String name, int id, boolean proxy) {
+        String serverPrefix = proxy ? "Proxy " : "Server ";
+        return "Plan".equalsIgnoreCase(name) || "Proxy".equalsIgnoreCase(name)
+                ? serverPrefix + id
+                : name;
     }
 
     public String getIdentifiableName() {
-        return getIdentifiableName(name, id);
+        return getIdentifiableName(name, id, proxy);
     }
 
     public void setName(String name) {
@@ -79,6 +85,10 @@ public class Server implements Comparable<Server> {
         this.webAddress = webAddress;
     }
 
+    public String getPlanVersion() {
+        return planVersion;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -86,12 +96,13 @@ public class Server implements Comparable<Server> {
         Server that = (Server) o;
         return Objects.equals(uuid, that.uuid) &&
                 Objects.equals(name, that.name) &&
-                Objects.equals(webAddress, that.webAddress);
+                Objects.equals(webAddress, that.webAddress) &&
+                Objects.equals(planVersion, that.planVersion);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(uuid, id, name, webAddress);
+        return Objects.hash(uuid, id, name, webAddress, planVersion);
     }
 
     @Override
@@ -101,6 +112,8 @@ public class Server implements Comparable<Server> {
                 ", id=" + id +
                 ", name='" + name + '\'' +
                 ", webAddress='" + webAddress + '\'' +
+                ", proxy=" + proxy +
+                ", planVersion='" + planVersion + '\'' +
                 '}';
     }
 

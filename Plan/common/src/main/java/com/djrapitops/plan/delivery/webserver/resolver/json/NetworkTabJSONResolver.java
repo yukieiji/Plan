@@ -16,14 +16,15 @@
  */
 package com.djrapitops.plan.delivery.webserver.resolver.json;
 
+import com.djrapitops.plan.delivery.domain.auth.WebPermission;
+import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.rendering.json.network.NetworkTabJSONCreator;
-import com.djrapitops.plan.delivery.web.resolver.MimeType;
-import com.djrapitops.plan.delivery.web.resolver.Resolver;
 import com.djrapitops.plan.delivery.web.resolver.Response;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resolver.request.WebUser;
 import com.djrapitops.plan.delivery.webserver.cache.AsyncJSONResolverService;
 import com.djrapitops.plan.delivery.webserver.cache.DataID;
+import com.djrapitops.plan.delivery.webserver.cache.JSONStorage;
 import com.djrapitops.plan.identification.Identifiers;
 
 import java.util.Optional;
@@ -34,24 +35,29 @@ import java.util.function.Supplier;
  *
  * @author AuroraLS3
  */
-public class NetworkTabJSONResolver<T> implements Resolver {
+public class NetworkTabJSONResolver<T> extends JSONResolver {
 
     private final DataID dataID;
+    private final WebPermission permission;
     private final Supplier<T> jsonCreator;
     private final AsyncJSONResolverService asyncJSONResolverService;
 
     public NetworkTabJSONResolver(
-            DataID dataID, NetworkTabJSONCreator<T> jsonCreator,
+            DataID dataID, WebPermission permission, NetworkTabJSONCreator<T> jsonCreator,
             AsyncJSONResolverService asyncJSONResolverService
     ) {
         this.dataID = dataID;
+        this.permission = permission;
         this.jsonCreator = jsonCreator;
         this.asyncJSONResolverService = asyncJSONResolverService;
     }
 
     @Override
+    public Formatter<Long> getHttpLastModifiedFormatter() {return asyncJSONResolverService.getHttpLastModifiedFormatter();}
+
+    @Override
     public boolean canAccess(Request request) {
-        return request.getUser().orElse(new WebUser("")).hasPermission("page.network");
+        return request.getUser().orElse(new WebUser("")).hasPermission(permission);
     }
 
     @Override
@@ -60,9 +66,7 @@ public class NetworkTabJSONResolver<T> implements Resolver {
     }
 
     private Response getResponse(Request request) {
-        return Response.builder()
-                .setMimeType(MimeType.JSON)
-                .setJSONContent(asyncJSONResolverService.resolve(Identifiers.getTimestamp(request), dataID, jsonCreator).json)
-                .build();
+        JSONStorage.StoredJSON json = asyncJSONResolverService.resolve(Identifiers.getTimestamp(request), dataID, jsonCreator);
+        return getCachedOrNewResponse(request, json);
     }
 }

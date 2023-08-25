@@ -17,7 +17,11 @@
 package com.djrapitops.plan.modules.sponge;
 
 import com.djrapitops.plan.TaskSystem;
+import com.djrapitops.plan.delivery.web.ResourceWriteTask;
+import com.djrapitops.plan.delivery.web.WebAssetVersionCheckTask;
+import com.djrapitops.plan.delivery.webserver.auth.ActiveCookieExpiryCleanupTask;
 import com.djrapitops.plan.delivery.webserver.cache.JSONFileStorage;
+import com.djrapitops.plan.delivery.webserver.configuration.AddressAllowList;
 import com.djrapitops.plan.extension.ExtensionServerDataUpdater;
 import com.djrapitops.plan.gathering.ShutdownDataPreservation;
 import com.djrapitops.plan.gathering.ShutdownHook;
@@ -31,14 +35,14 @@ import com.djrapitops.plan.storage.upkeep.OldDependencyCacheDeletionTask;
 import dagger.Binds;
 import dagger.Module;
 import dagger.multibindings.IntoSet;
-import org.spongepowered.api.world.World;
+import org.spongepowered.api.world.server.ServerWorld;
 
 @Module
 public interface SpongeTaskModule {
 
     @Binds
     @IntoSet
-    TaskSystem.Task bindTPSCounter(ServerTPSCounter<World> tpsCounter);
+    TaskSystem.Task bindTPSCounter(ServerTPSCounter<ServerWorld> tpsCounter);
 
     @Binds
     @IntoSet
@@ -83,4 +87,20 @@ public interface SpongeTaskModule {
     @Binds
     @IntoSet
     TaskSystem.Task bindOldDependencyCacheDeletion(OldDependencyCacheDeletionTask deletionTask);
+
+    @Binds
+    @IntoSet
+    TaskSystem.Task bindResourceWriteTask(ResourceWriteTask resourceWriteTask);
+
+    @Binds
+    @IntoSet
+    TaskSystem.Task bindWebAssetVersionCheckTask(WebAssetVersionCheckTask webAssetVersionCheckTask);
+
+    @Binds
+    @IntoSet
+    TaskSystem.Task bindActiveCookieStoreExpiryTask(ActiveCookieExpiryCleanupTask activeCookieExpiryCleanupTask);
+
+    @Binds
+    @IntoSet
+    TaskSystem.Task bindAddressAllowListUpdateTask(AddressAllowList addressAllowList);
 }

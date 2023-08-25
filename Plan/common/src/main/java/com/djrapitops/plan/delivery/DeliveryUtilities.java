@@ -18,6 +18,8 @@ package com.djrapitops.plan.delivery;
 
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.json.graphs.Graphs;
+import com.djrapitops.plan.delivery.webserver.Addresses;
+import com.djrapitops.plan.storage.file.PublicHtmlFiles;
 import dagger.Lazy;
 
 import javax.inject.Inject;
@@ -26,16 +28,26 @@ import javax.inject.Singleton;
 @Singleton
 public class DeliveryUtilities {
 
+    private final Lazy<Addresses> addresses;
     private final Lazy<Formatters> formatters;
     private final Lazy<Graphs> graphs;
+    private final Lazy<PublicHtmlFiles> publicHtmlFiles;
 
     @Inject
     public DeliveryUtilities(
+            Lazy<Addresses> addresses,
             Lazy<Formatters> formatters,
-            Lazy<Graphs> graphs
+            Lazy<Graphs> graphs,
+            Lazy<PublicHtmlFiles> publicHtmlFiles
     ) {
+        this.addresses = addresses;
         this.formatters = formatters;
         this.graphs = graphs;
+        this.publicHtmlFiles = publicHtmlFiles;
+    }
+
+    public Addresses getAddresses() {
+        return addresses.get();
     }
 
     public Formatters getFormatters() {
@@ -44,6 +56,10 @@ public class DeliveryUtilities {
 
     public Graphs getGraphs() {
         return graphs.get();
+    }
+
+    public PublicHtmlFiles getPublicHtmlFiles() {
+        return publicHtmlFiles.get();
     }
 
 }

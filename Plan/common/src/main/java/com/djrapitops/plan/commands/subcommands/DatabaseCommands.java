@@ -19,12 +19,16 @@ package com.djrapitops.plan.commands.subcommands;
 import com.djrapitops.plan.commands.use.Arguments;
 import com.djrapitops.plan.commands.use.CMDSender;
 import com.djrapitops.plan.commands.use.ColorScheme;
+import com.djrapitops.plan.commands.use.MessageBuilder;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.exceptions.database.DBOpException;
+import com.djrapitops.plan.gathering.domain.BaseUser;
 import com.djrapitops.plan.identification.Identifiers;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.query.QuerySvc;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DatabaseSettings;
@@ -35,24 +39,30 @@ import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.DBType;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.SQLiteDB;
+import com.djrapitops.plan.storage.database.queries.objects.BaseUserQueries;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.transactions.BackupCopyTransaction;
-import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythingTransaction;
-import com.djrapitops.plan.storage.database.transactions.commands.RemovePlayerTransaction;
-import com.djrapitops.plan.storage.database.transactions.commands.SetServerAsUninstalledTransaction;
+import com.djrapitops.plan.storage.database.transactions.Transaction;
+import com.djrapitops.plan.storage.database.transactions.commands.*;
+import com.djrapitops.plan.storage.database.transactions.patches.BadFabricJoinAddressValuePatch;
 import com.djrapitops.plan.storage.file.PlanFiles;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
+import net.playeranalytics.plugin.player.UUIDFetcher;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @Singleton
 public class DatabaseCommands {
+
+    private static final String SUPPORTED_DB_OPTIONS = "<MySQL/SQLite>";
 
     private final Locale locale;
     private final Confirmation confirmation;
@@ -66,8 +76,10 @@ public class DatabaseCommands {
     private final Identifiers identifiers;
     private final PluginStatusCommands statusCommands;
     private final ErrorLogger errorLogger;
+    private final Processing processing;
 
     private final Formatter<Long> timestamp;
+    private final Formatter<Long> clock;
 
     @Inject
     public DatabaseCommands(
@@ -83,7 +95,8 @@ public class DatabaseCommands {
             Formatters formatters,
             Identifiers identifiers,
             PluginStatusCommands statusCommands,
-            ErrorLogger errorLogger
+            ErrorLogger errorLogger,
+            Processing processing
     ) {
         this.locale = locale;
         this.confirmation = confirmation;
@@ -99,9 +112,11 @@ public class DatabaseCommands {
         this.errorLogger = errorLogger;
 
         this.timestamp = formatters.iso8601NoClockLong();
+        clock = formatters.clockLong();
+        this.processing = processing;
     }
 
-    public void onBackup(CMDSender sender, Arguments arguments) {
+    public void onBackup(CMDSender sender, @Untrusted Arguments arguments) {
         String dbName = arguments.get(0)
                 .orElse(dbSystem.getDatabase().getType().getName())
                 .toLowerCase();
@@ -117,7 +132,7 @@ public class DatabaseCommands {
         sender.send(locale.getString(CommandLang.PROGRESS_SUCCESS));
     }
 
-    public void performBackup(CMDSender sender, Arguments arguments, String dbName, Database fromDB) {
+    public void performBackup(CMDSender sender, @Untrusted Arguments arguments, String dbName, Database fromDB) {
         Database toDB = null;
         try {
             String timeStamp = timestamp.apply(System.currentTimeMillis());
@@ -138,8 +153,8 @@ public class DatabaseCommands {
         }
     }
 
-    public void onRestore(String mainCommand, CMDSender sender, Arguments arguments) {
-        String backupDbName = arguments.get(0)
+    public void onRestore(CMDSender sender, @Untrusted Arguments arguments) {
+        @Untrusted String backupDbName = arguments.get(0)
                 .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_REQ_ARGS, 1, "<" + locale.getString(HelpLang.ARG_BACKUP_FILE) + ">")));
 
         boolean containsDBFileExtension = backupDbName.endsWith(".db");
@@ -165,24 +180,11 @@ public class DatabaseCommands {
 
         if (toDB.getState() != Database.State.OPEN) toDB.init();
 
-        if (sender.supportsChatEvents()) {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_OVERWRITE_DB, toDB.getType().getName(), backupDBFile.toPath().toString())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM))
-                    .addPart("§2§l[\u2714]").command("/" + mainCommand + " accept").hover(locale.getString(CommandLang.CONFIRM_ACCEPT))
-                    .addPart(" ")
-                    .addPart("§4§l[\u2718]").command("/" + mainCommand + " cancel").hover(locale.getString(CommandLang.CONFIRM_DENY))
-                    .send();
-        } else {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_OVERWRITE_DB, toDB.getType().getName(), backupDBFile.toPath().toString())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM)).addPart("§a/" + mainCommand + " accept")
-                    .addPart(" ")
-                    .addPart("§c/" + mainCommand + " cancel")
-                    .send();
-        }
+        String prompt = locale.getString(CommandLang.CONFIRM_OVERWRITE_DB,
+                toDB.getType().getName(),
+                backupDBFile.toPath().toString());
 
-        confirmation.confirm(sender, choice -> {
+        confirmation.confirm(sender, prompt, choice -> {
             if (Boolean.TRUE.equals(choice)) {
                 performRestore(sender, backupDBFile, toDB);
             } else {
@@ -207,35 +209,22 @@ public class DatabaseCommands {
         }
     }
 
-    public void onMove(String mainCommand, CMDSender sender, Arguments arguments) {
+    public void onMove(CMDSender sender, @Untrusted Arguments arguments) {
         DBType fromDB = arguments.get(0).flatMap(DBType::getForName)
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse("<MySQL/SQLite>"))));
+                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse(SUPPORTED_DB_OPTIONS))));
 
         DBType toDB = arguments.get(1).flatMap(DBType::getForName)
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse("<MySQL/SQLite>"))));
+                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse(SUPPORTED_DB_OPTIONS))));
 
         if (fromDB == toDB) {
             throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_SAME_DB));
         }
 
-        if (sender.supportsChatEvents()) {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_OVERWRITE_DB, toDB.getName(), fromDB.getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM))
-                    .addPart("§2§l[\u2714]").command("/" + mainCommand + " accept").hover(locale.getString(CommandLang.CONFIRM_ACCEPT))
-                    .addPart(" ")
-                    .addPart("§4§l[\u2718]").command("/" + mainCommand + " cancel").hover(locale.getString(CommandLang.CONFIRM_DENY))
-                    .send();
-        } else {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_OVERWRITE_DB, toDB.getName(), fromDB.getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM)).addPart("§a/" + mainCommand + " accept")
-                    .addPart(" ")
-                    .addPart("§c/" + mainCommand + " cancel")
-                    .send();
-        }
+        String prompt = locale.getString(CommandLang.CONFIRM_OVERWRITE_DB,
+                toDB.getName(),
+                fromDB.getName());
 
-        confirmation.confirm(sender, choice -> {
+        confirmation.confirm(sender, prompt, choice -> {
             if (Boolean.TRUE.equals(choice)) {
                 performMove(sender, fromDB, toDB);
             } else {
@@ -270,28 +259,13 @@ public class DatabaseCommands {
     }
 
 
-    public void onClear(String mainCommand, CMDSender sender, Arguments arguments) {
+    public void onClear(CMDSender sender, @Untrusted Arguments arguments) {
         DBType fromDB = arguments.get(0).flatMap(DBType::getForName)
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse("<MySQL/SQLite>"))));
+                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse(SUPPORTED_DB_OPTIONS))));
 
-        if (sender.supportsChatEvents()) {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_CLEAR_DB, fromDB.getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM))
-                    .addPart("§2§l[\u2714]").command("/" + mainCommand + " accept").hover(locale.getString(CommandLang.CONFIRM_ACCEPT))
-                    .addPart(" ")
-                    .addPart("§4§l[\u2718]").command("/" + mainCommand + " cancel").hover(locale.getString(CommandLang.CONFIRM_DENY))
-                    .send();
-        } else {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_CLEAR_DB, fromDB.getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM)).addPart("§a/" + mainCommand + " accept")
-                    .addPart(" ")
-                    .addPart("§c/" + mainCommand + " cancel")
-                    .send();
-        }
+        String prompt = locale.getString(CommandLang.CONFIRM_CLEAR_DB, fromDB.getName());
 
-        confirmation.confirm(sender, choice -> {
+        confirmation.confirm(sender, prompt, choice -> {
             if (Boolean.TRUE.equals(choice)) {
                 performClear(sender, fromDB);
             } else {
@@ -323,8 +297,43 @@ public class DatabaseCommands {
         }
     }
 
-    public void onRemove(String mainCommand, CMDSender sender, Arguments arguments) {
-        String identifier = arguments.concatenate(" ");
+    public void onFixFabricJoinAddresses(CMDSender sender, @Untrusted Arguments arguments) {
+        @Untrusted String identifier = arguments.concatenate(" ");
+        Optional<ServerUUID> serverUUID = identifiers.getServerUUID(identifier);
+        if (serverUUID.isEmpty()) {
+            throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_SERVER_NOT_FOUND, identifier));
+        }
+
+        Database database = dbSystem.getDatabase();
+
+        String prompt = locale.getString(CommandLang.CONFIRM_JOIN_ADDRESS_REMOVAL, identifier, database.getType().getName());
+
+        confirmation.confirm(sender, prompt, choice -> {
+            if (Boolean.TRUE.equals(choice)) {
+                performJoinAddressRemoval(sender, serverUUID.get(), database);
+            } else {
+                sender.send(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_CANCELLED_DATA));
+            }
+        });
+    }
+
+    private void performJoinAddressRemoval(CMDSender sender, ServerUUID serverUUID, Database database) {
+        try {
+            sender.send(locale.getString(CommandLang.DB_WRITE, database.getType().getName()));
+            database.executeTransaction(new BadFabricJoinAddressValuePatch(serverUUID))
+                    .thenRunAsync(() -> sender.send(locale.getString(CommandLang.PROGRESS_SUCCESS)))
+                    .exceptionally(error -> {
+                        sender.send(locale.getString(CommandLang.PROGRESS_FAIL, error.getMessage()));
+                        return null;
+                    });
+        } catch (DBOpException e) {
+            sender.send(locale.getString(CommandLang.PROGRESS_FAIL, e.getMessage()));
+            errorLogger.error(e, ErrorContext.builder().related(sender, database.getType().getName()).build());
+        }
+    }
+
+    public void onRemove(CMDSender sender, @Untrusted Arguments arguments) {
+        @Untrusted String identifier = arguments.concatenate(" ");
         UUID playerUUID = identifiers.getPlayerUUID(identifier);
         if (playerUUID == null) {
             throw new IllegalArgumentException(locale.getString(CommandLang.FAIL_PLAYER_NOT_FOUND, identifier));
@@ -332,24 +341,9 @@ public class DatabaseCommands {
 
         Database database = dbSystem.getDatabase();
 
-        if (sender.supportsChatEvents()) {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_REMOVE_PLAYER_DB, playerUUID, database.getType().getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM))
-                    .addPart("§2§l[\u2714]").command("/" + mainCommand + " accept").hover(locale.getString(CommandLang.CONFIRM_ACCEPT))
-                    .addPart(" ")
-                    .addPart("§4§l[\u2718]").command("/" + mainCommand + " cancel").hover(locale.getString(CommandLang.CONFIRM_DENY))
-                    .send();
-        } else {
-            sender.buildMessage()
-                    .addPart(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_REMOVE_PLAYER_DB, playerUUID, database.getType().getName())).newLine()
-                    .addPart(colors.getTertiaryColor() + locale.getString(CommandLang.CONFIRM)).addPart("§a/" + mainCommand + " accept")
-                    .addPart(" ")
-                    .addPart("§c/" + mainCommand + " cancel")
-                    .send();
-        }
+        String prompt = locale.getString(CommandLang.CONFIRM_REMOVE_PLAYER_DB, playerUUID, database.getType().getName());
 
-        confirmation.confirm(sender, choice -> {
+        confirmation.confirm(sender, prompt, choice -> {
             if (Boolean.TRUE.equals(choice)) {
                 performRemoval(sender, database, playerUUID);
             } else {
@@ -382,12 +376,11 @@ public class DatabaseCommands {
         }
     }
 
-    public void onUninstalled(CMDSender sender, Arguments arguments) {
+    public void onUninstalled(CMDSender sender, @Untrusted Arguments arguments) {
         ensureDatabaseIsOpen();
-        String identifier = arguments.concatenate(" ");
+        @Untrusted String identifier = arguments.concatenate(" ");
         Server server = dbSystem.getDatabase()
                 .query(ServerQueries.fetchServerMatchingIdentifier(identifier))
-                .filter(s -> !s.isProxy())
                 .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_SERVER_NOT_FOUND, identifier)));
 
         if (server.getUuid().equals(serverInfo.getServerUUID())) {
@@ -399,9 +392,9 @@ public class DatabaseCommands {
         sender.send(locale.getString(CommandLang.DB_UNINSTALLED));
     }
 
-    public void onHotswap(CMDSender sender, Arguments arguments) {
+    public void onHotswap(CMDSender sender, @Untrusted Arguments arguments) {
         DBType toDB = arguments.get(0).flatMap(DBType::getForName)
-                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse("<MySQL/SQLite>"))));
+                .orElseThrow(() -> new IllegalArgumentException(locale.getString(CommandLang.FAIL_INCORRECT_DB, arguments.get(0).orElse(SUPPORTED_DB_OPTIONS))));
 
         try {
             Database database = dbSystem.getActiveDatabaseByType(toDB);
@@ -419,5 +412,88 @@ public class DatabaseCommands {
             return;
         }
         statusCommands.onReload(sender);
+    }
+
+    public void onOnlineConversion(CMDSender sender, @Untrusted Arguments arguments) {
+        boolean removeOfflinePlayers = arguments.get(0)
+                .map("--remove_offline"::equals)
+                .orElse(false);
+        sender.send(locale.getString(CommandLang.PROGRESS_PREPARING));
+        processing.submitNonCritical(() -> {
+            Map<UUID, BaseUser> baseUsersByUUID = dbSystem.getDatabase().query(BaseUserQueries.fetchAllBaseUsersByUUID());
+            List<String> playerNames = baseUsersByUUID.values().stream().map(BaseUser::getName).collect(Collectors.toList());
+            sender.send("Performing lookup for " + playerNames.size() + " uuids from Mojang..");
+            sender.send("Preparation estimated complete at: " + clock.apply(System.currentTimeMillis() + playerNames.size() * 100L) + " (due to request rate limiting)");
+            Map<String, UUID> onlineUUIDsOfPlayers = getUUIDViaUUIDFetcher(playerNames);
+
+            if (onlineUUIDsOfPlayers.isEmpty()) {
+                sender.send(locale.getString(CommandLang.PROGRESS_FAIL, "Did not get any UUIDs from Mojang."));
+                return;
+            }
+
+            int totalProfiles = baseUsersByUUID.size();
+            int offlineOnlyUsers = 0;
+            int combine = 0;
+            int move = 0;
+
+            List<Transaction> transactions = new ArrayList<>();
+
+            for (BaseUser user : baseUsersByUUID.values()) {
+                String playerName = user.getName();
+                UUID recordedUUID = user.getUuid();
+                UUID actualUUID = onlineUUIDsOfPlayers.get(playerName);
+
+                if (actualUUID == null) {
+                    offlineOnlyUsers++;
+                    if (removeOfflinePlayers) transactions.add(new RemovePlayerTransaction(recordedUUID));
+                }
+                if (actualUUID == null || recordedUUID.equals(actualUUID)) {
+                    continue;
+                }
+                BaseUser alreadyExistingProfile = baseUsersByUUID.get(actualUUID);
+                if (alreadyExistingProfile == null) {
+                    move++;
+                    transactions.add(new ChangeUserUUIDTransaction(recordedUUID, actualUUID));
+                } else {
+                    combine++;
+                    transactions.add(new CombineUserTransaction(recordedUUID, actualUUID));
+                }
+            }
+
+            MessageBuilder prompt = sender.buildMessage()
+                    .addPart(colors.getMainColor() + "Moving to online-only UUIDs (irreversible):").newLine()
+                    .addPart(colors.getSecondaryColor() + "  Total players in database: " + totalProfiles).newLine()
+                    .addPart(colors.getSecondaryColor() + (removeOfflinePlayers ? "Removing (no online UUID): " : "  Offline only (no online UUID): ") + offlineOnlyUsers).newLine()
+                    .addPart(colors.getSecondaryColor() + "  Moving to new UUID: " + move).newLine()
+                    .addPart(colors.getSecondaryColor() + "  Combining offline and online profiles: " + combine).newLine()
+                    .newLine()
+                    .addPart(colors.getSecondaryColor() + "  Estimated online UUID players in database after: " + (totalProfiles - combine - offlineOnlyUsers) + (removeOfflinePlayers ? "" : " (+" + offlineOnlyUsers + " offline)")).newLine();
+
+            confirmation.confirm(sender, prompt, choice -> {
+                if (Boolean.TRUE.equals(choice)) {
+                    transactions.forEach(dbSystem.getDatabase()::executeTransaction);
+                    dbSystem.getDatabase().executeTransaction(new Transaction() {
+                        @Override
+                        protected void performOperations() {
+                            sender.send(locale.getString(CommandLang.PROGRESS_SUCCESS));
+                        }
+                    });
+                } else {
+                    sender.send(colors.getMainColor() + locale.getString(CommandLang.CONFIRM_CANCELLED_DATA));
+                }
+            });
+
+        });
+    }
+
+    private Map<String, UUID> getUUIDViaUUIDFetcher(List<String> playerNames) {
+        try {
+            return new UUIDFetcher(playerNames).call();
+        } catch (Exception | NoClassDefFoundError failure) {
+            errorLogger.error(failure, ErrorContext.builder()
+                    .related("Migrating offline uuids to online uuids")
+                    .build());
+            return new HashMap<>();
+        }
     }
 }

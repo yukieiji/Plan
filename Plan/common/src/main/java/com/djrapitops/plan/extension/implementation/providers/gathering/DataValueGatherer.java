@@ -16,6 +16,9 @@
  */
 package com.djrapitops.plan.extension.implementation.providers.gathering;
 
+import com.djrapitops.plan.component.Component;
+import com.djrapitops.plan.component.ComponentOperation;
+import com.djrapitops.plan.component.ComponentSvc;
 import com.djrapitops.plan.exceptions.DataExtensionMethodCallException;
 import com.djrapitops.plan.extension.CallEvents;
 import com.djrapitops.plan.extension.annotation.*;
@@ -49,6 +52,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Object that can be called to place data about players to the database.
@@ -60,6 +64,7 @@ public class DataValueGatherer {
     private final CallEvents[] callEvents;
     private final ExtensionWrapper extension;
     private final DBSystem dbSystem;
+    private final ComponentSvc componentService;
     private final ServerInfo serverInfo;
     private final ErrorLogger errorLogger;
 
@@ -68,12 +73,14 @@ public class DataValueGatherer {
     public DataValueGatherer(
             ExtensionWrapper extension,
             DBSystem dbSystem,
+            ComponentSvc componentService,
             ServerInfo serverInfo,
             ErrorLogger errorLogger
     ) {
         this.callEvents = extension.getCallEvents();
         this.extension = extension;
         this.dbSystem = dbSystem;
+        this.componentService = componentService;
         this.serverInfo = serverInfo;
         this.errorLogger = errorLogger;
 
@@ -135,6 +142,10 @@ public class DataValueGatherer {
             if (brokenMethods.contains(provider)) continue;
             dataBuilder.addValue(String.class, tryToBuildString(dataBuilder, parameters, provider));
         }
+        for (ExtensionMethod provider : methods.getComponentProviders()) {
+            if (brokenMethods.contains(provider)) continue;
+            dataBuilder.addValue(Component.class, tryToBuildComponent(dataBuilder, parameters, provider));
+        }
         for (ExtensionMethod provider : methods.getGroupProviders()) {
             if (brokenMethods.contains(provider)) continue;
             dataBuilder.addValue(String[].class, tryToBuildGroups(dataBuilder, parameters, provider));
@@ -143,6 +154,11 @@ public class DataValueGatherer {
             if (brokenMethods.contains(provider)) continue;
             dataBuilder.addValue(Table.class, tryToBuildTable(dataBuilder, parameters, provider));
         }
+        addValuesToBuilder2(dataBuilder, methods, parameters);
+    }
+
+    // TODO refactor to reduce cyclomatic complexity of the calling method
+    private void addValuesToBuilder2(ExtensionDataBuilder dataBuilder, ExtensionMethods methods, Parameters parameters) {
         for (ExtensionMethod provider : methods.getDataBuilderProviders()) {
             if (brokenMethods.contains(provider)) continue;
             addDataFromAnotherBuilder(dataBuilder, parameters, provider);
@@ -191,6 +207,24 @@ public class DataValueGatherer {
                     .conditional(provider.getAnnotationOrNull(Conditional.class))
                     .showOnTab(provider.getAnnotationOrNull(Tab.class))
                     .buildString(() -> callMethod(provider, parameters, String.class));
+        } catch (IllegalArgumentException e) {
+            logFailure(e, getPluginName(), provider.getMethodName());
+            return null;
+        }
+    }
+
+    private DataValue<Component> tryToBuildComponent(ExtensionDataBuilder dataBuilder, Parameters parameters, ExtensionMethod provider) {
+        ComponentProvider annotation = provider.getExistingAnnotation(ComponentProvider.class);
+        try {
+            return dataBuilder.valueBuilder(annotation.text())
+                    .methodName(provider)
+                    .icon(annotation.iconName(), annotation.iconFamily(), annotation.iconColor())
+                    .description(annotation.description())
+                    .priority(annotation.priority())
+                    .showInPlayerTable(annotation.showInPlayerTable())
+                    .conditional(provider.getAnnotationOrNull(Conditional.class))
+                    .showOnTab(provider.getAnnotationOrNull(Tab.class))
+                    .buildComponent(() -> callMethod(provider, parameters, Component.class));
         } catch (IllegalArgumentException e) {
             logFailure(e, getPluginName(), provider.getMethodName());
             return null;
@@ -293,6 +327,14 @@ public class DataValueGatherer {
     }
 
     public void updateValues(UUID playerUUID, String playerName) {
+        try {
+            tryToUpdateValues(playerUUID, playerName);
+        } catch (RejectedExecutionException ignore) {
+            // Database has shut down
+        }
+    }
+
+    private void tryToUpdateValues(UUID playerUUID, String playerName) {
         Parameters parameters = Parameters.player(serverInfo.getServerUUID(), playerUUID, playerName);
         ExtensionDataBuilder dataBuilder = extension.getExtension().newExtensionDataBuilder();
 
@@ -305,6 +347,14 @@ public class DataValueGatherer {
     }
 
     public void updateValues() {
+        try {
+            tryToUpdateValues();
+        } catch (RejectedExecutionException ignore) {
+            // Database has shut down
+        }
+    }
+
+    private void tryToUpdateValues() {
         Parameters parameters = Parameters.server(serverInfo.getServerUUID());
         ExtensionDataBuilder dataBuilder = extension.getExtension().newExtensionDataBuilder();
 
@@ -326,6 +376,8 @@ public class DataValueGatherer {
                         .ifPresent(data -> storePlayerDouble(parameters, conditions, data));
                 pair.getValue(String.class).flatMap(data -> data.getMetadata(StringDataValue.class))
                         .ifPresent(data -> storePlayerString(parameters, conditions, data));
+                pair.getValue(Component.class).flatMap(data -> data.getMetadata(ComponentDataValue.class))
+                        .ifPresent(data -> storePlayerComponent(parameters, conditions, data));
                 pair.getValue(String[].class).flatMap(data -> data.getMetadata(GroupsDataValue.class))
                         .ifPresent(data -> storePlayerGroups(parameters, conditions, data));
                 pair.getValue(Table.class).flatMap(data -> data.getMetadata(TableDataValue.class))
@@ -350,11 +402,16 @@ public class DataValueGatherer {
                         .ifPresent(data -> storeDouble(parameters, conditions, data));
                 pair.getValue(String.class).flatMap(data -> data.getMetadata(StringDataValue.class))
                         .ifPresent(data -> storeString(parameters, conditions, data));
+                pair.getValue(Component.class).flatMap(data -> data.getMetadata(ComponentDataValue.class))
+                        .ifPresent(data -> storeComponent(parameters, conditions, data));
                 pair.getValue(Table.class).flatMap(data -> data.getMetadata(TableDataValue.class))
                         .ifPresent(data -> storeTable(parameters, conditions, data));
             } catch (DataExtensionMethodCallException methodError) {
                 logFailure(methodError);
-            } catch (Exception | NoClassDefFoundError | NoSuchFieldError | NoSuchMethodError unexpectedError) {
+            } catch (RejectedExecutionException ignore) {
+                // Processing or Database has shut down, which can be ignored
+            } catch (Exception | ExceptionInInitializerError | NoClassDefFoundError | NoSuchFieldError |
+                     NoSuchMethodError unexpectedError) {
                 logFailure(unexpectedError);
             }
         }
@@ -362,15 +419,19 @@ public class DataValueGatherer {
 
     private void logFailure(Throwable cause, String pluginName, String methodName) {
         ErrorContext.Builder context = ErrorContext.builder()
-                .whatToDo("Report and/or disable " + pluginName + " extension in the Plan config.")
+                .whatToDo(getWhatToDoMessage(pluginName))
                 .related(pluginName)
                 .related("Method:" + methodName);
         errorLogger.warn(cause, context.build());
     }
 
+    private String getWhatToDoMessage(String pluginName) {
+        return "Report and/or disable " + pluginName + " extension in the Plan config.";
+    }
+
     private void logFailure(DataExtensionMethodCallException methodCallFailed) {
         ErrorContext.Builder context = ErrorContext.builder()
-                .whatToDo("Report and/or disable " + methodCallFailed.getPluginName() + " extension in the Plan config.")
+                .whatToDo(getWhatToDoMessage(methodCallFailed.getPluginName()))
                 .related(methodCallFailed.getPluginName())
                 .related("Method:" + methodCallFailed.getMethodName().orElse("-"));
         errorLogger.warn(methodCallFailed, context.build());
@@ -378,7 +439,7 @@ public class DataValueGatherer {
 
     private void logFailure(Throwable unexpectedError) {
         ErrorContext.Builder context = ErrorContext.builder()
-                .whatToDo("Report and/or disable " + extension.getPluginName() + " extension in the Plan config.")
+                .whatToDo(getWhatToDoMessage(extension.getPluginName()))
                 .related(extension.getPluginName());
         errorLogger.warn(unexpectedError, context.build());
     }
@@ -389,6 +450,16 @@ public class DataValueGatherer {
             return null;
         }
         return data.getValue(); // can be null, can throw
+    }
+
+    private String getComponentAsJson(Component component) {
+        if (component == null) return null;
+
+        String json = componentService.convert(component, ComponentOperation.JSON);
+        if (json.length() > ComponentDataValue.MAX_LENGTH) {
+            json = "{\"text\":\"<Component too long>\"}";
+        }
+        return json;
     }
 
     private void storeBoolean(Parameters parameters, Conditions conditions, BooleanDataValue data) {
@@ -433,6 +504,17 @@ public class DataValueGatherer {
     private void storeString(Parameters parameters, Conditions conditions, StringDataValue data) {
         ProviderInformation information = data.getInformation();
         String value = getValue(conditions, data, information);
+        if (value == null) return;
+
+        Database db = dbSystem.getDatabase();
+        db.executeTransaction(new StoreIconTransaction(information.getIcon()));
+        db.executeTransaction(new StoreProviderTransaction(information, parameters));
+        db.executeTransaction(new StoreServerStringResultTransaction(information, parameters, value));
+    }
+
+    private void storeComponent(Parameters parameters, Conditions conditions, ComponentDataValue data) {
+        ProviderInformation information = data.getInformation();
+        String value = getComponentAsJson(getValue(conditions, data, information));
         if (value == null) return;
 
         Database db = dbSystem.getDatabase();
@@ -495,6 +577,17 @@ public class DataValueGatherer {
     private void storePlayerString(Parameters parameters, Conditions conditions, StringDataValue data) {
         ProviderInformation information = data.getInformation();
         String value = getValue(conditions, data, information);
+        if (value == null) return;
+
+        Database db = dbSystem.getDatabase();
+        db.executeTransaction(new StoreIconTransaction(information.getIcon()));
+        db.executeTransaction(new StoreProviderTransaction(information, parameters));
+        db.executeTransaction(new StorePlayerStringResultTransaction(information, parameters, value));
+    }
+
+    private void storePlayerComponent(Parameters parameters, Conditions conditions, ComponentDataValue data) {
+        ProviderInformation information = data.getInformation();
+        String value = getComponentAsJson(getValue(conditions, data, information));
         if (value == null) return;
 
         Database db = dbSystem.getDatabase();

@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.delivery.rendering.pages;
 
+import com.djrapitops.plan.component.ComponentSvc;
 import com.djrapitops.plan.delivery.domain.container.CachingSupplier;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.formatting.PlaceholderReplacer;
@@ -50,34 +51,37 @@ public class ServerPage implements Page {
     private final Server server;
     private final PlanConfig config;
     private final Theme theme;
-    private final Locale locale;
     private final VersionChecker versionChecker;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
     private final JSONStorage jsonStorage;
     private final Formatters formatters;
+    private final Locale locale;
+    private final ComponentSvc componentSvc;
 
     ServerPage(
             String templateHtml, Server server,
             PlanConfig config,
             Theme theme,
-            Locale locale,
             VersionChecker versionChecker,
             DBSystem dbSystem,
             ServerInfo serverInfo,
             JSONStorage jsonStorage,
-            Formatters formatters
+            Formatters formatters,
+            Locale locale,
+            ComponentSvc componentSvc
     ) {
         this.templateHtml = templateHtml;
         this.server = server;
         this.config = config;
         this.theme = theme;
-        this.locale = locale;
         this.versionChecker = versionChecker;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
         this.jsonStorage = jsonStorage;
         this.formatters = formatters;
+        this.locale = locale;
+        this.componentSvc = componentSvc;
     }
 
     @Override
@@ -94,12 +98,13 @@ public class ServerPage implements Page {
         placeholders.put("gmPieColors", theme.getValue(ThemeVal.GRAPH_GM_PIE));
 
         placeholders.put("contributors", Contributors.generateContributorHtml());
-        placeholders.put("version", versionChecker.getUpdateButton().orElse(versionChecker.getCurrentVersionButton()));
+        placeholders.put("versionButton", versionChecker.getUpdateButton().orElse(versionChecker.getCurrentVersionButton()));
+        placeholders.put("version", versionChecker.getCurrentVersion());
         placeholders.put("updateModal", versionChecker.getUpdateModal());
 
         CachingSupplier<ServerPluginTabs> pluginTabs = new CachingSupplier<>(() -> {
             List<ExtensionData> extensionData = dbSystem.getDatabase().query(new ExtensionServerDataQuery(serverUUID));
-            return new ServerPluginTabs(extensionData, formatters);
+            return new ServerPluginTabs(extensionData, formatters, componentSvc);
         });
 
         long after = System.currentTimeMillis() - config.get(WebserverSettings.REDUCED_REFRESH_BARRIER);

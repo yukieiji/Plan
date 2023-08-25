@@ -31,7 +31,6 @@ import com.djrapitops.plan.settings.config.paths.DataGatheringSettings;
 import com.djrapitops.plan.settings.config.paths.TimeSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.transactions.events.PingStoreTransaction;
-import com.djrapitops.plan.utilities.java.Reflection;
 import net.playeranalytics.plugin.scheduling.RunnableFactory;
 import net.playeranalytics.plugin.scheduling.TimeAmount;
 import net.playeranalytics.plugin.server.Listeners;
@@ -44,11 +43,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -67,79 +63,66 @@ public class BukkitPingCounter extends TaskSystem.Task implements Listener {
     //the server is pinging the client every 40 Ticks (2 sec) - so check it then
     //https://github.com/bergerkiller/CraftSource/blob/master/net.minecraft.server/PlayerConnection.java#L178
 
-    private static boolean pingMethodAvailable;
 
-    private static MethodHandle pingField;
-    private static MethodHandle getHandleMethod;
-
+    private final Map<UUID, Long> startRecording;
     private final Map<UUID, List<DateObj<Integer>>> playerHistory;
 
     private final Listeners listeners;
     private final PlanConfig config;
     private final DBSystem dbSystem;
     private final ServerInfo serverInfo;
-    private final RunnableFactory runnableFactory;
+
+    private final boolean pingMethodAvailable;
+    private PingMethod pingMethod;
 
     @Inject
     public BukkitPingCounter(
             Listeners listeners,
             PlanConfig config,
             DBSystem dbSystem,
-            ServerInfo serverInfo,
-            RunnableFactory runnableFactory
+            ServerInfo serverInfo
     ) {
         this.listeners = listeners;
-        BukkitPingCounter.loadPingMethodDetails();
         this.config = config;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
-        this.runnableFactory = runnableFactory;
+        startRecording = new ConcurrentHashMap<>();
         playerHistory = new HashMap<>();
+
+        Optional<PingMethod> pingMethod = loadPingMethod();
+        if (pingMethod.isPresent()) {
+            this.pingMethod = pingMethod.get();
+            pingMethodAvailable = true;
+        } else {
+            pingMethodAvailable = false;
+        }
     }
 
+    private Optional<PingMethod> loadPingMethod() {
+        PingMethod[] methods = new PingMethod[]{
+                new PaperPingMethod(),
+                new ReflectiveLatencyFieldMethod(),
+                new ReflectivePingFieldMethod(),
+                new ReflectiveLevelEntityPlayerLatencyFieldMethod(),
+                new ReflectiveUnmappedLatencyFieldMethod()
+        };
+        StringBuilder reasonsForUnavailability = new StringBuilder();
 
-    private static void loadPingMethodDetails() {
-        pingMethodAvailable = isPingMethodAvailable();
-
-        MethodHandle localHandle = null;
-        MethodHandle localPing = null;
-        if (!pingMethodAvailable) {
-            try {
-                Class<?> craftPlayerClass = Reflection.getCraftBukkitClass("entity.CraftPlayer");
-                Class<?> entityPlayer = Reflection.getMinecraftClass("EntityPlayer");
-
-                Lookup lookup = MethodHandles.publicLookup();
-
-                Method getHandleMethod = craftPlayerClass.getDeclaredMethod("getHandle");
-                localHandle = lookup.unreflect(getHandleMethod);
-
-                localPing = lookup.findGetter(entityPlayer, "ping", Integer.TYPE);
-            } catch (NoSuchMethodException | IllegalAccessException | NoSuchFieldException reflectiveEx) {
-                Logger.getGlobal().log(
-                        Level.WARNING,
-                        "Plan: Could not register Ping counter due to " + reflectiveEx
-                );
-            } catch (IllegalArgumentException e) {
-                Logger.getGlobal().log(
-                        Level.WARNING,
-                        "Plan: No Ping method handle found - Ping will not be recorded."
-                );
+        for (PingMethod potentialMethod : methods) {
+            if (potentialMethod.isAvailable()) {
+                return Optional.of(potentialMethod);
+            } else {
+                reasonsForUnavailability.append("\n    ").append(potentialMethod.getReasonForUnavailability());
             }
         }
+        Logger.getGlobal().log(
+                Level.WARNING,
+                () -> "Plan: No Ping method found - Ping will not be recorded:" + reasonsForUnavailability.toString()
+        );
 
-        getHandleMethod = localHandle;
-        pingField = localPing;
+        return Optional.empty();
     }
 
-    private static boolean isPingMethodAvailable() {
-        try {
-            //Only available in Paper
-            Class.forName("org.bukkit.entity.Player$Spigot").getDeclaredMethod("getPing");
-            return true;
-        } catch (ClassNotFoundException | NoSuchMethodException noSuchMethodEx) {
-            return false;
-        }
-    }
 
     @Override
     public void register(RunnableFactory runnableFactory) {
@@ -155,6 +138,16 @@ public class BukkitPingCounter extends TaskSystem.Task implements Listener {
     @Override
     public void run() {
         long time = System.currentTimeMillis();
+
+        Iterator<Map.Entry<UUID, Long>> starts = startRecording.entrySet().iterator();
+        while (starts.hasNext()) {
+            Map.Entry<UUID, Long> start = starts.next();
+            if (time >= start.getValue()) {
+                addPlayer(start.getKey());
+                starts.remove();
+            }
+        }
+
         Iterator<Map.Entry<UUID, List<DateObj<Integer>>>> iterator = playerHistory.entrySet().iterator();
 
         while (iterator.hasNext()) {
@@ -164,7 +157,7 @@ public class BukkitPingCounter extends TaskSystem.Task implements Listener {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
                 int ping = getPing(player);
-                if (ping < -1 || ping > TimeUnit.SECONDS.toMillis(8L)) {
+                if (ping <= -1 || ping > TimeUnit.SECONDS.toMillis(8L)) {
                     // Don't accept bad values
                     continue;
                 }
@@ -181,46 +174,30 @@ public class BukkitPingCounter extends TaskSystem.Task implements Listener {
         }
     }
 
-    public void addPlayer(Player player) {
-        playerHistory.put(player.getUniqueId(), new ArrayList<>());
+    public void addPlayer(UUID uuid) {
+        playerHistory.put(uuid, new ArrayList<>());
     }
 
     public void removePlayer(Player player) {
+        startRecording.remove(player.getUniqueId());
         playerHistory.remove(player.getUniqueId());
     }
 
     private int getPing(Player player) {
         if (pingMethodAvailable) {
-            // This method is from Paper
-            return player.spigot().getPing();
+            return pingMethod.getPing(player);
         }
-
-        return getReflectionPing(player);
-    }
-
-    private int getReflectionPing(Player player) {
-        try {
-            Object entityPlayer = getHandleMethod.invoke(player);
-            return (int) pingField.invoke(entityPlayer);
-        } catch (Exception ex) {
-            return -1;
-        } catch (Throwable throwable) {
-            throw (Error) throwable;
-        }
+        return -1;
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent joinEvent) {
         Player player = joinEvent.getPlayer();
-        Long pingDelay = config.get(TimeSettings.PING_PLAYER_LOGIN_DELAY);
-        if (pingDelay >= TimeUnit.HOURS.toMillis(2L)) {
+        Long pingDelayMs = config.get(TimeSettings.PING_PLAYER_LOGIN_DELAY);
+        if (pingDelayMs >= TimeUnit.HOURS.toMillis(2L)) {
             return;
         }
-        runnableFactory.create(() -> {
-            if (player.isOnline()) {
-                addPlayer(player);
-            }
-        }).runTaskLater(TimeAmount.toTicks(pingDelay, TimeUnit.MILLISECONDS));
+        startRecording.put(player.getUniqueId(), System.currentTimeMillis() + pingDelayMs);
     }
 
     @EventHandler

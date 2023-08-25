@@ -19,6 +19,7 @@ package com.djrapitops.plan.addons.placeholderapi;
 import com.djrapitops.plan.PlanSystem;
 import com.djrapitops.plan.placeholder.PlanPlaceholders;
 import com.djrapitops.plan.processing.Processing;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
 import com.djrapitops.plan.version.VersionChecker;
@@ -28,9 +29,7 @@ import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -91,17 +90,27 @@ public class PlanPlaceholderExtension extends PlaceholderExpansion {
     }
 
     @Override
-    public String onRequest(OfflinePlayer player, String params) {
-        UUID uuid = player != null ? player.getUniqueId() : null;
-        if ("Server thread".equalsIgnoreCase(Thread.currentThread().getName())) {
-            return getCached(params, uuid);
+    public String onRequest(OfflinePlayer player, @Untrusted String params) {
+        try {
+            UUID uuid = player != null ? player.getUniqueId() : null;
+            if ("Server thread".equalsIgnoreCase(Thread.currentThread().getName())) {
+                return getCached(params, uuid);
+            }
+
+            return Optional.ofNullable(getCached(params, uuid))
+                    .orElseGet(() -> getPlaceholderValue(params, uuid));
+        } catch (IllegalStateException e) {
+            if ("zip file closed".equals(e.getMessage())) {
+                return null; // Plan is disabled.
+            } else {
+                throw e;
+            }
         }
-        return getPlaceholderValue(params, uuid);
     }
 
-    private String getPlaceholderValue(String params, UUID uuid) {
+    private String getPlaceholderValue(@Untrusted String params, UUID uuid) {
         try {
-            String value = placeholders.onPlaceholderRequest(uuid, params, Collections.emptyList());
+            String value = placeholders.onPlaceholderRequest(uuid, parseRequest(params), parseParameters(params));
 
             if ("true".equals(value)) { //hack
                 value = PlaceholderAPIPlugin.booleanTrue();
@@ -116,8 +125,27 @@ public class PlanPlaceholderExtension extends PlaceholderExpansion {
         }
     }
 
-    private String getCached(String params, UUID uuid) {
-        String key = params + "-" + uuid;
+    @Untrusted
+    private String parseRequest(@Untrusted String params) {
+        return params.split(":")[0];
+    }
+
+    @Untrusted
+    private List<String> parseParameters(@Untrusted String params) {
+        List<String> parameters = new ArrayList<>();
+        boolean first = true;
+        for (@Untrusted String parameter : params.split(":")) {
+            if (first) {
+                first = false;
+            } else {
+                parameters.add(parameter);
+            }
+        }
+        return parameters;
+    }
+
+    private String getCached(@Untrusted String params, UUID uuid) {
+        @Untrusted String key = params + "-" + uuid;
 
         if (!currentlyProcessing.contains(key)) {
             currentlyProcessing.add(key);

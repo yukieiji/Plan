@@ -16,18 +16,25 @@
  */
 package com.djrapitops.plan.delivery.rendering.json;
 
+import com.djrapitops.plan.delivery.domain.auth.WebPermission;
 import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
+import com.djrapitops.plan.delivery.domain.datatransfer.extension.ExtensionsDto;
 import com.djrapitops.plan.delivery.domain.keys.PlayerKeys;
 import com.djrapitops.plan.delivery.domain.mutators.*;
 import com.djrapitops.plan.delivery.formatting.Formatter;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.html.Html;
 import com.djrapitops.plan.delivery.rendering.json.graphs.Graphs;
+import com.djrapitops.plan.delivery.rendering.json.graphs.line.PingGraph;
 import com.djrapitops.plan.delivery.rendering.json.graphs.pie.WorldPie;
+import com.djrapitops.plan.extension.implementation.results.ExtensionData;
+import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionPlayerDataQuery;
 import com.djrapitops.plan.gathering.cache.SessionCache;
 import com.djrapitops.plan.gathering.domain.GeoInfo;
 import com.djrapitops.plan.gathering.domain.PlayerKill;
 import com.djrapitops.plan.gathering.domain.WorldTimes;
+import com.djrapitops.plan.gathering.domain.event.JoinAddress;
+import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DisplaySettings;
@@ -40,14 +47,17 @@ import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.containers.PlayerContainerQuery;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
+import com.djrapitops.plan.storage.database.queries.objects.SessionQueries;
 import com.djrapitops.plan.utilities.comparators.DateHolderRecentComparator;
 import com.djrapitops.plan.utilities.java.Lists;
+import com.djrapitops.plan.utilities.java.Maps;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 @Singleton
 public class PlayerJSONCreator {
@@ -84,46 +94,86 @@ public class PlayerJSONCreator {
         this.graphs = graphs;
     }
 
-    public Map<String, Object> createJSONAsMap(UUID playerUUID) {
+    public long getLastSeen(UUID playerUUID) {
+        return dbSystem.getDatabase().query(SessionQueries.lastSeen(playerUUID));
+    }
+
+    public Map<String, Object> createJSONAsMap(UUID playerUUID, Predicate<WebPermission> hasPermission) {
         Database db = dbSystem.getDatabase();
 
         Map<ServerUUID, String> serverNames = db.query(ServerQueries.fetchServerNames());
-        String[] pieColors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
-
         PlayerContainer player = db.query(new PlayerContainerQuery(playerUUID));
         SessionsMutator sessionsMutator = SessionsMutator.forContainer(player);
-        Map<ServerUUID, WorldTimes> worldTimesPerServer = PerServerMutator.forContainer(player).worldTimesPerServer();
-        List<Map<String, Object>> serverAccordion = new ServerAccordion(player, serverNames, graphs, year, timeAmount, locale.getString(GenericLang.UNKNOWN)).asMaps();
-        List<PlayerKill> kills = player.getValue(PlayerKeys.PLAYER_KILLS).orElse(Collections.emptyList());
-        List<PlayerKill> deaths = player.getValue(PlayerKeys.PLAYER_DEATHS_KILLS).orElse(Collections.emptyList());
 
         PingMutator.forContainer(player).addPingToSessions(sessionsMutator.all());
 
         Map<String, Object> data = new HashMap<>();
-        data.put("info", createInfoJSONMap(player, serverNames));
-        data.put("online_activity", createOnlineActivityJSONMap(sessionsMutator));
-        data.put("kill_data", createPvPPvEMap(player));
 
-        data.put("nicknames", player.getValue(PlayerKeys.NICKNAMES)
-                .map(nicks -> Nickname.fromDataNicknames(nicks, serverNames, year))
-                .orElse(Collections.emptyList()));
-        data.put("connections", player.getValue(PlayerKeys.GEO_INFO)
-                .map(geoInfo -> ConnectionInfo.fromGeoInfo(geoInfo, year))
-                .orElse(Collections.emptyList()));
-        data.put("player_kills", new PlayerKillMutator(kills).filterNonSelfKills().toJSONAsMap(formatters));
-        data.put("player_deaths", new PlayerKillMutator(deaths).toJSONAsMap(formatters));
-        data.put("sessions", sessionsMutator.sort(new DateHolderRecentComparator()).toServerNameJSONMaps(graphs, config.getWorldAliasSettings(), formatters));
-        data.put("sessions_per_page", config.get(DisplaySettings.SESSIONS_PER_PAGE));
-        data.put("servers", serverAccordion);
-        data.put("punchcard_series", graphs.special().punchCard(sessionsMutator).getDots());
-        WorldPie worldPie = graphs.pie().worldPie(player.getValue(PlayerKeys.WORLD_TIMES).orElse(new WorldTimes()));
-        data.put("world_pie_series", worldPie.getSlices());
-        data.put("gm_series", worldPie.toHighChartsDrillDownMaps());
-        data.put("calendar_series", graphs.calendar().playerCalendar(player).getEntries());
-        data.put("server_pie_series", graphs.pie().serverPreferencePie(serverNames, worldTimesPerServer).getSlices());
-        data.put("server_pie_colors", pieColors);
-        data.put("first_day", 1); // Monday
+        long now = System.currentTimeMillis();
+        data.put("timestamp", now);
+        data.put("timestamp_f", year.apply(now));
+
+        if (hasPermission.test(WebPermission.PAGE_PLAYER_OVERVIEW)) {
+            data.put("info", createInfoJSONMap(player, serverNames));
+            data.put("online_activity", createOnlineActivityJSONMap(sessionsMutator));
+            data.put("nicknames", player.getValue(PlayerKeys.NICKNAMES)
+                    .map(nicks -> Nickname.fromDataNicknames(nicks, serverNames, year))
+                    .orElse(Collections.emptyList()));
+            data.put("connections", player.getValue(PlayerKeys.GEO_INFO)
+                    .map(geoInfo -> ConnectionInfo.fromGeoInfo(geoInfo, year))
+                    .orElse(Collections.emptyList()));
+            data.put("punchcard_series", graphs.special().punchCard(sessionsMutator).getDots());
+        } else {
+            data.put("info", createLimitedInfoMap(player));
+        }
+        if (hasPermission.test(WebPermission.PAGE_PLAYER_SESSIONS)) {
+            data.put("sessions", sessionsMutator.sort(new DateHolderRecentComparator()).toServerNameJSONMaps(graphs, config.getWorldAliasSettings(), formatters));
+            data.put("sessions_per_page", config.get(DisplaySettings.SESSIONS_PER_PAGE));
+            WorldPie worldPie = graphs.pie().worldPie(player.getValue(PlayerKeys.WORLD_TIMES).orElse(new WorldTimes()));
+            data.put("world_pie_series", worldPie.getSlices());
+            data.put("gm_series", worldPie.toHighChartsDrillDownMaps());
+            data.put("first_day", 1); // Monday
+            data.put("calendar_series", graphs.calendar().playerCalendar(player).getEntries());
+        }
+        if (hasPermission.test(WebPermission.PAGE_PLAYER_VERSUS)) {
+            List<PlayerKill> kills = player.getValue(PlayerKeys.PLAYER_KILLS).orElse(Collections.emptyList());
+            List<PlayerKill> deaths = player.getValue(PlayerKeys.PLAYER_DEATHS_KILLS).orElse(Collections.emptyList());
+
+            data.put("kill_data", createPvPPvEMap(player));
+            data.put("player_kills", new PlayerKillMutator(kills).filterNonSelfKills().toJSONAsMap(formatters));
+            data.put("player_deaths", new PlayerKillMutator(deaths).toJSONAsMap(formatters));
+        }
+        if (hasPermission.test(WebPermission.PAGE_PLAYER_SERVERS)) {
+            List<Map<String, Object>> serverAccordion = new ServerAccordion(player, serverNames, graphs, year, timeAmount, locale.getString(GenericLang.UNKNOWN)).asMaps();
+            Map<ServerUUID, WorldTimes> worldTimesPerServer = PerServerMutator.forContainer(player).worldTimesPerServer();
+            String[] pieColors = theme.getPieColors(ThemeVal.GRAPH_WORLD_PIE);
+
+            data.put("ping_graph", createPingGraphJson(player));
+            data.put("servers", serverAccordion);
+            data.put("server_pie_series", graphs.pie().serverPreferencePie(serverNames, worldTimesPerServer).getSlices());
+            data.put("server_pie_colors", pieColors);
+        }
+        if (hasPermission.test(WebPermission.PAGE_PLAYER_PLUGINS)) {
+            data.put("extensions", playerExtensionData(playerUUID));
+        } else {
+            data.put("extensions", List.of());
+        }
+
         return data;
+    }
+
+    private Map<String, Object> createPingGraphJson(PlayerContainer player) {
+        PingGraph pingGraph = graphs.line().pingGraph(player.getUnsafe(PlayerKeys.PING));
+        return Maps.builder(String.class, Object.class)
+                .put("min_ping_series", pingGraph.getMinGraph().getPoints())
+                .put("avg_ping_series", pingGraph.getAvgGraph().getPoints())
+                .put("max_ping_series", pingGraph.getMaxGraph().getPoints())
+                .put("colors", Maps.builder(String.class, String.class)
+                        .put("min", theme.getValue(ThemeVal.GRAPH_MIN_PING))
+                        .put("avg", theme.getValue(ThemeVal.GRAPH_AVG_PING))
+                        .put("max", theme.getValue(ThemeVal.GRAPH_MAX_PING))
+                        .build())
+                .build();
     }
 
     private Map<String, Object> createOnlineActivityJSONMap(SessionsMutator sessionsMutator) {
@@ -166,6 +216,8 @@ public class PlayerJSONCreator {
 
         Map<String, Object> info = new HashMap<>();
 
+        info.put("name", player.getValue(PlayerKeys.NAME).orElse(player.getUnsafe(PlayerKeys.UUID).toString()));
+        info.put("uuid", player.getUnsafe(PlayerKeys.UUID).toString());
         info.put("online", SessionCache.getCachedSession(player.getUnsafe(PlayerKeys.UUID)).isPresent());
         info.put("operator", player.getValue(PlayerKeys.OPERATOR).orElse(false));
         info.put("banned", player.getValue(PlayerKeys.BANNED).orElse(false));
@@ -182,6 +234,10 @@ public class PlayerJSONCreator {
         info.put("activity_index", decimals.apply(activityIndex.getValue()));
         info.put("activity_index_group", activityIndex.getGroup());
         info.put("favorite_server", perServer.favoriteServer().map(favoriteServer -> serverNames.getOrDefault(favoriteServer, favoriteServer.toString())).orElse(locale.getString(GenericLang.UNKNOWN)));
+        info.put("latest_join_address", sessions.latestSession()
+                .flatMap(session -> session.getExtraData(JoinAddress.class))
+                .map(JoinAddress::getAddress)
+                .orElse("-"));
         double averagePing = ping.average();
         int worstPing = ping.max();
         int bestPing = ping.min();
@@ -192,6 +248,16 @@ public class PlayerJSONCreator {
         info.put("best_ping", bestPing != -1.0 ? bestPing + " ms" : unavailable);
         info.put("registered", player.getValue(PlayerKeys.REGISTERED).map(year).orElse("-"));
         info.put("last_seen", player.getValue(PlayerKeys.LAST_SEEN).map(year).orElse("-"));
+        info.put("last_seen_raw_value", player.getValue(PlayerKeys.LAST_SEEN).orElse(0L));
+
+        return info;
+    }
+
+    private Map<String, Object> createLimitedInfoMap(PlayerContainer player) {
+        Map<String, Object> info = new HashMap<>();
+
+        info.put("name", player.getValue(PlayerKeys.NAME).orElse(player.getUnsafe(PlayerKeys.UUID).toString()));
+        info.put("uuid", player.getUnsafe(PlayerKeys.UUID).toString());
 
         return info;
     }
@@ -266,6 +332,24 @@ public class PlayerJSONCreator {
 
     private <T> Optional<T> getWeapon(List<T> list, int index) {
         return list.size() <= index ? Optional.empty() : Optional.of(list.get(index));
+    }
+
+
+    public List<ExtensionsDto> playerExtensionData(UUID playerUUID) {
+        Database database = dbSystem.getDatabase();
+        Map<ServerUUID, List<ExtensionData>> extensionPlayerData = database.query(new ExtensionPlayerDataQuery(playerUUID));
+        Map<ServerUUID, Server> servers = database.query(ServerQueries.fetchPlanServerInformation());
+
+        List<ExtensionsDto> playerData = new ArrayList<>();
+        for (Map.Entry<ServerUUID, Server> entry : servers.entrySet()) {
+            ServerUUID serverUUID = entry.getKey();
+            playerData.add(new ExtensionsDto(
+                    playerUUID.toString(), serverUUID.toString(),
+                    entry.getValue().getIdentifiableName(),
+                    extensionPlayerData.getOrDefault(serverUUID, Collections.emptyList())
+            ));
+        }
+        return playerData;
     }
 
     public static class Nickname {

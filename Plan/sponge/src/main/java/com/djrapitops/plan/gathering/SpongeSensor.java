@@ -17,15 +17,18 @@
 package com.djrapitops.plan.gathering;
 
 import org.spongepowered.api.Game;
-import org.spongepowered.api.world.Chunk;
-import org.spongepowered.api.world.World;
+import org.spongepowered.api.entity.living.player.server.ServerPlayer;
+import org.spongepowered.api.world.chunk.WorldChunk;
+import org.spongepowered.api.world.server.ServerWorld;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Singleton
-public class SpongeSensor implements ServerSensor<World> {
+public class SpongeSensor implements ServerSensor<ServerWorld> {
 
     private final Game game;
 
@@ -41,26 +44,27 @@ public class SpongeSensor implements ServerSensor<World> {
 
     @Override
     public int getOnlinePlayerCount() {
-        return game.getServer().getOnlinePlayers().size();
+        return game.server().onlinePlayers().size();
     }
 
     @Override
     public double getTPS() {
-        return game.getServer().getTicksPerSecond();
+        return game.server().ticksPerSecond();
     }
 
     @Override
-    public Iterable<World> getWorlds() {
-        return game.getServer().getWorlds();
+    public Iterable<ServerWorld> getWorlds() {
+        return game.server().worldManager().worlds();
     }
 
     @Override
-    public int getChunkCount(World world) {
+    public int getChunkCount(ServerWorld world) {
         return -1;
     }
 
-    private int getLaggyChunkCount(World world) {
-        Iterator<Chunk> chunks = world.getLoadedChunks().iterator();
+    @SuppressWarnings("unused") // This remains here so that it is not enabled, it causes lag.
+    private int getLaggyChunkCount(ServerWorld world) {
+        Iterator<WorldChunk> chunks = world.loadedChunks().iterator();
         int count = 0;
         while (chunks.hasNext()) {
             chunks.next();
@@ -70,7 +74,12 @@ public class SpongeSensor implements ServerSensor<World> {
     }
 
     @Override
-    public int getEntityCount(World world) {
-        return world.getEntities().size();
+    public int getEntityCount(ServerWorld world) {
+        return world.entities().size();
+    }
+
+    @Override
+    public List<String> getOnlinePlayerNames() {
+        return game.server().onlinePlayers().stream().map(ServerPlayer::name).collect(Collectors.toList());
     }
 }

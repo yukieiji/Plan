@@ -22,8 +22,7 @@ import com.djrapitops.plan.gathering.domain.FinishedSession;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.PluginLang;
 import com.djrapitops.plan.storage.database.DBSystem;
-import com.djrapitops.plan.storage.database.queries.LargeStoreQueries;
-import com.djrapitops.plan.storage.database.transactions.Transaction;
+import com.djrapitops.plan.storage.database.transactions.events.ShutdownDataPreservationTransaction;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
@@ -52,6 +51,7 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
     private final DBSystem dbSystem;
     private final PluginLogger logger;
     private final ErrorLogger errorLogger;
+    private final ServerShutdownSave serverShutdownSave;
 
     private final Path storeLocation;
 
@@ -61,7 +61,8 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
             Locale locale,
             DBSystem dbSystem,
             PluginLogger logger,
-            ErrorLogger errorLogger
+            ErrorLogger errorLogger,
+            ServerShutdownSave serverShutdownSave
     ) {
         this.locale = locale;
         this.dbSystem = dbSystem;
@@ -69,6 +70,7 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
         storeLocation = files.getDataDirectory().resolve("unsaved-sessions.csv");
         this.logger = logger;
         this.errorLogger = errorLogger;
+        this.serverShutdownSave = serverShutdownSave;
     }
 
     public void storePreviouslyPreservedSessions() {
@@ -87,12 +89,7 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
     private void storeInDB(List<FinishedSession> finishedSessions) {
         if (!finishedSessions.isEmpty()) {
             try {
-                dbSystem.getDatabase().executeTransaction(new Transaction() {
-                    @Override
-                    protected void performOperations() {
-                        execute(LargeStoreQueries.storeAllSessionsWithKillAndWorldData(finishedSessions));
-                    }
-                }).get();
+                dbSystem.getDatabase().executeTransaction(new ShutdownDataPreservationTransaction(finishedSessions)).get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (ExecutionException e) {
@@ -103,7 +100,11 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
 
     @Override
     public void run() {
-        storePreviouslyPreservedSessions();
+        try {
+            storePreviouslyPreservedSessions();
+        } finally {
+            cancel();
+        }
     }
 
     @Override
@@ -122,7 +123,7 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
     List<FinishedSession> loadFinishedSessions() {
         if (!Files.exists(storeLocation)) return Collections.emptyList();
         try (Stream<String> lines = Files.lines(storeLocation)) {
-            return lines.map(FinishedSession::deserializeCSV)
+            return lines.map(this::deserializeToSession)
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .collect(Collectors.toList());
@@ -131,10 +132,22 @@ public class ShutdownDataPreservation extends TaskSystem.Task {
         }
     }
 
+    private Optional<FinishedSession> deserializeToSession(String line) {
+        try {
+            return FinishedSession.deserializeCSV(line);
+        } catch (Exception e) {
+            logger.warn("Ignoring line '" + line + "' in unsaved-sessions.csv due to: " + e);
+            return Optional.empty();
+        }
+    }
+
     public void preserveSessionsInCache() {
         long now = System.currentTimeMillis();
         List<FinishedSession> finishedSessions = SessionCache.getActiveSessions().stream()
-                .map(session -> session.toFinishedSession(now))
+                .map(session -> {
+                    serverShutdownSave.getAfkTracker().ifPresent(afkTracker -> afkTracker.performedAction(session.getPlayerUUID(), now));
+                    return session.toFinishedSession(now);
+                })
                 .collect(Collectors.toList());
         storeFinishedSessions(finishedSessions);
     }

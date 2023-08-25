@@ -220,7 +220,7 @@ function mapToDataSeries(performanceData) {
 }
 
 function performanceChart(id, playersOnlineSeries, tpsSeries, cpuSeries, ramSeries, entitySeries, chunkSeries) {
-    graphs.push(Highcharts.stockChart(id, {
+    const chart = Highcharts.stockChart(id, {
         rangeSelector: {
             selected: 2,
             buttons: linegraphButtons
@@ -270,10 +270,100 @@ function performanceChart(id, playersOnlineSeries, tpsSeries, cpuSeries, ramSeri
             enabled: true
         },
         series: [playersOnlineSeries, tpsSeries, cpuSeries, ramSeries, entitySeries, chunkSeries]
-    }));
+    });
+
+    function toggleLabels() {
+        if (!chart || !chart.yAxis || !chart.yAxis.length) return;
+        const newWidth = $(window).width();
+        chart.yAxis[0].update({labels: {enabled: newWidth >= 900}});
+        chart.yAxis[1].update({labels: {enabled: newWidth >= 900}});
+        chart.yAxis[2].update({labels: {enabled: newWidth >= 1000}});
+        chart.yAxis[3].update({labels: {enabled: newWidth >= 1000}});
+        chart.yAxis[4].update({labels: {enabled: newWidth >= 1400}});
+        chart.yAxis[5].update({labels: {enabled: newWidth >= 1400}});
+    }
+
+    $(window).resize(toggleLabels);
+    toggleLabels();
+
+    graphs.push(chart);
 }
 
 function playersChart(id, playersOnlineSeries, sel) {
+    function groupByIntervalStartingFrom(startDate, interval) {
+        let previousGroupStart = startDate;
+        const groupByInterval = [[]];
+
+        for (let point of playersOnlineSeries.data) {
+            const date = point[0];
+            if (date < startDate) {
+                continue;
+            }
+
+            if (previousGroupStart + interval < date) {
+                previousGroupStart = date;
+                groupByInterval.push([]);
+            }
+
+            const currentGroup = groupByInterval[groupByInterval.length - 1];
+            currentGroup.push(point);
+        }
+        return groupByInterval;
+    }
+
+    function averageGroupPoints(groupByInterval, minDate) {
+        const averages = [];
+        for (let group of groupByInterval) {
+            let totalDate = 0;
+            let total = 0;
+            let count = group.length;
+            for (let point of group) {
+                totalDate += (point[0] - minDate); // Remove the minDate from dates to calculate a smaller total
+                total += point[1];
+            }
+
+            if (count !== 0) {
+                const middleDate = Math.trunc((totalDate / count) + minDate);
+                const average = Math.trunc(total / count);
+                averages.push([middleDate, average]);
+            }
+        }
+        return averages;
+    }
+
+    function getAveragePlayersSeries(minDate, twentyPointInterval) {
+        const groupByInterval = groupByIntervalStartingFrom(minDate, twentyPointInterval);
+
+        return {
+            name: s.name.averagePlayersOnline,
+            type: s.type.spline,
+            tooltip: s.tooltip.zeroDecimals,
+            data: averageGroupPoints(groupByInterval, minDate),
+            color: "#02458d",
+            yAxis: 0
+        };
+    }
+
+    function updateAveragePlayers(event) {
+        const minDate = event.min;
+        const maxDate = event.max;
+        const twentyPointInterval = (maxDate - minDate) / 20;
+
+        const averagePlayersSeries = getAveragePlayersSeries(minDate, twentyPointInterval);
+
+        const playersOnlineGraph = graphs.find(graph => graph && graph.renderTo && graph.renderTo.id === id);
+        playersOnlineGraph.series[1].update(averagePlayersSeries);
+    }
+
+    const emptyAveragePlayersSeries = {
+        name: s.name.averagePlayersOnline,
+        type: s.type.spline,
+        tooltip: s.tooltip.zeroDecimals,
+        data: [],
+        color: "#02458d",
+        yAxis: 0
+    };
+
     graphs.push(Highcharts.stockChart(id, {
         rangeSelector: {
             selected: sel,
@@ -283,13 +373,20 @@ function playersChart(id, playersOnlineSeries, sel) {
             softMax: 2,
             softMin: 0
         },
+        /* Average online players graph Disabled
+        xAxis: {
+            events: {
+                afterSetExtremes: updateAveragePlayers
+            }
+        },
+        */
         title: {text: ''},
         plotOptions: {
             areaspline: {
                 fillOpacity: 0.4
             }
         },
-        series: [playersOnlineSeries]
+        series: [playersOnlineSeries, /*emptyAveragePlayersSeries*/]
     }));
 }
 
@@ -535,7 +632,8 @@ function stackChart(id, categories, series, label) {
             tickmarkPlacement: 'on',
             title: {
                 enabled: false
-            }
+            },
+            ordinal: false
         },
         yAxis: {
             title: {

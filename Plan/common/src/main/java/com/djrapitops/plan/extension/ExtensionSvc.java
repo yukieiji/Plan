@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.extension;
 
+import com.djrapitops.plan.component.ComponentSvc;
 import com.djrapitops.plan.extension.builder.ExtensionDataBuilder;
 import com.djrapitops.plan.extension.implementation.CallerImplementation;
 import com.djrapitops.plan.extension.implementation.ExtensionRegister;
@@ -39,6 +40,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Implementation for {@link ExtensionService}.
@@ -50,6 +52,7 @@ public class ExtensionSvc implements ExtensionService {
 
     private final PlanConfig config;
     private final DBSystem dbSystem;
+    private final ComponentSvc componentService;
     private final ServerInfo serverInfo;
     private final Processing processing;
     private final ExtensionRegister extensionRegister;
@@ -58,11 +61,13 @@ public class ExtensionSvc implements ExtensionService {
     private final ErrorLogger errorLogger;
 
     private final Map<String, DataValueGatherer> extensionGatherers;
+    private final AtomicBoolean enabled;
 
     @Inject
     public ExtensionSvc(
             PlanConfig config,
             DBSystem dbSystem,
+            ComponentSvc componentService,
             ServerInfo serverInfo,
             Processing processing,
             ExtensionRegister extensionRegister,
@@ -72,6 +77,7 @@ public class ExtensionSvc implements ExtensionService {
     ) {
         this.config = config;
         this.dbSystem = dbSystem;
+        this.componentService = componentService;
         this.serverInfo = serverInfo;
         this.processing = processing;
         this.extensionRegister = extensionRegister;
@@ -80,6 +86,7 @@ public class ExtensionSvc implements ExtensionService {
         this.errorLogger = errorLogger;
 
         extensionGatherers = new HashMap<>();
+        enabled = new AtomicBoolean(true);
     }
 
     public void register() {
@@ -88,6 +95,7 @@ public class ExtensionSvc implements ExtensionService {
 
     public void registerExtensions() {
         try {
+            enabled.set(true);
             extensionRegister.registerBuiltInExtensions(config.getExtensionSettings().getDisabled());
         } catch (IllegalStateException failedToRegisterOne) {
             ErrorContext.Builder context = ErrorContext.builder()
@@ -112,7 +120,7 @@ public class ExtensionSvc implements ExtensionService {
             logger.warn("DataExtension API implementation mistake for " + pluginName + ": " + warning);
         }
 
-        DataValueGatherer gatherer = new DataValueGatherer(extension, dbSystem, serverInfo, errorLogger);
+        DataValueGatherer gatherer = new DataValueGatherer(extension, dbSystem, componentService, serverInfo, errorLogger);
         gatherer.storeExtensionInformation();
         extensionGatherers.put(pluginName, gatherer);
 
@@ -152,16 +160,20 @@ public class ExtensionSvc implements ExtensionService {
     }
 
     public void updatePlayerValues(UUID playerUUID, String playerName, CallEvents event) {
+        if (!enabled.get()) return; // Plugin is disabling
         for (DataValueGatherer gatherer : extensionGatherers.values()) {
             updatePlayerValues(gatherer, playerUUID, playerName, event);
         }
     }
 
     public void updatePlayerValues(DataValueGatherer gatherer, UUID playerUUID, String playerName, CallEvents event) {
+        if (!enabled.get()) return; // Plugin is disabling
         if (gatherer.shouldSkipEvent(event)) return;
         if (playerUUID == null && playerName == null) return;
 
         UUID realUUID = playerUUID != null ? playerUUID : uuidUtility.getUUIDOf(playerName);
+        if (realUUID == null) return;
+
         String realPlayerName = playerName != null ?
                 playerName :
                 uuidUtility.getNameOf(realUUID).orElse(null);
@@ -170,14 +182,20 @@ public class ExtensionSvc implements ExtensionService {
     }
 
     public void updateServerValues(CallEvents event) {
+        if (!enabled.get()) return; // Plugin is disabling
         for (DataValueGatherer gatherer : extensionGatherers.values()) {
             updateServerValues(gatherer, event);
         }
     }
 
     public void updateServerValues(DataValueGatherer gatherer, CallEvents event) {
+        if (!enabled.get()) return; // Plugin is disabling
         if (gatherer.shouldSkipEvent(event)) return;
 
         gatherer.updateValues();
+    }
+
+    public void disableUpdates() {
+        enabled.set(false);
     }
 }

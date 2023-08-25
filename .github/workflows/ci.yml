@@ -1,0 +1,124 @@
+
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Test, Build & Upload
+
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.1-rc
+        ports:
+          - 3306
+        env:
+          MYSQL_USER: user
+          MYSQL_PASSWORD: password
+          MYSQL_DATABASE: test
+          MYSQL_ROOT_PASSWORD: password
+        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: 📥 Checkout git repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: ☕ Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+      - name: 🚦 Setup Selenium Webdriver
+        uses: nanasess/setup-chromedriver@v2
+      - name: 🚦 Setup Selenium Webdriver settings
+        run: |
+          export DISPLAY=:99
+          chromedriver --url-base=/wd/hub &
+          sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+      - name: 📶 Verify MariaDB connection 
+        env:
+          PORT: ${{ job.services.mariadb.ports[3306] }}
+        run: |
+          while ! mysqladmin ping -h"127.0.0.1" -P"$PORT" --silent; do
+            sleep 1
+          done
+      - name: 💼 Load Gradle Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 🛠 Build jars 
+        run: |
+          cd Plan
+          ./gradlew shadowJar
+      - name: ⚙ Get versions
+        run: |
+          cd Plan
+          ./gradlew snapshotVersion jarNameVersion
+          git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          echo "git_hash=$git_hash" >> $GITHUB_ENV
+          echo "snapshotVersion=$(cat build/versions/snapshot.txt)" >> $GITHUB_ENV
+          echo "versionString=$(cat build/versions/jar.txt)" >> $GITHUB_ENV
+          echo "artifactPath=$(pwd)/builds" >> $GITHUB_ENV
+      - name: 📤 Upload Plan.jar 
+        uses: actions/upload-artifact@v3
+        with:
+          name: Plan-${{ env.versionString }}-${{ env.git_hash }}.jar
+          path: ${{ env.artifactPath }}/Plan-${{ env.snapshotVersion }}.jar
+      - name: 📤 Upload PlanFabric.jar 
+        uses: actions/upload-artifact@v3
+        with:
+          name: PlanFabric-${{ env.versionString }}-${{ env.git_hash }}.jar
+          path: ${{ env.artifactPath }}/PlanFabric-${{ env.snapshotVersion }}.jar
+      - name: 🩺 Test 
+        env:
+          MYSQL_DB: test
+          MYSQL_USER: user
+          MYSQL_PASS: password
+          MYSQL_PORT: ${{ job.services.mariadb.ports[3306] }}
+          CHROMEDRIVER: /usr/local/bin/chromedriver
+        run: |
+          cd Plan
+          ./gradlew build
+      - name: 🖨 Build Javadocs
+        run: |
+          cd Plan
+          echo "Building javadocs with gradle"
+          ./gradlew aggregateJavadocs
+          echo "Moving to working directory:"
+          cd ../
+          mkdir javadocs
+          mkdir javadocs/all
+          mkdir javadocs/api
+          cp -r Plan/build/docs/javadoc/* javadocs/all/
+          cp -r Plan/api/build/docs/javadoc/* javadocs/api/
+          cp scripts/index.html javadocs/index.html
+          cd javadocs
+          touch .nojekyll
+      - name: 📤 Deploy Javadocs 
+        if: github.ref == 'refs/heads/master'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages # The branch the action should deploy to.
+          folder: javadocs # The folder the action should deploy.
+      - name: 🩺 SonarCloud - Java
+        if: "${{ env.SONAR_TOKEN != '' }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          cd Plan
+          ./gradlew sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=player-analytics-plan
+      - name: 🩺 SonarCloud - React
+        if: "${{ env.SONAR_TOKEN != '' }}"
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

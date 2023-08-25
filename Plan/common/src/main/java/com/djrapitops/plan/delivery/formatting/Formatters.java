@@ -23,6 +23,7 @@ import com.djrapitops.plan.settings.locale.Locale;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Factory for new instances of different {@link Formatter}s.
@@ -42,6 +43,7 @@ public class Formatters {
     private final DayFormatter dayLongFormatter;
     private final SecondFormatter secondLongFormatter;
     private final ClockFormatter clockLongFormatter;
+    private final HttpLastModifiedDateFormatter httpLastModifiedDateFormatter;
     private final JavascriptDateFormatter javascriptDateFormatter;
     private final ISO8601NoClockFormatter iso8601NoClockLongFormatter;
     private final ISO8601NoClockTZIndependentFormatter iso8601NoClockTZIndependentFormatter;
@@ -58,6 +60,7 @@ public class Formatters {
         dayLongFormatter = new DayFormatter(config, locale);
         clockLongFormatter = new ClockFormatter(config, locale);
         secondLongFormatter = new SecondFormatter(config, locale);
+        httpLastModifiedDateFormatter = new HttpLastModifiedDateFormatter(config, locale);
         javascriptDateFormatter = new JavascriptDateFormatter(config, locale);
         iso8601NoClockLongFormatter = new ISO8601NoClockFormatter(config, locale);
         iso8601NoClockTZIndependentFormatter = new ISO8601NoClockTZIndependentFormatter();
@@ -73,6 +76,16 @@ public class Formatters {
         decimalFormatter = new DecimalFormatter(config);
         percentageFormatter = new PercentageFormatter(decimalFormatter);
         byteSizeFormatter = new ByteSizeFormatter(decimalFormatter);
+
+        Formatters.Holder.set(this);
+    }
+
+    public static Formatters getInstance() {
+        return Holder.formatters.get();
+    }
+
+    public static void clearSingleton() {
+        Holder.formatters.set(null);
     }
 
     public Formatter<DateHolder> year() {
@@ -111,6 +124,10 @@ public class Formatters {
         return iso8601NoClockFormatter;
     }
 
+    public Formatter<Long> httpLastModifiedLong() {
+        return httpLastModifiedDateFormatter;
+    }
+
     public Formatter<Long> javascriptDateFormatterLong() {
         return javascriptDateFormatter;
     }
@@ -141,5 +158,17 @@ public class Formatters {
 
     public Formatter<Long> byteSizeLong() {
         return value -> byteSizeFormatter.apply((double) value);
+    }
+
+    static class Holder {
+        static final AtomicReference<Formatters> formatters = new AtomicReference<>();
+
+        private Holder() {
+            /* Static variable holder */
+        }
+
+        static void set(Formatters service) {
+            Formatters.Holder.formatters.set(service);
+        }
     }
 }

@@ -17,10 +17,12 @@
 package com.djrapitops.plan.delivery.rendering.pages;
 
 import com.djrapitops.plan.delivery.formatting.PlaceholderReplacer;
+import com.djrapitops.plan.delivery.web.resource.WebResource;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.utilities.java.UnaryChain;
+import com.djrapitops.plan.version.VersionChecker;
 
 /**
  * Html String generator for /login and /register page.
@@ -29,28 +31,38 @@ import com.djrapitops.plan.utilities.java.UnaryChain;
  */
 public class LoginPage implements Page {
 
-    private final String template;
+    private final WebResource template;
     private final ServerInfo serverInfo;
     private final Locale locale;
     private final Theme theme;
 
+    private final VersionChecker versionChecker;
+
     LoginPage(
-            String htmlTemplate,
+            WebResource htmlTemplate,
             ServerInfo serverInfo,
             Locale locale,
-            Theme theme
+            Theme theme,
+            VersionChecker versionChecker
     ) {
         this.template = htmlTemplate;
         this.serverInfo = serverInfo;
         this.locale = locale;
         this.theme = theme;
+        this.versionChecker = versionChecker;
+    }
+
+    @Override
+    public long lastModified() {
+        return template.getLastModified().orElseGet(System::currentTimeMillis);
     }
 
     @Override
     public String toHtml() {
         PlaceholderReplacer placeholders = new PlaceholderReplacer();
         placeholders.put("command", getCommand());
-        return UnaryChain.of(template)
+        placeholders.put("version", versionChecker.getCurrentVersion());
+        return UnaryChain.of(template.asString())
                 .chain(theme::replaceThemeColors)
                 .chain(placeholders::apply)
                 .chain(locale::replaceLanguageInHtml)

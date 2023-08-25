@@ -16,27 +16,36 @@
  */
 package com.djrapitops.plan.delivery.web.resolver.request;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Supplier;
 
 public final class WebUser {
 
     private final String playerName;
     private final String username;
+    private final UUID playerUUID;
     private final Set<String> permissions;
 
     public WebUser(String playerName) {
         this.playerName = playerName;
+        this.playerUUID = null;
         this.username = playerName;
         this.permissions = new HashSet<>();
     }
 
-    public WebUser(String playerName, String username, Collection<String> permissions) {
+    public WebUser(String playerName, UUID playerUUID, String username, Collection<String> permissions) {
         this.playerName = playerName;
+        this.playerUUID = playerUUID;
         this.username = username;
         this.permissions = new HashSet<>(permissions);
+    }
+
+    /**
+     * @deprecated WebUser now stores the UUID of the linked user
+     */
+    @Deprecated
+    public WebUser(String playerName, String username, Collection<String> permissions) {
+        this(playerName, null, username, permissions);
     }
 
     /**
@@ -49,7 +58,16 @@ public final class WebUser {
     }
 
     public boolean hasPermission(String permission) {
-        return permissions.contains(permission);
+        for (String grant : permissions) {
+            String substitute = permission.replace(grant, "");
+            // Last character is . so it is a sub-permission of the parent, eg. page.player, page.player.thing -> .thing
+            if (substitute.isEmpty() || substitute.startsWith(".")) return true;
+        }
+        return false;
+    }
+
+    public boolean hasPermission(Supplier<String> permissionSupplier) {
+        return hasPermission(permissionSupplier.get());
     }
 
     public String getName() {
@@ -58,6 +76,14 @@ public final class WebUser {
 
     public String getUsername() {
         return username;
+    }
+
+    public Optional<UUID> getUUID() {
+        return Optional.ofNullable(playerUUID);
+    }
+
+    public Set<String> getPermissions() {
+        return permissions;
     }
 
     @Override

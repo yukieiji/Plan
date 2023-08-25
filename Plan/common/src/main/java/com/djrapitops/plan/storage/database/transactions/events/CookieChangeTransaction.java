@@ -19,6 +19,7 @@ package com.djrapitops.plan.storage.database.transactions.events;
 import com.djrapitops.plan.storage.database.sql.tables.CookieTable;
 import com.djrapitops.plan.storage.database.transactions.ExecStatement;
 import com.djrapitops.plan.storage.database.transactions.Transaction;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -26,10 +27,11 @@ import java.sql.SQLException;
 public class CookieChangeTransaction extends Transaction {
 
     private final String username;
+    @Untrusted
     private final String cookie; // Null if removing
     private final Long expires;
 
-    private CookieChangeTransaction(String username, String cookie, Long expires) {
+    private CookieChangeTransaction(String username, @Untrusted String cookie, Long expires) {
         this.username = username;
         this.cookie = cookie;
         this.expires = expires;
@@ -39,8 +41,12 @@ public class CookieChangeTransaction extends Transaction {
         return new CookieChangeTransaction(username, cookie, expires);
     }
 
-    public static CookieChangeTransaction removeCookie(String username) {
+    public static CookieChangeTransaction removeCookieByUser(String username) {
         return new CookieChangeTransaction(username, null, null);
+    }
+
+    public static CookieChangeTransaction removeCookie(@Untrusted String cookie) {
+        return new CookieChangeTransaction(null, cookie, null);
     }
 
     public static CookieChangeTransaction removeAll() {
@@ -49,11 +55,25 @@ public class CookieChangeTransaction extends Transaction {
 
     @Override
     protected void performOperations() {
-        if (username == null) {
+        if (username == null && cookie == null) {
             execute(new ExecStatement(CookieTable.DELETE_ALL_STATEMENT) {
                 @Override
                 public void prepare(PreparedStatement statement) {
                     // No parameters
+                }
+            });
+        } else if (username == null) {
+            execute(new ExecStatement(CookieTable.DELETE_BY_COOKIE_STATEMENT) {
+                @Override
+                public void prepare(PreparedStatement statement) throws SQLException {
+                    statement.setString(1, cookie);
+                }
+            });
+            // Perform cleanup at the same time
+            execute(new ExecStatement(CookieTable.DELETE_OLDER_STATEMENT) {
+                @Override
+                public void prepare(PreparedStatement statement) throws SQLException {
+                    statement.setLong(1, System.currentTimeMillis());
                 }
             });
         } else if (cookie == null) {

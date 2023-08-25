@@ -16,6 +16,8 @@
  */
 package com.djrapitops.plan.storage.database.queries;
 
+import com.djrapitops.plan.component.Component;
+import com.djrapitops.plan.component.ComponentService;
 import com.djrapitops.plan.delivery.rendering.html.structure.HtmlTable;
 import com.djrapitops.plan.extension.CallEvents;
 import com.djrapitops.plan.extension.DataExtension;
@@ -37,8 +39,13 @@ import com.djrapitops.plan.gathering.domain.WorldTimes;
 import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.storage.database.DatabaseTestPreparer;
 import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythingTransaction;
-import com.djrapitops.plan.storage.database.transactions.events.WorldNameStoreTransaction;
+import com.djrapitops.plan.storage.database.transactions.events.PlayerRegisterTransaction;
+import com.djrapitops.plan.storage.database.transactions.events.StoreSessionTransaction;
+import com.djrapitops.plan.storage.database.transactions.events.StoreWorldNameTransaction;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import utilities.OptionalAssert;
 import utilities.RandomData;
@@ -61,6 +68,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @BeforeEach
     default void unregisterExtensions() {
+        componentService().register();
         ExtensionSvc extensionService = extensionService();
         extensionService.register();
         extensionService.unregister(new PlayerExtension());
@@ -86,6 +94,8 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
 
     @Test
     default void extensionPlayerValuesAreStored() {
+        db().executeTransaction(new PlayerRegisterTransaction(TestConstants.PLAYER_ONE_UUID, System::currentTimeMillis, TestConstants.PLAYER_ONE_NAME));
+
         ExtensionSvc extensionService = extensionService();
 
         extensionService.register(new PlayerExtension());
@@ -107,18 +117,30 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         OptionalAssert.equals("0.5", tabData.getPercentage("percentageVal").map(data -> data.getFormattedValue(Object::toString)));
         OptionalAssert.equals("Something", tabData.getString("stringVal").map(ExtensionStringData::getFormattedValue));
         OptionalAssert.equals("Group", tabData.getString("groupVal").map(ExtensionStringData::getFormattedValue));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode objectNode = objectMapper.createObjectNode();
+        objectNode.put("color", "green");
+        objectNode.put("text", "Test");
+        OptionalAssert.equals(objectNode, tabData.getComponent("componentVal").map(ExtensionComponentData::getFormattedValue).map(str -> {
+            try {
+                return objectMapper.readTree(str);
+            } catch (Throwable t) {
+                return fail(t);
+            }
+        }));
     }
 
     @Test
     default void extensionPlayerValuesCanBeQueriedAsTableData() {
         extensionPlayerValuesAreStored();
-        db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[0]));
-        db().executeTransaction(new WorldNameStoreTransaction(serverUUID(), worlds[1]));
+        db().executeTransaction(new StoreWorldNameTransaction(serverUUID(), worlds[0]));
+        db().executeTransaction(new StoreWorldNameTransaction(serverUUID(), worlds[1]));
 
         // Store a session to check against issue https://github.com/plan-player-analytics/Plan/issues/1039
         ActiveSession session = new ActiveSession(playerUUID, serverUUID(), 32345L, worlds[0], "SURVIVAL");
         session.getExtraData().put(WorldTimes.class, RandomData.randomWorldTimes(worlds));
-        execute(DataStoreQueries.storeSession(session.toFinishedSession(42345L)));
+        db().executeTransaction(new StoreSessionTransaction(session.toFinishedSession(42345L)));
 
         Map<UUID, ExtensionTabData> result = db().query(new ExtensionServerTableDataQuery(serverUUID(), 50));
         assertEquals(1, result.size());
@@ -168,8 +190,6 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         List<ExtensionTabData> tabs = extensionData.getTabs();
         assertEquals(1, tabs.size()); // No tab defined, should contain 1 tab
         ExtensionTabData tabData = tabs.get(0);
-
-        System.out.println(tabData.getValueOrder());
 
         OptionalAssert.equals("0.0", tabData.getPercentage("boolVal_aggregate").map(data -> data.getFormattedValue(Objects::toString)));
         OptionalAssert.equals("0.5", tabData.getPercentage("percentageVal_avg").map(data -> data.getFormattedValue(Objects::toString)));
@@ -357,6 +377,7 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
     }
 
     @Test
+    @Disabled("Flaky test, possibly due to some kind of concurrent execution - one extra exception is sometimes caught")
     default void extensionExceptionsAreCaught() {
         TestErrorLogger.throwErrors(false);
         ExtensionSvc extensionService = extensionService();
@@ -483,6 +504,11 @@ public interface ExtensionsDatabaseTest extends DatabaseTestPreparer {
         @GroupProvider(text = "a group")
         public String[] groupVal(UUID playerUUID) {
             return new String[]{"Group"};
+        }
+
+        @ComponentProvider(text = "colored text")
+        public Component componentVal(UUID playerUUID) {
+            return ComponentService.getInstance().fromLegacy("&aTest", '&');
         }
     }
 

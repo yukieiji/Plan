@@ -16,11 +16,14 @@
  */
 package com.djrapitops.plan.delivery.rendering.pages;
 
+import com.djrapitops.plan.component.ComponentSvc;
 import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
 import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.rendering.html.icon.Icon;
 import com.djrapitops.plan.delivery.web.ResourceService;
 import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
+import com.djrapitops.plan.delivery.web.resource.WebResource;
+import com.djrapitops.plan.delivery.webserver.Addresses;
 import com.djrapitops.plan.delivery.webserver.cache.JSONStorage;
 import com.djrapitops.plan.extension.implementation.results.ExtensionData;
 import com.djrapitops.plan.extension.implementation.storage.queries.ExtensionPlayerDataQuery;
@@ -28,13 +31,15 @@ import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.identification.ServerUUID;
 import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
-import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQueries;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.file.PlanFiles;
+import com.djrapitops.plan.storage.file.PublicHtmlFiles;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 import com.djrapitops.plan.version.VersionChecker;
 import dagger.Lazy;
 
@@ -54,40 +59,70 @@ public class PageFactory {
 
     private final Lazy<VersionChecker> versionChecker;
     private final Lazy<PlanFiles> files;
+    private final Lazy<PublicHtmlFiles> publicHtmlFiles;
     private final Lazy<PlanConfig> config;
-    private final Lazy<Locale> locale;
     private final Lazy<Theme> theme;
     private final Lazy<DBSystem> dbSystem;
     private final Lazy<ServerInfo> serverInfo;
     private final Lazy<JSONStorage> jsonStorage;
     private final Lazy<Formatters> formatters;
+    private final Lazy<Locale> locale;
+    private final Lazy<ComponentSvc> componentService;
+    private final Lazy<Addresses> addresses;
 
     @Inject
     public PageFactory(
             Lazy<VersionChecker> versionChecker,
             Lazy<PlanFiles> files,
-            Lazy<PlanConfig> config,
-            Lazy<Locale> locale,
+            Lazy<PublicHtmlFiles> publicHtmlFiles, Lazy<PlanConfig> config,
             Lazy<Theme> theme,
             Lazy<DBSystem> dbSystem,
             Lazy<ServerInfo> serverInfo,
             Lazy<JSONStorage> jsonStorage,
-            Lazy<Formatters> formatters
+            Lazy<Formatters> formatters,
+            Lazy<Locale> locale,
+            Lazy<ComponentSvc> componentService,
+            Lazy<Addresses> addresses
     ) {
         this.versionChecker = versionChecker;
         this.files = files;
+        this.publicHtmlFiles = publicHtmlFiles;
         this.config = config;
-        this.locale = locale;
         this.theme = theme;
         this.dbSystem = dbSystem;
         this.serverInfo = serverInfo;
         this.jsonStorage = jsonStorage;
         this.formatters = formatters;
+        this.locale = locale;
+        this.componentService = componentService;
+        this.addresses = addresses;
     }
 
-    public PlayersPage playersPage() throws IOException {
-        return new PlayersPage(getResource("players.html"), versionChecker.get(),
-                config.get(), locale.get(), theme.get(), serverInfo.get());
+    public Page playersPage() throws IOException {
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
+        return new PlayersPage(getResourceAsString("players.html"), versionChecker.get(),
+                config.get(), theme.get(), serverInfo.get());
+    }
+
+    public Page reactPage() throws IOException {
+        try {
+            String fileName = "index.html";
+            WebResource resource = ResourceService.getInstance().getResource(
+                    "Plan", fileName, () -> getPublicHtmlOrJarResource(fileName)
+            );
+            return new ReactPage(getBasePath(), resource);
+        } catch (UncheckedIOException readFail) {
+            throw readFail.getCause();
+        }
+    }
+
+    private String getBasePath() {
+        String address = addresses.get().getMainAddress()
+                .orElseGet(addresses.get()::getFallbackLocalhostAddress);
+        return addresses.get().getBasePath(address);
     }
 
     /**
@@ -101,28 +136,40 @@ public class PageFactory {
     public Page serverPage(ServerUUID serverUUID) throws IOException {
         Server server = dbSystem.get().getDatabase().query(ServerQueries.fetchServerMatchingIdentifier(serverUUID))
                 .orElseThrow(() -> new NotFoundException("Server not found in the database"));
+
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
         return new ServerPage(
-                getResource("server.html"),
+                getResourceAsString("server.html"),
                 server,
                 config.get(),
                 theme.get(),
-                locale.get(),
                 versionChecker.get(),
                 dbSystem.get(),
                 serverInfo.get(),
                 jsonStorage.get(),
-                formatters.get()
+                formatters.get(),
+                locale.get(),
+                componentService.get()
         );
     }
 
-    public PlayerPage playerPage(UUID playerUUID) throws IOException {
-        Database db = dbSystem.get().getDatabase();
-        PlayerContainer player = db.query(ContainerFetchQueries.fetchPlayerContainer(playerUUID));
+    public Page playerPage(PlayerContainer player) throws IOException {
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
         return new PlayerPage(
-                getResource("player.html"), player,
+                getResourceAsString("player.html"), player,
                 versionChecker.get(),
-                config.get(), this, theme.get(), locale.get(),
-                formatters.get(), serverInfo.get()
+                config.get(),
+                this,
+                theme.get(),
+                formatters.get(),
+                serverInfo.get(),
+                locale.get()
         );
     }
 
@@ -132,7 +179,7 @@ public class PageFactory {
         Map<ServerUUID, List<ExtensionData>> extensionPlayerData = database.query(new ExtensionPlayerDataQuery(playerUUID));
 
         if (extensionPlayerData.isEmpty()) {
-            return new PlayerPluginTab("", Collections.emptyList(), formatters.get());
+            return new PlayerPluginTab("", Collections.emptyList(), formatters.get(), componentService.get());
         }
 
         List<PlayerPluginTab> playerPluginTabs = new ArrayList<>();
@@ -145,7 +192,7 @@ public class PageFactory {
                 continue;
             }
 
-            playerPluginTabs.add(new PlayerPluginTab(serverName, ofServer, formatters.get()));
+            playerPluginTabs.add(new PlayerPluginTab(serverName, ofServer, formatters.get(), componentService.get()));
         }
 
         StringBuilder navs = new StringBuilder();
@@ -156,69 +203,97 @@ public class PageFactory {
             tabs.append(tab.getTab());
         });
 
-        return new PlayerPluginTab(navs.toString(), tabs.toString());
+        return new PlayerPluginTab(navs.toString(), tabs.toString(), componentService.get());
     }
 
-    public NetworkPage networkPage() throws IOException {
-        return new NetworkPage(getResource("network.html"),
+    public Page networkPage() throws IOException {
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
+        return new NetworkPage(getResourceAsString("network.html"),
                 dbSystem.get(),
                 versionChecker.get(),
-                config.get(), theme.get(), locale.get(),
+                config.get(),
+                theme.get(),
                 serverInfo.get(),
                 jsonStorage.get(),
-                formatters.get());
+                formatters.get(),
+                locale.get(),
+                componentService.get()
+        );
     }
 
-    public Page internalErrorPage(String message, Throwable error) {
+    public Page internalErrorPage(String message, @Untrusted Throwable error) {
         try {
             return new InternalErrorPage(
-                    getResource("error.html"), message, error,
+                    getResourceAsString("error.html"), message, error,
                     versionChecker.get());
         } catch (IOException noParse) {
             return () -> "Error occurred: " + error.toString() +
                     ", additional error occurred when attempting to render error page to user: " +
-                    noParse.toString();
+                    noParse;
         }
     }
 
     public Page errorPage(String title, String error) throws IOException {
         return new ErrorMessagePage(
-                getResource("error.html"), title, error,
-                versionChecker.get(), locale.get(), theme.get());
+                getResourceAsString("error.html"), title, error,
+                versionChecker.get(), theme.get());
     }
 
     public Page errorPage(Icon icon, String title, String error) throws IOException {
         return new ErrorMessagePage(
-                getResource("error.html"), icon, title, error,
-                locale.get(), theme.get(), versionChecker.get());
+                getResourceAsString("error.html"), icon, title, error, theme.get(), versionChecker.get());
     }
 
-    public String getResource(String name) throws IOException {
+    public String getResourceAsString(String name) throws IOException {
+        return getResource(name).asString();
+    }
+
+    public WebResource getResource(String resourceName) throws IOException {
         try {
-            return ResourceService.getInstance().getResource("Plan", name,
-                    () -> files.get().getResourceFromJar("web/" + name).asWebResource()
-            ).asString();
+            return ResourceService.getInstance().getResource("Plan", resourceName,
+                    () -> files.get().getResourceFromJar("web/" + resourceName).asWebResource()
+            );
         } catch (UncheckedIOException readFail) {
             throw readFail.getCause();
         }
     }
 
+    public WebResource getPublicHtmlOrJarResource(String resourceName) {
+        return publicHtmlFiles.get().findPublicHtmlResource(resourceName)
+                .orElseGet(() -> files.get().getResourceFromJar("web/" + resourceName))
+                .asWebResource();
+    }
+
     public Page loginPage() throws IOException {
-        return new LoginPage(getResource("login.html"), serverInfo.get(), locale.get(), theme.get());
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
+        return new LoginPage(getResource("login.html"), serverInfo.get(), locale.get(), theme.get(), versionChecker.get());
     }
 
     public Page registerPage() throws IOException {
-        return new LoginPage(getResource("register.html"), serverInfo.get(), locale.get(), theme.get());
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
+
+        return new LoginPage(getResource("register.html"), serverInfo.get(), locale.get(), theme.get(), versionChecker.get());
     }
 
     public Page queryPage() throws IOException {
+        if (config.get().isFalse(PluginSettings.LEGACY_FRONTEND)) {
+            return reactPage();
+        }
         return new QueryPage(
-                getResource("query.html"),
+                getResourceAsString("query.html"),
                 locale.get(), theme.get(), versionChecker.get()
         );
     }
 
     public Page errorsPage() throws IOException {
-        return new ErrorsPage(getResource("error.html"), locale.get(), theme.get(), versionChecker.get());
+        return reactPage();
     }
 }

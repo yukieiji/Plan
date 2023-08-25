@@ -17,11 +17,15 @@
 package com.djrapitops.plan.delivery.export;
 
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.ExportSettings;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.storage.database.DBSystem;
+import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
+import net.playeranalytics.plugin.scheduling.PluginRunnable;
 import net.playeranalytics.plugin.scheduling.RunnableFactory;
 import net.playeranalytics.plugin.scheduling.TimeAmount;
 
@@ -37,10 +41,11 @@ import java.util.concurrent.TimeUnit;
  * @author AuroraLS3
  */
 @Singleton
-public class ExportScheduler {
+public class ExportScheduler extends PluginRunnable {
 
     private final PlanConfig config;
     private final DBSystem dbSystem;
+    private final ServerInfo serverInfo;
 
     private final RunnableFactory runnableFactory;
     private final Exporter exporter;
@@ -50,27 +55,53 @@ public class ExportScheduler {
     public ExportScheduler(
             PlanConfig config,
             DBSystem dbSystem,
+            ServerInfo serverInfo,
             RunnableFactory runnableFactory,
             Exporter exporter,
             ErrorLogger errorLogger
     ) {
         this.config = config;
         this.dbSystem = dbSystem;
+        this.serverInfo = serverInfo;
         this.runnableFactory = runnableFactory;
         this.exporter = exporter;
         this.errorLogger = errorLogger;
     }
 
-    public void scheduleExport() {
+    @Override
+    public void run() {
+        scheduleExport();
+    }
+
+    private void scheduleExport() {
+        Database database = dbSystem.getDatabase();
+        boolean hasProxy = !database.query(ServerQueries.fetchProxyServers()).isEmpty();
+        if (serverInfo.getServer().isNotProxy() && hasProxy) {
+            return;
+        }
+
+        scheduleReactExport();
         scheduleServerPageExport();
         schedulePlayersPageExport();
     }
 
+    private void scheduleReactExport() {
+        if (config.isTrue(PluginSettings.LEGACY_FRONTEND) ||
+                config.isFalse(ExportSettings.SERVER_PAGE) &&
+                        config.isFalse(ExportSettings.PLAYER_PAGES) &&
+                        config.isFalse(ExportSettings.PLAYERS_PAGE)) {return;}
+
+        runnableFactory.create(
+                new ExportTask(exporter, Exporter::exportReact, errorLogger)
+        ).runTaskLaterAsynchronously(TimeAmount.toTicks(5, TimeUnit.SECONDS));
+    }
+
     private void schedulePlayersPageExport() {
-        long period = TimeAmount.toTicks(config.get(ExportSettings.EXPORT_PERIOD), TimeUnit.MILLISECONDS);
+        long period = TimeAmount.toTicks(config.get(ExportSettings.EXPORT_PERIOD), TimeUnit.MILLISECONDS)
+                / 4;
         runnableFactory.create(
                 new ExportTask(exporter, Exporter::exportPlayersPage, errorLogger)
-        ).runTaskTimerAsynchronously(0L, period);
+        ).runTaskTimerAsynchronously(TimeAmount.toTicks(2, TimeUnit.MINUTES), period);
     }
 
     private void scheduleServerPageExport() {
@@ -85,17 +116,17 @@ public class ExportScheduler {
 
         Optional<Server> proxy = servers.stream().filter(Server::isProxy).findFirst();
         proxy.ifPresent(mainServer -> runnableFactory.create(
-                new ExportTask(exporter, same -> same.exportServerPage(mainServer), errorLogger))
-                .runTaskTimerAsynchronously(0L, period)
+                        new ExportTask(exporter, same -> same.exportServerPage(mainServer), errorLogger))
+                .runTaskTimerAsynchronously(TimeAmount.toTicks(1, TimeUnit.MINUTES), period)
         );
 
         int offsetMultiplier = proxy.isPresent() ? 1 : 0; // Delay first server export if on a network.
         for (Server server : servers) {
             runnableFactory.create(
-                    new ExportTask(exporter, same -> {
-                        same.exportServerPage(server);
-                        same.exportServerJSON(server);
-                    }, errorLogger))
+                            new ExportTask(exporter, same -> {
+                                same.exportServerPage(server);
+                                same.exportServerJSON(server);
+                            }, errorLogger))
                     .runTaskTimerAsynchronously(offset * offsetMultiplier, period);
             offsetMultiplier++;
         }

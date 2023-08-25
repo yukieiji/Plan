@@ -17,13 +17,15 @@
 package com.djrapitops.plan.delivery.webserver.auth;
 
 import com.djrapitops.plan.delivery.domain.auth.User;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 
 public class CookieAuthentication implements Authentication {
 
     private final ActiveCookieStore activeCookieStore;
+    @Untrusted
     private final String cookie;
 
-    public CookieAuthentication(ActiveCookieStore activeCookieStore, String cookie) {
+    public CookieAuthentication(ActiveCookieStore activeCookieStore, @Untrusted String cookie) {
         this.activeCookieStore = activeCookieStore;
         this.cookie = cookie;
     }

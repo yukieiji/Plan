@@ -25,6 +25,8 @@ import com.djrapitops.plan.gathering.ServerShutdownSave;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.PluginLang;
 import com.djrapitops.plan.settings.theme.PlanColorScheme;
+import com.djrapitops.plan.utilities.java.ThreadContextClassLoaderSwap;
+import com.djrapitops.plan.utilities.logging.ErrorLogger;
 import net.playeranalytics.plugin.BukkitPlatformLayer;
 import net.playeranalytics.plugin.PlatformAbstractionLayer;
 import net.playeranalytics.plugin.scheduling.RunnableFactory;
@@ -55,6 +57,8 @@ public class Plan extends JavaPlugin implements PlanPlugin {
     private PluginLogger pluginLogger;
     private RunnableFactory runnableFactory;
     private PlatformAbstractionLayer abstractionLayer;
+    private ErrorLogger errorLogger;
+    private PlanBukkitComponent component;
 
     @Override
     public void onLoad() {
@@ -65,13 +69,14 @@ public class Plan extends JavaPlugin implements PlanPlugin {
 
     @Override
     public void onEnable() {
-        PlanBukkitComponent component = DaggerPlanBukkitComponent.builder()
+        component = DaggerPlanBukkitComponent.builder()
                 .plan(this)
                 .abstractionLayer(abstractionLayer)
                 .server(getServer())
                 .build();
         try {
-            system = component.system();
+            system = ThreadContextClassLoaderSwap.performOperation(getClass().getClassLoader(), component::system);
+            errorLogger = component.errorLogger();
             serverShutdownSave = component.serverShutdownSave();
             locale = system.getLocaleSystem().getLocale();
             system.enable();
@@ -131,9 +136,16 @@ public class Plan extends JavaPlugin implements PlanPlugin {
     public void onDisable() {
         storeSessionsOnShutdown();
         cancelAllTasks();
+        if (component != null) unregisterPlaceholders(component.placeholders());
         if (system != null) system.disable();
 
         pluginLogger.info(Locale.getStringNullSafe(locale, PluginLang.DISABLED));
+    }
+
+    private void unregisterPlaceholders(BukkitPlaceholderRegistrar placeholders) {
+        if (placeholders != null) {
+            runnableFactory.create(placeholders::unregister);
+        }
     }
 
     private void storeSessionsOnShutdown() {
@@ -170,42 +182,42 @@ public class Plan extends JavaPlugin implements PlanPlugin {
                 pluginLogger.warn("Attempted to register '" + name + "'-command, but it is not in plugin.yml!");
                 continue;
             }
-            registering.setExecutor(new BukkitCommand(runnableFactory, system.getErrorLogger(), command));
+            registering.setExecutor(new BukkitCommand(runnableFactory, errorLogger, command));
         }
     }
 
     /**
-     * @deprecated Deprecated due to use of APF Config
+     * @deprecated Deprecated due to use of custom Config
      */
     @Override
-    @Deprecated
+    @Deprecated(since = "Config.java (2018)")
     public void reloadConfig() {
         throw new IllegalStateException("This method should be used on this plugin. Use onReload() instead");
     }
 
     /**
-     * @deprecated Deprecated due to use of APF Config
+     * @deprecated Deprecated due to use of custom Config
      */
     @Override
-    @Deprecated
+    @Deprecated(since = "Config.java (2018)")
     public FileConfiguration getConfig() {
         throw new IllegalStateException("This method should be used on this plugin. Use getMainConfig() instead");
     }
 
     /**
-     * @deprecated Deprecated due to use of APF Config
+     * @deprecated Deprecated due to use of custom Config
      */
     @Override
-    @Deprecated
+    @Deprecated(since = "Config.java (2018)")
     public void saveConfig() {
         throw new IllegalStateException("This method should be used on this plugin. Use getMainConfig().save() instead");
     }
 
     /**
-     * @deprecated Deprecated due to use of APF Config
+     * @deprecated Deprecated due to use of custom Config
      */
     @Override
-    @Deprecated
+    @Deprecated(since = "Config.java (2018)")
     public void saveDefaultConfig() {
         throw new IllegalStateException("This method should be used on this plugin.");
     }

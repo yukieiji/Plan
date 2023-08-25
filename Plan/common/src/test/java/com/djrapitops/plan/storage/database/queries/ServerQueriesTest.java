@@ -25,8 +25,10 @@ import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythi
 import com.djrapitops.plan.storage.database.transactions.commands.SetServerAsUninstalledTransaction;
 import org.junit.jupiter.api.Test;
 import utilities.OptionalAssert;
+import utilities.TestConstants;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -52,11 +54,11 @@ public interface ServerQueriesTest extends DatabaseTestPreparer {
 
     @Test
     default void bungeeInformationIsStored() {
-        Optional<Server> bungeeInfo = db().query(ServerQueries.fetchProxyServerInformation());
-        assertFalse(bungeeInfo.isPresent());
+        List<Server> proxies = db().query(ServerQueries.fetchProxyServers());
+        assertTrue(proxies.isEmpty());
 
         ServerUUID bungeeUUID = ServerUUID.randomUUID();
-        Server bungeeCord = new Server(bungeeUUID, "BungeeCord", "Random:1234");
+        Server bungeeCord = new Server(bungeeUUID, "BungeeCord", "Random:1234", TestConstants.VERSION);
         bungeeCord.setProxy(true);
         db().executeTransaction(new StoreServerInformationTransaction(bungeeCord));
 
@@ -64,9 +66,9 @@ public interface ServerQueriesTest extends DatabaseTestPreparer {
 
         bungeeCord.setId(2);
 
-        bungeeInfo = db().query(ServerQueries.fetchProxyServerInformation());
-        assertTrue(bungeeInfo.isPresent());
-        assertEquals(bungeeCord, bungeeInfo.get());
+        proxies = db().query(ServerQueries.fetchProxyServers());
+        assertFalse(proxies.isEmpty());
+        assertEquals(List.of(bungeeCord), proxies);
 
         Optional<Server> found = db().query(ServerQueries.fetchServerMatchingIdentifier(bungeeUUID));
         OptionalAssert.equals(bungeeCord.getWebAddress(), found.map(Server::getWebAddress));

@@ -24,8 +24,10 @@ import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resource.WebResource;
 import com.djrapitops.plan.delivery.webserver.resolver.json.RootJSONResolver;
-import com.djrapitops.plan.exceptions.connection.WebException;
+import com.djrapitops.plan.exceptions.WebUserAuthException;
 import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
@@ -49,6 +51,7 @@ import java.util.Optional;
 public class PlayersPageExporter extends FileExporter {
 
     private final PlanFiles files;
+    private final PlanConfig config;
     private final DBSystem dbSystem;
     private final PageFactory pageFactory;
     private final RootJSONResolver jsonHandler;
@@ -60,13 +63,14 @@ public class PlayersPageExporter extends FileExporter {
     @Inject
     public PlayersPageExporter(
             PlanFiles files,
-            DBSystem dbSystem,
+            PlanConfig config, DBSystem dbSystem,
             PageFactory pageFactory,
             RootJSONResolver jsonHandler,
             Theme theme,
             ServerInfo serverInfo
     ) {
         this.files = files;
+        this.config = config;
         this.dbSystem = dbSystem;
         this.pageFactory = pageFactory;
         this.jsonHandler = jsonHandler;
@@ -84,10 +88,13 @@ public class PlayersPageExporter extends FileExporter {
         exportRequiredResources(toDirectory);
         exportJSON(toDirectory);
         exportHtml(toDirectory);
+        exportReactRedirects(toDirectory);
         exportPaths.clear();
     }
 
     private void exportHtml(Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         Path to = toDirectory
                 .resolve("players")
                 .resolve("index.html");
@@ -96,23 +103,34 @@ public class PlayersPageExporter extends FileExporter {
 
         // Fixes refreshingJsonRequest ignoring old data of export
         String html = StringUtils.replaceEach(page.toHtml(),
-                new String[]{"}, 'playerlist', true);"},
-                new String[]{"}, 'playerlist');"});
+                new String[]{
+                        "}, 'playerlist', true);",
+                        "<head>"
+                },
+                new String[]{
+                        "}, 'playerlist');",
+                        "<head><style>.refresh-element {display: none;}</style>"
+                });
 
         export(to, exportPaths.resolveExportPaths(html));
     }
 
+    private void exportReactRedirects(Path toDirectory) throws IOException {
+        if (config.isTrue(PluginSettings.LEGACY_FRONTEND)) return;
+
+        String[] redirections = {"players"};
+        exportReactRedirects(toDirectory, files, config, redirections);
+    }
+
     private void exportJSON(Path toDirectory) throws IOException {
-        Optional<Response> found = getJSONResponse("players");
-        if (!found.isPresent()) {
-            throw new NotFoundException("players page was not properly exported: not found");
-        }
+        Response response = getJSONResponse("players")
+                .orElseThrow(() -> new NotFoundException("players page was not properly exported: not found"));
 
         String jsonResourceName = toFileName(toJSONResourceName("players")) + ".json";
 
         export(toDirectory.resolve("data").resolve(jsonResourceName),
                 // Replace ../player in urls to fix player page links
-                StringUtils.replace(found.get().getAsString(), "../player", toRelativePathFromRoot("player"))
+                StringUtils.replace(response.getAsString(), "../player", toRelativePathFromRoot("player"))
         );
         exportPaths.put("./v1/players", toRelativePathFromRoot("data/" + jsonResourceName));
     }
@@ -124,18 +142,21 @@ public class PlayersPageExporter extends FileExporter {
     private Optional<Response> getJSONResponse(String resource) {
         try {
             return jsonHandler.getResolver().resolve(new Request("GET", "/v1/" + resource, null, Collections.emptyMap()));
-        } catch (WebException e) {
+        } catch (WebUserAuthException e) {
             // The rest of the exceptions should not be thrown
             throw new IllegalStateException("Unexpected exception thrown: " + e.toString(), e);
         }
     }
 
     private void exportRequiredResources(Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         // Style
         exportResources(toDirectory,
                 "img/Flaticon_circle.png",
                 "css/sb-admin-2.css",
                 "css/style.css",
+                "css/noauth.css",
                 "vendor/datatables/datatables.min.js",
                 "vendor/datatables/datatables.min.css",
                 "vendor/fontawesome-free/css/all.min.css",

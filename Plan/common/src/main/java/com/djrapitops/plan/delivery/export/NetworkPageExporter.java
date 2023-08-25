@@ -24,8 +24,10 @@ import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resource.WebResource;
 import com.djrapitops.plan.delivery.webserver.resolver.json.RootJSONResolver;
-import com.djrapitops.plan.exceptions.connection.WebException;
+import com.djrapitops.plan.exceptions.WebUserAuthException;
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
@@ -50,6 +52,7 @@ import java.util.Optional;
 public class NetworkPageExporter extends FileExporter {
 
     private final PlanFiles files;
+    private final PlanConfig config;
     private final DBSystem dbSystem;
     private final PageFactory pageFactory;
     private final RootJSONResolver jsonHandler;
@@ -58,12 +61,14 @@ public class NetworkPageExporter extends FileExporter {
     @Inject
     public NetworkPageExporter(
             PlanFiles files,
+            PlanConfig config,
             DBSystem dbSystem,
             PageFactory pageFactory,
             RootJSONResolver jsonHandler,
             Theme theme
     ) {
         this.files = files;
+        this.config = config;
         this.dbSystem = dbSystem;
         this.pageFactory = pageFactory;
         this.jsonHandler = jsonHandler;
@@ -87,9 +92,12 @@ public class NetworkPageExporter extends FileExporter {
         exportRequiredResources(exportPaths, toDirectory);
         exportJSON(exportPaths, toDirectory, server);
         exportHtml(exportPaths, toDirectory);
+        exportReactRedirects(toDirectory);
     }
 
     private void exportHtml(ExportPaths exportPaths, Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         Path to = toDirectory
                 .resolve("network")
                 .resolve("index.html");
@@ -98,10 +106,37 @@ public class NetworkPageExporter extends FileExporter {
 
         // Fixes refreshingJsonRequest ignoring old data of export
         String html = StringUtils.replaceEach(page.toHtml(),
-                new String[]{"loadPlayersOnlineGraph, 'network-overview', true);"},
-                new String[]{"loadPlayersOnlineGraph, 'network-overview');"});
+                new String[]{"loadPlayersOnlineGraph, 'network-overview', true);",
+                        "&middot; Performance",
+                        "<head>"
+                },
+                new String[]{"loadPlayersOnlineGraph, 'network-overview');",
+                        "&middot; Performance (Unavailable with Export)",
+                        "<head><style>.refresh-element {display: none;}</style>"
+                });
 
         export(to, exportPaths.resolveExportPaths(html));
+    }
+
+    public static String[] getRedirections() {
+        return new String[]{
+                "network",
+                "network/overview",
+                "network/serversOverview",
+                "network/sessions",
+                "network/playerbase",
+                "network/join-addresses",
+                "network/retention",
+                "network/players",
+                "network/geolocations",
+                "network/plugins-overview",
+        };
+    }
+
+    private void exportReactRedirects(Path toDirectory) throws IOException {
+        if (config.isTrue(PluginSettings.LEGACY_FRONTEND)) return;
+
+        exportReactRedirects(toDirectory, files, config, getRedirections());
     }
 
     /**
@@ -122,15 +157,20 @@ public class NetworkPageExporter extends FileExporter {
                 "network/sessionsOverview",
                 "network/playerbaseOverview",
                 "graph?type=playersOnline&server=" + serverUUID,
+                "graph?type=playersOnlineProxies",
                 "graph?type=uniqueAndNew",
                 "graph?type=hourlyUniqueAndNew",
                 "graph?type=serverPie",
                 "graph?type=joinAddressPie",
+                "graph?type=joinAddressByDay",
                 "graph?type=activity",
                 "graph?type=geolocation",
                 "graph?type=uniqueAndNew",
                 "network/pingTable",
-                "sessions"
+                "sessions",
+                "extensionData?server=" + serverUUID,
+                "retention",
+                "joinAddresses"
         );
     }
 
@@ -141,17 +181,15 @@ public class NetworkPageExporter extends FileExporter {
     }
 
     private void exportJSON(ExportPaths exportPaths, Path toDirectory, String resource) throws IOException {
-        Optional<Response> found = getJSONResponse(resource);
-        if (!found.isPresent()) {
-            throw new NotFoundException(resource + " was not properly exported: not found");
-        }
+        Response response = getJSONResponse(resource)
+                .orElseThrow(() -> new NotFoundException(resource + " was not properly exported: not found"));
 
         String jsonResourceName = toFileName(toJSONResourceName(resource)) + ".json";
 
         String relativePlayerLink = toRelativePathFromRoot("player");
         export(toDirectory.resolve("data").resolve(jsonResourceName),
                 // Replace ../player in urls to fix player page links
-                StringUtils.replaceEach(found.get().getAsString(),
+                StringUtils.replaceEach(response.getAsString(),
                         new String[]{StringEscapeUtils.escapeJson("../player"), StringEscapeUtils.escapeJson("./player")},
                         new String[]{StringEscapeUtils.escapeJson(relativePlayerLink), StringEscapeUtils.escapeJson(relativePlayerLink)}
                 )
@@ -166,25 +204,27 @@ public class NetworkPageExporter extends FileExporter {
     private Optional<Response> getJSONResponse(String resource) {
         try {
             return jsonHandler.getResolver().resolve(new Request("GET", "/v1/" + resource, null, Collections.emptyMap()));
-        } catch (WebException e) {
+        } catch (WebUserAuthException e) {
             // The rest of the exceptions should not be thrown
-            throw new IllegalStateException("Unexpected exception thrown: " + e.toString(), e);
+            throw new IllegalStateException("Unexpected exception thrown: " + e, e);
         }
     }
 
     private void exportRequiredResources(ExportPaths exportPaths, Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         exportResources(exportPaths, toDirectory,
                 "./img/Flaticon_circle.png",
                 "./css/sb-admin-2.css",
                 "./css/style.css",
+                "./css/noauth.css",
                 "./vendor/datatables/datatables.min.js",
                 "./vendor/datatables/datatables.min.css",
-                "./vendor/highcharts/highstock.js",
-                "./vendor/highcharts/map.js",
-                "./vendor/highcharts/world.js",
-                "./vendor/highcharts/drilldown.js",
-                "./vendor/highcharts/highcharts-more.js",
-                "./vendor/highcharts/no-data-to-display.js",
+                "./vendor/highcharts/modules/map.js",
+                "./vendor/highcharts/mapdata/world.js",
+                "./vendor/highcharts/modules/drilldown.js",
+                "./vendor/highcharts/highcharts.js",
+                "./vendor/highcharts/modules/no-data-to-display.js",
                 "./vendor/masonry/masonry.pkgd.min.js",
                 "./vendor/fontawesome-free/css/all.min.css",
                 "./vendor/fontawesome-free/webfonts/fa-brands-400.eot",

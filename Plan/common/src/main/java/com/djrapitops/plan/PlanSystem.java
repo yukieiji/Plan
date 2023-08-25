@@ -17,8 +17,10 @@
 package com.djrapitops.plan;
 
 import com.djrapitops.plan.api.PlanAPI;
+import com.djrapitops.plan.component.ComponentSvc;
 import com.djrapitops.plan.delivery.DeliveryUtilities;
 import com.djrapitops.plan.delivery.export.ExportSystem;
+import com.djrapitops.plan.delivery.formatting.Formatters;
 import com.djrapitops.plan.delivery.web.ResolverSvc;
 import com.djrapitops.plan.delivery.web.ResourceSvc;
 import com.djrapitops.plan.delivery.webserver.NonProxyWebserverDisableChecker;
@@ -55,6 +57,8 @@ import javax.inject.Singleton;
 @Singleton
 public class PlanSystem implements SubSystem {
 
+    private static final long SERVER_ENABLE_TIME = System.currentTimeMillis();
+
     private boolean enabled = false;
 
     private final PlanFiles files;
@@ -73,6 +77,7 @@ public class PlanSystem implements SubSystem {
     private final ImportSystem importSystem;
     private final ExportSystem exportSystem;
     private final DeliveryUtilities deliveryUtilities;
+    private final ComponentSvc componentService;
     private final ResolverSvc resolverService;
     private final ResourceSvc resourceService;
     private final ExtensionSvc extensionService;
@@ -99,6 +104,7 @@ public class PlanSystem implements SubSystem {
             ImportSystem importSystem,
             ExportSystem exportSystem,
             DeliveryUtilities deliveryUtilities,
+            ComponentSvc componentService,
             ResolverSvc resolverService,
             ResourceSvc resourceService,
             ExtensionSvc extensionService,
@@ -124,6 +130,7 @@ public class PlanSystem implements SubSystem {
         this.importSystem = importSystem;
         this.exportSystem = exportSystem;
         this.deliveryUtilities = deliveryUtilities;
+        this.componentService = componentService;
         this.resolverService = resolverService;
         this.resourceService = resourceService;
         this.extensionService = extensionService;
@@ -134,22 +141,37 @@ public class PlanSystem implements SubSystem {
         this.logger = logger;
         this.errorLogger = errorLogger;
 
-        logger.info("");
+        logger.info("§2");
         logger.info("§2           ██▌");
         logger.info("§2     ██▌   ██▌");
         logger.info("§2  ██▌██▌██▌██▌  §2Player Analytics");
         logger.info("§2  ██▌██▌██▌██▌  §fv" + versionChecker.getCurrentVersion());
-        logger.info("");
+        logger.info("§2");
     }
 
-    @Deprecated
+    /**
+     * @deprecated Use {@link com.djrapitops.plan.delivery.webserver.Addresses} instead.
+     */
+    @Deprecated(since = "Addresses.java")
     public String getMainAddress() {
         return webServerSystem.getAddresses().getMainAddress().orElse(webServerSystem.getAddresses().getFallbackLocalhostAddress());
     }
 
-    @Override
-    public void enable() {
+    /**
+     * Enables only the systems that are required for {@link com.djrapitops.plan.commands.PlanCommand}.
+     *
+     * @see #enableOtherThanCommands()
+     */
+    public void enableForCommands() {
+        enableSystems(configSystem);
+    }
+
+    /**
+     * Enables the rest of the systems that are not enabled in {@link #enableForCommands()}.
+     */
+    public void enableOtherThanCommands() {
         extensionService.register();
+        componentService.register();
         resolverService.register();
         resourceService.register();
         listenerService.register();
@@ -158,13 +180,12 @@ public class PlanSystem implements SubSystem {
         queryService.register();
 
         enableSystems(
+                processing,
                 files,
-                configSystem,
                 localeSystem,
                 versionChecker,
                 databaseSystem,
                 webServerSystem,
-                processing,
                 serverInfo,
                 importSystem,
                 exportSystem,
@@ -182,6 +203,21 @@ public class PlanSystem implements SubSystem {
 
         extensionService.registerExtensions();
         enabled = true;
+
+        String javaVersion = System.getProperty("java.specification.version");
+        if ("1.8".equals(javaVersion) || "9".equals(javaVersion) || "10".equals(javaVersion)
+        ) {
+            logger.warn("! ------- Deprecation warning ------- !");
+            logger.warn("Plan version 5.5 will require Java 11 or newer,");
+            logger.warn("consider updating your JVM as soon as possible.");
+            logger.warn("! ----------------------------------- !");
+        }
+    }
+
+    @Override
+    public void enable() {
+        enableForCommands();
+        enableOtherThanCommands();
     }
 
     private void enableSystems(SubSystem... systems) {
@@ -193,6 +229,10 @@ public class PlanSystem implements SubSystem {
     @Override
     public void disable() {
         enabled = false;
+        Formatters.clearSingleton();
+
+        extensionService.disableUpdates();
+
         disableSystems(
                 taskSystem,
                 cacheSystem,
@@ -288,14 +328,11 @@ public class PlanSystem implements SubSystem {
         return extensionService;
     }
 
-    /**
-     * Originally visible for testing purposes.
-     *
-     * @return the error logger of the system
-     * @deprecated A smell, dagger should be used to construct things instead.
-     */
-    @Deprecated
-    public ErrorLogger getErrorLogger() {
-        return errorLogger;
+    public ComponentSvc getComponentService() {
+        return componentService;
+    }
+
+    public static long getServerEnableTime() {
+        return SERVER_ENABLE_TIME;
     }
 }

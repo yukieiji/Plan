@@ -17,7 +17,7 @@
 package com.djrapitops.plan.commands.use;
 
 import com.velocitypowered.api.command.CommandSource;
-import net.kyori.text.TextComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -33,7 +33,7 @@ public class VelocityCMDSender implements CMDSender {
 
     @Override
     public MessageBuilder buildMessage() {
-        return new VelocityMessageBuilder(this);
+        return new AdventureMessageBuilder(this, commandSource);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class VelocityCMDSender implements CMDSender {
 
     @Override
     public void send(String message) {
-        commandSource.sendMessage(TextComponent.of(message));
+        commandSource.sendMessage(LegacyComponentSerializer.legacySection().deserialize(message));
     }
 
     @Override

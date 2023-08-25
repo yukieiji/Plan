@@ -16,7 +16,9 @@
  */
 package com.djrapitops.plan.gathering.domain;
 
+import com.djrapitops.plan.delivery.domain.mutators.PlayerKillMutator;
 import com.djrapitops.plan.utilities.comparators.DateHolderRecentComparator;
+import org.apache.commons.text.TextStringBuilder;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,6 +45,10 @@ public class PlayerKills {
 
     public List<PlayerKill> asList() {
         return kills;
+    }
+
+    public PlayerKillMutator asMutator() {
+        return new PlayerKillMutator(asList());
     }
 
     public void addAll(Collection<PlayerKill> randomKills) {
@@ -72,5 +78,14 @@ public class PlayerKills {
         return "PlayerKills{" +
                 "kills=" + kills +
                 '}';
+    }
+
+    public String toJson() {
+        return "{" +
+                "  \"kills\": [" +
+                new TextStringBuilder().appendWithSeparators(kills
+                        .stream().map(PlayerKill::toJson).iterator(), ",").build() +
+                "  ]" +
+                "}";
     }
 }

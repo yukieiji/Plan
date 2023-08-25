@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.delivery.web.resolver.request;
 
+import com.djrapitops.plan.delivery.web.resolver.exception.BadRequestException;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.UnsupportedEncodingException;
@@ -56,17 +57,35 @@ public final class URIQuery {
             }
             String[] keyAndValue = StringUtils.split(kv, "=", 2);
             if (keyAndValue.length >= 2) {
-                try {
-                    parameters.put(
-                            URLDecoder.decode(keyAndValue[0], StandardCharsets.UTF_8.name()),
-                            URLDecoder.decode(keyAndValue[1], StandardCharsets.UTF_8.name())
-                    );
-                } catch (UnsupportedEncodingException e) {
-                    // If UTF-8 is unsupported, we have bigger problems
-                }
+                parseAndPutKeyValuePair(parameters, keyAndValue);
+            } else if (keyAndValue.length == 1) {
+                parseAndPutKeyEmptyValue(parameters, keyAndValue[0]);
             }
         }
         return parameters;
+    }
+
+    private void parseAndPutKeyValuePair(Map<String, String> parameters, String[] keyAndValue) {
+        try {
+            parameters.put(
+                    URLDecoder.decode(keyAndValue[0], StandardCharsets.UTF_8.name()),
+                    URLDecoder.decode(keyAndValue[1], StandardCharsets.UTF_8.name())
+            );
+        } catch (UnsupportedEncodingException e) {
+            // If UTF-8 is unsupported, we have bigger problems
+        }
+    }
+
+    private void parseAndPutKeyEmptyValue(Map<String, String> parameters, String s) {
+        try {
+            parameters.put(
+                    URLDecoder.decode(s, StandardCharsets.UTF_8.name()), ""
+            );
+        } catch (UnsupportedEncodingException e) {
+            // If UTF-8 is unsupported, we have bigger problems
+        } catch (IllegalArgumentException badCharacter) {
+            throw new BadRequestException("URI Query contained bad character");
+        }
     }
 
     /**
@@ -80,6 +99,8 @@ public final class URIQuery {
     }
 
     public String asString() {
+        if (byKey.isEmpty()) return "";
+
         StringBuilder builder = new StringBuilder("?");
         int i = 0;
         int max = byKey.size();
@@ -97,8 +118,10 @@ public final class URIQuery {
 
     @Override
     public String toString() {
+        Map<String, String> copyOfByKey = new HashMap<>(this.byKey);
+        copyOfByKey.remove("password");
         return "URIQuery{" +
-                "byKey=" + byKey +
+                "byKey=" + copyOfByKey +
                 '}';
     }
 }

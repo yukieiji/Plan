@@ -24,10 +24,12 @@ import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resource.WebResource;
 import com.djrapitops.plan.delivery.webserver.resolver.json.RootJSONResolver;
-import com.djrapitops.plan.exceptions.connection.WebException;
+import com.djrapitops.plan.exceptions.WebUserAuthException;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
@@ -52,6 +54,7 @@ import java.util.Optional;
 public class ServerPageExporter extends FileExporter {
 
     private final PlanFiles files;
+    private final PlanConfig config;
     private final PageFactory pageFactory;
     private final DBSystem dbSystem;
     private final RootJSONResolver jsonHandler;
@@ -63,6 +66,7 @@ public class ServerPageExporter extends FileExporter {
     @Inject
     public ServerPageExporter(
             PlanFiles files,
+            PlanConfig config,
             PageFactory pageFactory,
             DBSystem dbSystem,
             RootJSONResolver jsonHandler,
@@ -70,6 +74,7 @@ public class ServerPageExporter extends FileExporter {
             ServerInfo serverInfo // To know if current server is a Proxy
     ) {
         this.files = files;
+        this.config = config;
         this.pageFactory = pageFactory;
         this.dbSystem = dbSystem;
         this.jsonHandler = jsonHandler;
@@ -95,10 +100,13 @@ public class ServerPageExporter extends FileExporter {
         exportRequiredResources(toDirectory);
         exportJSON(toDirectory, server);
         exportHtml(toDirectory, server);
+        exportReactRedirects(toDirectory, server.getUuid());
         exportPaths.clear();
     }
 
     private void exportHtml(Path toDirectory, Server server) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         ServerUUID serverUUID = server.getUuid();
         Path to = toDirectory
                 .resolve(serverInfo.getServer().isProxy() ? "server/" + toFileName(server.getName()) : "server")
@@ -110,16 +118,42 @@ public class ServerPageExporter extends FileExporter {
         String html = StringUtils.replaceEach(page.toHtml(),
                 new String[]{
                         "loadOptimizedPerformanceGraph, 'performance', true);",
-                        "loadServerCalendar, 'online-activity-overview', true);",
-                        "}, 'playerlist', true);"
+                        "loadserverCalendar, 'online-activity-overview', true);",
+                        "}, 'playerlist', true);",
+                        "<head>"
                 },
                 new String[]{
                         "loadOptimizedPerformanceGraph, 'performance');",
-                        "loadServerCalendar, 'online-activity-overview');",
-                        "}, 'playerlist');"
+                        "loadserverCalendar, 'online-activity-overview');",
+                        "}, 'playerlist');",
+                        "<head><style>.refresh-element {display: none;}</style>"
                 });
 
         export(to, exportPaths.resolveExportPaths(html));
+    }
+
+    public static String[] getRedirections(ServerUUID serverUUID) {
+        String server = "server/";
+        return new String[]{
+                server + serverUUID,
+                server + serverUUID + "/overview",
+                server + serverUUID + "/online-activity",
+                server + serverUUID + "/sessions",
+                server + serverUUID + "/pvppve",
+                server + serverUUID + "/playerbase",
+                server + serverUUID + "/join-addresses",
+                server + serverUUID + "/retention",
+                server + serverUUID + "/players",
+                server + serverUUID + "/geolocations",
+                server + serverUUID + "/performance",
+                server + serverUUID + "/plugins-overview",
+        };
+    }
+
+    private void exportReactRedirects(Path toDirectory, ServerUUID serverUUID) throws IOException {
+        if (config.isTrue(PluginSettings.LEGACY_FRONTEND)) return;
+
+        exportReactRedirects(toDirectory, files, config, getRedirections(serverUUID));
     }
 
     /**
@@ -140,6 +174,7 @@ public class ServerPageExporter extends FileExporter {
                 "playerVersus?server=" + serverUUID,
                 "playerbaseOverview?server=" + serverUUID,
                 "performanceOverview?server=" + serverUUID,
+                "graph?type=playersOnline&server=" + serverUUID,
                 "graph?type=optimizedPerformance&server=" + serverUUID,
                 "graph?type=aggregatedPing&server=" + serverUUID,
                 "graph?type=worldPie&server=" + serverUUID,
@@ -148,12 +183,17 @@ public class ServerPageExporter extends FileExporter {
                 "graph?type=uniqueAndNew&server=" + serverUUID,
                 "graph?type=hourlyUniqueAndNew&server=" + serverUUID,
                 "graph?type=joinAddressPie&server=" + serverUUID,
+                "graph?type=joinAddressByDay&server=" + serverUUID,
                 "graph?type=serverCalendar&server=" + serverUUID,
                 "graph?type=punchCard&server=" + serverUUID,
                 "players?server=" + serverUUID,
                 "kills?server=" + serverUUID,
                 "pingTable?server=" + serverUUID,
-                "sessions?server=" + serverUUID
+                "sessions?server=" + serverUUID,
+                "extensionData?server=" + serverUUID,
+                "serverIdentity?server=" + serverUUID,
+                "retention?server=" + serverUUID,
+                "joinAddresses?server=" + serverUUID
         );
     }
 
@@ -164,17 +204,15 @@ public class ServerPageExporter extends FileExporter {
     }
 
     private void exportJSON(Path toDirectory, String resource) throws IOException {
-        Optional<Response> found = getJSONResponse(resource);
-        if (!found.isPresent()) {
-            throw new NotFoundException(resource + " was not properly exported: not found");
-        }
+        Response response = getJSONResponse(resource)
+                .orElseThrow(() -> new NotFoundException(resource + " was not properly exported: not found"));
 
         String jsonResourceName = toFileName(toJSONResourceName(resource)) + ".json";
 
         export(toDirectory.resolve("data").resolve(jsonResourceName),
                 // Replace ../player in urls to fix player page links
                 StringUtils.replace(
-                        found.get().getAsString(),
+                        response.getAsString(),
                         StringEscapeUtils.escapeJson("../player"),
                         StringEscapeUtils.escapeJson(toRelativePathFromRoot("player"))
                 )
@@ -189,13 +227,15 @@ public class ServerPageExporter extends FileExporter {
     private Optional<Response> getJSONResponse(String resource) {
         try {
             return jsonHandler.getResolver().resolve(new Request("GET", "/v1/" + resource, null, Collections.emptyMap()));
-        } catch (WebException e) {
+        } catch (WebUserAuthException e) {
             // The rest of the exceptions should not be thrown
-            throw new IllegalStateException("Unexpected exception thrown: " + e.toString(), e);
+            throw new IllegalStateException("Unexpected exception thrown: " + e, e);
         }
     }
 
     private void exportRequiredResources(Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         // Style
         exportResources(toDirectory,
                 "../img/Flaticon_circle.png",
@@ -203,12 +243,11 @@ public class ServerPageExporter extends FileExporter {
                 "../css/style.css",
                 "../vendor/datatables/datatables.min.js",
                 "../vendor/datatables/datatables.min.css",
-                "../vendor/highcharts/highstock.js",
-                "../vendor/highcharts/map.js",
-                "../vendor/highcharts/world.js",
-                "../vendor/highcharts/drilldown.js",
-                "../vendor/highcharts/highcharts-more.js",
-                "../vendor/highcharts/no-data-to-display.js",
+                "../vendor/highcharts/modules/map.js",
+                "../vendor/highcharts/mapdata/world.js",
+                "../vendor/highcharts/modules/drilldown.js",
+                "../vendor/highcharts/highcharts.js",
+                "../vendor/highcharts/modules/no-data-to-display.js",
                 "../vendor/fullcalendar/fullcalendar.min.css",
                 "../vendor/momentjs/moment.js",
                 "../vendor/masonry/masonry.pkgd.min.js",

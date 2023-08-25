@@ -20,10 +20,13 @@ import com.djrapitops.plan.commands.subcommands.*;
 import com.djrapitops.plan.commands.use.*;
 import com.djrapitops.plan.gathering.importing.ImportSystem;
 import com.djrapitops.plan.settings.Permissions;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.WebserverSettings;
 import com.djrapitops.plan.settings.locale.Locale;
 import com.djrapitops.plan.settings.locale.lang.DeepHelpLang;
 import com.djrapitops.plan.settings.locale.lang.HelpLang;
 import com.djrapitops.plan.storage.database.DBType;
+import com.djrapitops.plan.utilities.dev.Untrusted;
 import com.djrapitops.plan.utilities.logging.ErrorContext;
 import com.djrapitops.plan.utilities.logging.ErrorLogger;
 
@@ -50,6 +53,7 @@ public class PlanCommand {
     private final DataUtilityCommands dataUtilityCommands;
 
     private final Locale locale;
+    private final PlanConfig config;
     private final ImportSystem importSystem;
     private final ErrorLogger errorLogger;
 
@@ -68,6 +72,7 @@ public class PlanCommand {
             PluginStatusCommands statusCommands,
             DatabaseCommands databaseCommands,
             DataUtilityCommands dataUtilityCommands,
+            PlanConfig config,
             ErrorLogger errorLogger
     ) {
         this.commandName = commandName;
@@ -81,10 +86,11 @@ public class PlanCommand {
         this.statusCommands = statusCommands;
         this.databaseCommands = databaseCommands;
         this.dataUtilityCommands = dataUtilityCommands;
+        this.config = config;
         this.errorLogger = errorLogger;
     }
 
-    private void handleException(RuntimeException error, CMDSender sender, Arguments arguments) {
+    private void handleException(RuntimeException error, CMDSender sender, @Untrusted Arguments arguments) {
         if (error instanceof IllegalArgumentException) {
             sender.send("§c" + error.getMessage());
         } else {
@@ -109,6 +115,8 @@ public class PlanCommand {
                 .subcommand(unregisterCommand())
                 .subcommand(logoutCommand())
                 .subcommand(webUsersCommand())
+                .subcommand(groups())
+                .subcommand(setGroup())
 
                 .subcommand(acceptCommand())
                 .subcommand(cancelCommand())
@@ -131,13 +139,13 @@ public class PlanCommand {
         return command;
     }
 
-    public List<String> serverNames(CMDSender sender, Arguments arguments) {
-        String asString = arguments.concatenate(" ");
+    public List<String> serverNames(CMDSender sender, @Untrusted Arguments arguments) {
+        @Untrusted String asString = arguments.concatenate(" ");
         return tabCompleteCache.getMatchingServerIdentifiers(asString);
     }
 
-    private List<String> playerNames(CMDSender sender, Arguments arguments) {
-        String asString = arguments.concatenate(" ");
+    private List<String> playerNames(CMDSender sender, @Untrusted Arguments arguments) {
+        @Untrusted String asString = arguments.concatenate(" ");
         return tabCompleteCache.getMatchingPlayerIdentifiers(asString);
     }
 
@@ -219,6 +227,9 @@ public class PlanCommand {
     }
 
     private Subcommand registerCommand() {
+        if (config.isTrue(WebserverSettings.DISABLED_AUTHENTICATION) || config.isTrue(WebserverSettings.DISABLED_REGISTRATION)) {
+            return null;
+        }
         return Subcommand.builder()
                 .aliases("register")
                 .requirePermission(Permissions.REGISTER_SELF)
@@ -237,29 +248,32 @@ public class PlanCommand {
                 .optionalArgument(locale.getString(HelpLang.ARG_USERNAME), locale.getString(HelpLang.DESC_ARG_USERNAME))
                 .description(locale.getString(HelpLang.UNREGISTER))
                 .inDepthDescription(locale.getString(DeepHelpLang.UNREGISTER))
-                .onCommand((sender, arguments) -> registrationCommands.onUnregister(commandName, sender, arguments))
+                .onCommand(registrationCommands::onUnregister)
                 .onTabComplete(this::webUserNames)
                 .build();
     }
 
     private Subcommand logoutCommand() {
+        if (config.isTrue(WebserverSettings.DISABLED_AUTHENTICATION)) {
+            return null;
+        }
         return Subcommand.builder()
                 .aliases("logout")
                 .requirePermission(Permissions.LOGOUT_OTHER)
                 .requiredArgument(locale.getString(HelpLang.ARG_USERNAME), locale.getString(HelpLang.DESC_ARG_USERNAME))
                 .description(locale.getString(HelpLang.LOGOUT))
                 .inDepthDescription(locale.getString(DeepHelpLang.LOGOUT))
-                .onCommand(registrationCommands::onLogoutCommand)
+                .onArgsOnlyCommand(registrationCommands::onLogoutCommand)
                 .onTabComplete(this::webUserNames)
                 .build();
     }
 
-    private List<String> webUserNames(CMDSender sender, Arguments arguments) {
+    private List<String> webUserNames(CMDSender sender, @Untrusted Arguments arguments) {
         if (!sender.hasPermission(Permissions.UNREGISTER_OTHER)) {
             return Collections.emptyList();
         }
 
-        String username = arguments.concatenate(" ");
+        @Untrusted String username = arguments.concatenate(" ");
         return tabCompleteCache.getMatchingUserIdentifiers(username);
     }
 
@@ -332,9 +346,33 @@ public class PlanCommand {
                 .subcommand(clearCommand())
                 .subcommand(removeCommand())
                 .subcommand(uninstalledCommand())
+                .subcommand(removeJoinAddressesCommand())
+                .subcommand(onlineUuidMigration())
                 .requirePermission(Permissions.DATA_BASE)
                 .description(locale.getString(HelpLang.DB))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB))
+                .build();
+    }
+
+    private Subcommand onlineUuidMigration() {
+        return Subcommand.builder()
+                .aliases("migrate_to_online_uuids", "migratetoonlineuuids")
+                .requirePermission(Permissions.DATA_CLEAR)
+                .optionalArgument("--remove_offline", "Remove offline players if given")
+                .description(locale.getString(HelpLang.ONLINE_UUID_MIGRATION))
+                .inDepthDescription("Moves and combines offline uuid data to online uuids where possible. Leaves offline-only players to database.")
+                .onCommand(databaseCommands::onOnlineConversion)
+                .build();
+    }
+
+    private Subcommand removeJoinAddressesCommand() {
+        return Subcommand.builder()
+                .aliases("remove_join_addresses", "removejoinaddresses")
+                .requirePermission(Permissions.DATA_CLEAR)
+                .requiredArgument(locale.getString(HelpLang.ARG_SERVER), locale.getString(HelpLang.DESC_ARG_SERVER_IDENTIFIER))
+                .description(locale.getString(HelpLang.JOIN_ADDRESS_REMOVAL))
+                .onCommand(databaseCommands::onFixFabricJoinAddresses)
+                .onTabComplete(this::serverNames)
                 .build();
     }
 
@@ -359,20 +397,20 @@ public class PlanCommand {
                 .optionalArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_RESTORE))
                 .description(locale.getString(HelpLang.DB_RESTORE))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_RESTORE))
-                .onCommand((sender, arguments) -> databaseCommands.onRestore(commandName, sender, arguments))
+                .onCommand(databaseCommands::onRestore)
                 .onTabComplete(this::getBackupFilenames)
                 .build();
     }
 
-    private List<String> getBackupFilenames(CMDSender sender, Arguments arguments) {
+    private List<String> getBackupFilenames(CMDSender sender, @Untrusted Arguments arguments) {
         if (arguments.get(1).isPresent()) {
             return DBType.names();
         }
-        Optional<String> firstArgument = arguments.get(0);
-        if (!firstArgument.isPresent()) {
+        @Untrusted Optional<String> firstArgument = arguments.get(0);
+        if (firstArgument.isEmpty()) {
             return tabCompleteCache.getMatchingBackupFilenames(null);
         }
-        String part = firstArgument.get();
+        @Untrusted String part = firstArgument.get();
         return tabCompleteCache.getMatchingBackupFilenames(part);
     }
 
@@ -384,7 +422,7 @@ public class PlanCommand {
                 .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_MOVE_TO))
                 .description(locale.getString(HelpLang.DB_MOVE))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_MOVE))
-                .onCommand((sender, arguments) -> databaseCommands.onMove(commandName, sender, arguments))
+                .onCommand(databaseCommands::onMove)
                 .onTabComplete((sender, arguments) -> DBType.names())
                 .build();
     }
@@ -409,7 +447,7 @@ public class PlanCommand {
                 .requiredArgument(DB_ARG_OPTIONS, locale.getString(HelpLang.DESC_ARG_DB_REMOVE))
                 .description(locale.getString(HelpLang.DB_CLEAR))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_CLEAR))
-                .onCommand((sender, arguments) -> databaseCommands.onClear(commandName, sender, arguments))
+                .onCommand(databaseCommands::onClear)
                 .onTabComplete((sender, arguments) ->
                         arguments.isEmpty() ? DBType.names() : Collections.emptyList()
                 ).build();
@@ -422,7 +460,7 @@ public class PlanCommand {
                 .requiredArgument(locale.getString(HelpLang.ARG_NAME_UUID), locale.getString(HelpLang.DESC_ARG_PLAYER_IDENTIFIER_REMOVE))
                 .description(locale.getString(HelpLang.DB_REMOVE))
                 .inDepthDescription(locale.getString(DeepHelpLang.DB_REMOVE))
-                .onCommand((sender, arguments) -> databaseCommands.onRemove(commandName, sender, arguments))
+                .onCommand(databaseCommands::onRemove)
                 .onTabComplete(this::playerNames)
                 .build();
     }
@@ -476,6 +514,38 @@ public class PlanCommand {
                 .inDepthDescription(locale.getString(DeepHelpLang.JSON))
                 .onCommand(linkCommands::onJson)
                 .onTabComplete(this::playerNames)
+                .build();
+    }
+
+    private Subcommand setGroup() {
+        return Subcommand.builder()
+                .aliases("setgroup")
+                .requirePermission(Permissions.SET_GROUP)
+                .requiredArgument(locale.getString(HelpLang.ARG_USERNAME), locale.getString(HelpLang.DESC_ARG_USERNAME))
+                .requiredArgument(locale.getString(HelpLang.ARG_GROUP), locale.getString(HelpLang.DESC_ARG_GROUP))
+                .description(locale.getString(HelpLang.SET_GROUP))
+                .inDepthDescription(locale.getString(DeepHelpLang.SET_GROUP))
+                .onCommand(registrationCommands::onChangePermissionGroup)
+                .onTabComplete(this::webGroupTabComplete)
+                .build();
+    }
+
+    private List<String> webGroupTabComplete(CMDSender sender, @Untrusted Arguments arguments) {
+        Optional<String> groupArgument = arguments.get(1);
+        if (groupArgument.isPresent()) {
+            return tabCompleteCache.getMatchingWebGroupNames(groupArgument.get());
+        }
+        String usernameArgument = arguments.get(0).orElse(null);
+        return tabCompleteCache.getMatchingUserIdentifiers(usernameArgument);
+    }
+
+    private Subcommand groups() {
+        return Subcommand.builder()
+                .aliases("groups")
+                .requirePermission(Permissions.SET_GROUP)
+                .description(locale.getString(HelpLang.GROUPS))
+                .inDepthDescription(locale.getString(DeepHelpLang.GROUPS))
+                .onCommand(registrationCommands::onListWebGroups)
                 .build();
     }
 }

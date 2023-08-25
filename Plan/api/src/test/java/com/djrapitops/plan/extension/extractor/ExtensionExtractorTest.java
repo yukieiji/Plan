@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.extension.extractor;
 
+import com.djrapitops.plan.component.Component;
 import com.djrapitops.plan.extension.DataExtension;
 import com.djrapitops.plan.extension.Group;
 import com.djrapitops.plan.extension.annotation.*;
@@ -265,7 +266,7 @@ class ExtensionExtractorTest {
         }
 
         ExtensionExtractor underTest = new ExtensionExtractor(new Extension());
-        assertEquals("Extension.method did not have any associated Provider for Conditional.", assertThrows(IllegalArgumentException.class, underTest::validateAnnotations).getMessage());
+        assertEquals("Extension class had no methods annotated with a Provider annotation", assertThrows(IllegalArgumentException.class, underTest::validateAnnotations).getMessage());
     }
 
     @Test
@@ -457,6 +458,24 @@ class ExtensionExtractorTest {
     }
 
     @Test
+    void methodsAreExtracted9() throws NoSuchMethodException {
+        @PluginInfo(name = "Extension")
+        class Extension implements DataExtension {
+            @Conditional("hasJoined")
+            @ComponentProvider(text = "Test")
+            public Component method() {
+                return null;
+            }
+        }
+        Extension extension = new Extension();
+        ExtensionExtractor underTest = new ExtensionExtractor(extension);
+        Map<ExtensionMethod.ParameterType, ExtensionMethods> result = underTest.getMethods();
+        Map<ExtensionMethod.ParameterType, ExtensionMethods> expected = buildExpectedExtensionMethodMap(extension, ExtensionMethods::addComponentMethod);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
     void tabsAreExtracted() throws NoSuchMethodException {
         @PluginInfo(name = "Extension")
         class Extension implements DataExtension {
@@ -489,8 +508,13 @@ class ExtensionExtractorTest {
 
         String expected = Stream.of(extension.getClass().getMethod("method").getAnnotation(Conditional.class))
                 .map(Conditional::value).findFirst().orElseThrow(AssertionError::new);
-        String result = underTest.getMethodAnnotations().getAnnotations(Conditional.class).stream()
-                .map(Conditional::value).findFirst().orElseThrow(AssertionError::new);
+        String result = underTest.getConditionalMethods().stream()
+                .map(method -> new ExtensionMethod(extension, method))
+                .map(extensionMethod -> extensionMethod.getAnnotation(Conditional.class))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(Conditional::value)
+                .findFirst().orElseThrow(AssertionError::new);
         assertEquals(expected, result);
     }
 

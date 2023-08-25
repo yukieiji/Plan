@@ -17,7 +17,11 @@
 package com.djrapitops.plan.gathering.domain;
 
 import com.djrapitops.plan.delivery.domain.DateHolder;
+import com.djrapitops.plan.delivery.domain.PlayerName;
+import com.djrapitops.plan.gathering.domain.event.JoinAddress;
 import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.storage.database.sql.tables.JoinAddressTable;
+import com.djrapitops.plan.utilities.java.OptionalArray;
 import com.google.gson.Gson;
 import org.apache.commons.lang3.StringUtils;
 
@@ -47,7 +51,7 @@ public class FinishedSession implements DateHolder {
         this.start = start;
         this.end = end;
         this.afkTime = afkTime;
-        this.extraData = extraData;
+        this.extraData = extraData != null ? extraData : new DataMap();
     }
 
     public UUID getPlayerUUID() {
@@ -113,19 +117,35 @@ public class FinishedSession implements DateHolder {
         return getStart();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        FinishedSession that = (FinishedSession) o;
-        return start == that.start && end == that.end &&
-                afkTime == that.afkTime &&
-                Objects.equals(playerUUID, that.playerUUID) &&
-                Objects.equals(serverUUID, that.serverUUID) &&
-                Objects.equals(getExtraData(WorldTimes.class), that.getExtraData(WorldTimes.class)) &&
-                Objects.equals(getExtraData(PlayerKills.class), that.getExtraData(PlayerKills.class)) &&
-                Objects.equals(getExtraData(MobKillCounter.class), that.getExtraData(MobKillCounter.class)) &&
-                Objects.equals(getExtraData(DeathCounter.class), that.getExtraData(DeathCounter.class));
+    /**
+     * Deserialize csv format of the session.
+     *
+     * @param serialized Serialized version of the session
+     * @return Proper session if the csv had 9 columns or more
+     * @throws com.google.gson.JsonSyntaxException if serialized format has a json syntax error
+     */
+    public static Optional<FinishedSession> deserializeCSV(String serialized) {
+        String[] array = StringUtils.split(serialized, ';');
+        OptionalArray<String> asOptionals = OptionalArray.of(array);
+        if (array.length < 5) return Optional.empty();
+        // Note for the future: Use length to determine version of serialized class
+
+        Gson gson = new Gson();
+
+        UUID playerUUID = UUID.fromString(array[0]);
+        ServerUUID serverUUID = ServerUUID.fromString(array[1]);
+        long start = Long.parseLong(array[2]);
+        long end = Long.parseLong(array[3]);
+        long afkTime = Long.parseLong(array[4]);
+
+        DataMap extraData = new DataMap();
+        asOptionals.get(5).ifPresent(value -> extraData.put(WorldTimes.class, gson.fromJson(value, WorldTimes.class)));
+        asOptionals.get(6).ifPresent(value -> extraData.put(PlayerKills.class, gson.fromJson(value, PlayerKills.class)));
+        asOptionals.get(7).ifPresent(value -> extraData.put(MobKillCounter.class, gson.fromJson(value, MobKillCounter.class)));
+        asOptionals.get(8).ifPresent(value -> extraData.put(DeathCounter.class, gson.fromJson(value, DeathCounter.class)));
+        asOptionals.get(9).ifPresent(value -> extraData.put(JoinAddress.class, new JoinAddress(value)));
+        asOptionals.get(10).ifPresent(value -> extraData.put(PlayerName.class, new PlayerName(value)));
+        return Optional.of(new FinishedSession(playerUUID, serverUUID, start, end, afkTime, extraData));
     }
 
     @Override
@@ -145,6 +165,44 @@ public class FinishedSession implements DateHolder {
                 '}';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        FinishedSession that = (FinishedSession) o;
+        return start == that.start && end == that.end &&
+                afkTime == that.afkTime &&
+                Objects.equals(playerUUID, that.playerUUID) &&
+                Objects.equals(serverUUID, that.serverUUID) &&
+                Objects.equals(getExtraData(WorldTimes.class), that.getExtraData(WorldTimes.class)) &&
+                Objects.equals(getExtraData(PlayerKills.class), that.getExtraData(PlayerKills.class)) &&
+                Objects.equals(getExtraData(MobKillCounter.class), that.getExtraData(MobKillCounter.class)) &&
+                Objects.equals(getExtraData(DeathCounter.class), that.getExtraData(DeathCounter.class)) &&
+                Objects.equals(getExtraData(JoinAddress.class), that.getExtraData(JoinAddress.class));
+    }
+
+    /**
+     * Serialize into csv format.
+     *
+     * @return Serialized format
+     */
+    public String serializeCSV() {
+        return String.valueOf(playerUUID) + ';' +
+                serverUUID + ';' +
+                start + ';' +
+                end + ';' +
+                afkTime + ';' +
+                getExtraData(WorldTimes.class).orElseGet(WorldTimes::new).toJson() + ';' +
+                getExtraData(PlayerKills.class).orElseGet(PlayerKills::new).toJson() + ';' +
+                getExtraData(MobKillCounter.class).orElseGet(MobKillCounter::new).toJson() + ';' +
+                getExtraData(DeathCounter.class).orElseGet(DeathCounter::new).toJson() + ';' +
+                // Join address contains @Untrusted data so possible ; needs to be neutralized
+                getExtraData(JoinAddress.class).map(JoinAddress::getAddress)
+                        .map(address -> address.replace(';', ':'))
+                        .orElse(JoinAddressTable.DEFAULT_VALUE_FOR_LOOKUP) + ';' +
+                getExtraData(PlayerName.class).map(PlayerName::get).orElseGet(playerUUID::toString);
+    }
+
     public static class Id {
         private final int value;
 
@@ -155,52 +213,5 @@ public class FinishedSession implements DateHolder {
         public int get() {
             return value;
         }
-    }
-
-    /**
-     * Deserialize csv format of the session.
-     *
-     * @param serialized Serialized version of the session
-     * @return Proper session if the csv had 9 columns or more
-     * @throws com.google.gson.JsonSyntaxException if serialized format has a json syntax error
-     */
-    public static Optional<FinishedSession> deserializeCSV(String serialized) {
-        String[] asArray = StringUtils.split(serialized, ';');
-        if (asArray.length < 9) return Optional.empty();
-        // Note for the future: Use length to determine version of serialized class
-
-        Gson gson = new Gson();
-
-        UUID playerUUID = UUID.fromString(asArray[0]);
-        ServerUUID serverUUID = ServerUUID.fromString(asArray[1]);
-        long start = Long.parseLong(asArray[2]);
-        long end = Long.parseLong(asArray[3]);
-        long afkTime = Long.parseLong(asArray[4]);
-
-        DataMap extraData = new DataMap();
-        extraData.put(WorldTimes.class, gson.fromJson(asArray[5], WorldTimes.class));
-        extraData.put(PlayerKills.class, gson.fromJson(asArray[6], PlayerKills.class));
-        extraData.put(MobKillCounter.class, gson.fromJson(asArray[7], MobKillCounter.class));
-        extraData.put(DeathCounter.class, gson.fromJson(asArray[8], DeathCounter.class));
-        return Optional.of(new FinishedSession(playerUUID, serverUUID, start, end, afkTime, extraData));
-    }
-
-    /**
-     * Serialize into csv format.
-     *
-     * @return Serialized format
-     */
-    public String serializeCSV() {
-        Gson gson = new Gson();
-
-        return String.valueOf(playerUUID) + ';' +
-                serverUUID + ';' +
-                start + ';' +
-                end + ';' +
-                afkTime + ';' +
-                gson.toJson(getExtraData(WorldTimes.class).orElseGet(WorldTimes::new)) + ';' +
-                gson.toJson(getExtraData(PlayerKills.class).orElseGet(PlayerKills::new)) + ';' +
-                gson.toJson(getExtraData(MobKillCounter.class).orElseGet(MobKillCounter::new)) + ';' +
-                gson.toJson(getExtraData(DeathCounter.class).orElseGet(DeathCounter::new));
     }
 }

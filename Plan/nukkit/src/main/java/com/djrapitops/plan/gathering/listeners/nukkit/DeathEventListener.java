@@ -33,6 +33,8 @@ import com.djrapitops.plan.delivery.formatting.EntityNameFormatter;
 import com.djrapitops.plan.delivery.formatting.ItemNameFormatter;
 import com.djrapitops.plan.gathering.cache.SessionCache;
 import com.djrapitops.plan.gathering.domain.ActiveSession;
+import com.djrapitops.plan.gathering.domain.PlayerKill;
+import com.djrapitops.plan.identification.ServerInfo;
 import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.processing.processors.player.MobKillProcessor;
 import com.djrapitops.plan.processing.processors.player.PlayerKillProcessor;
@@ -41,6 +43,7 @@ import com.djrapitops.plan.utilities.logging.ErrorLogger;
 
 import javax.inject.Inject;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Event Listener for detecting player and mob deaths.
@@ -49,14 +52,17 @@ import java.util.Optional;
  */
 public class DeathEventListener implements Listener {
 
+    private final ServerInfo serverInfo;
     private final Processing processing;
     private final ErrorLogger errorLogger;
 
     @Inject
     public DeathEventListener(
+            ServerInfo serverInfo,
             Processing processing,
             ErrorLogger errorLogger
     ) {
+        this.serverInfo = serverInfo;
         this.processing = processing;
         this.errorLogger = errorLogger;
     }
@@ -69,17 +75,23 @@ public class DeathEventListener implements Listener {
 
         try {
             Optional<Player> foundKiller = findKiller(dead);
-            if (!foundKiller.isPresent()) {
+            if (foundKiller.isEmpty()) {
                 return;
             }
             Player killer = foundKiller.get();
 
-            processing.submitCritical(new PlayerKillProcessor(
-                    killer.getUniqueId(), time, dead.getUniqueId(), findWeapon(dead)
-            ));
+            processing.submitCritical(new PlayerKillProcessor(getKiller(killer), getVictim(dead), serverInfo.getServerIdentifier(), findWeapon(dead), time));
         } catch (Exception e) {
             errorLogger.error(e, ErrorContext.builder().related(event, dead).build());
         }
+    }
+
+    private PlayerKill.Killer getKiller(Player killer) {
+        return new PlayerKill.Killer(killer.getUniqueId(), killer.getName());
+    }
+
+    private PlayerKill.Victim getVictim(Player victim) {
+        return new PlayerKill.Victim(victim.getUniqueId(), victim.getName(), TimeUnit.SECONDS.toMillis(victim.getFirstPlayed()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -88,7 +100,7 @@ public class DeathEventListener implements Listener {
 
         try {
             Optional<Player> foundKiller = findKiller(dead);
-            if (!foundKiller.isPresent()) {
+            if (foundKiller.isEmpty()) {
                 return;
             }
             Player killer = foundKiller.get();

@@ -16,12 +16,22 @@
  */
 package com.djrapitops.plan.delivery.webserver.resolver.json;
 
+import com.djrapitops.plan.delivery.domain.auth.WebPermission;
 import com.djrapitops.plan.delivery.web.resolver.MimeType;
 import com.djrapitops.plan.delivery.web.resolver.Resolver;
 import com.djrapitops.plan.delivery.web.resolver.Response;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resolver.request.WebUser;
 import com.djrapitops.plan.storage.file.PlanFiles;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -36,6 +46,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Singleton
+@Path("/v1/errors")
 public class ErrorsJSONResolver implements Resolver {
 
     private final PlanFiles files;
@@ -47,9 +58,17 @@ public class ErrorsJSONResolver implements Resolver {
 
     @Override
     public boolean canAccess(Request request) {
-        return request.getUser().orElse(new WebUser("")).hasPermission("page.server");
+        return request.getUser().orElse(new WebUser("")).hasPermission(WebPermission.ACCESS_ERRORS);
     }
 
+    @GET
+    @Operation(
+            description = "Get list of Plan error logs",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "List of error files and their contents", content = @Content(array = @ArraySchema(schema = @Schema(implementation = ErrorFile.class))))
+            },
+            requestBody = @RequestBody(content = @Content(examples = @ExampleObject()))
+    )
     @Override
     public Optional<Response> resolve(Request request) {
         return Optional.of(getResponse());
@@ -63,11 +82,12 @@ public class ErrorsJSONResolver implements Resolver {
     }
 
     private List<ErrorFile> loadErrorLogs() {
-        File[] files = this.files.getLogsFolder().listFiles();
-        if (files == null || files.length == 0) return Collections.emptyList();
+        File[] logFiles = this.files.getLogsFolder().listFiles();
+        // Can't use Collections.emptyList since Gson doesn't serialize it
+        if (logFiles == null || logFiles.length == 0) return new ArrayList<>();
 
         List<ErrorFile> errorFiles = new ArrayList<>();
-        for (File file : files) {
+        for (File file : logFiles) {
             errorFiles.add(new ErrorFile(file.getName(), read(file)));
         }
 
@@ -78,7 +98,7 @@ public class ErrorsJSONResolver implements Resolver {
         try (Stream<String> lines = Files.lines(file.toPath())) {
             return lines.collect(Collectors.toList());
         } catch (IOException e) {
-            return Collections.singletonList("Failed to read " + file.getAbsolutePath() + ": " + e.toString());
+            return Collections.singletonList("Failed to read " + file.getAbsolutePath() + ": " + e);
         }
     }
 

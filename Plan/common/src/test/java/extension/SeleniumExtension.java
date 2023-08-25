@@ -19,18 +19,18 @@ package extension;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.extension.*;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import utilities.CIProperties;
 
 import java.io.File;
 import java.util.ArrayList;
-
-import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_JAVASCRIPT;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 /**
  * Selenium JUnit 5 Extension.
@@ -39,7 +39,7 @@ import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_JAVASCRIPT;
  */
 public class SeleniumExtension implements ParameterResolver, BeforeAllCallback, AfterAllCallback {
 
-    private WebDriver driver;
+    private ChromeDriver driver;
 
     public static void newTab(WebDriver driver) {
         WebElement body = driver.findElement(By.tagName("body"));
@@ -47,13 +47,28 @@ public class SeleniumExtension implements ParameterResolver, BeforeAllCallback, 
         driver.switchTo().window(new ArrayList<>(driver.getWindowHandles()).get(0));
     }
 
-    @Override
-    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().equals(WebDriver.class);
+    public static void waitForPageLoadForSeconds(int i, ChromeDriver driver) {
+        Awaitility.await("waitForPageLoadForSeconds")
+                .atMost(5, TimeUnit.SECONDS)
+                .until(() -> "complete".equals(driver.executeScript("return document.readyState")));
+    }
+
+    public static void waitForElementToBeVisible(By by, ChromeDriver driver) {
+        SeleniumExtension.waitForPageLoadForSeconds(5, driver);
+        Awaitility.await("waitForElementToBeVisible " + by.toString())
+                .atMost(5, TimeUnit.SECONDS)
+                .ignoreException(NoSuchElementException.class)
+                .until(() -> driver.findElement(by).isDisplayed());
     }
 
     @Override
-    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
+    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+        final Class<?> type = parameterContext.getParameter().getType();
+        return WebDriver.class.equals(type) || ChromeDriver.class.equals(type);
+    }
+
+    @Override
+    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
         return driver;
     }
 
@@ -67,17 +82,30 @@ public class SeleniumExtension implements ParameterResolver, BeforeAllCallback, 
         driver = getChromeWebDriver();
     }
 
-    private WebDriver getChromeWebDriver() {
+    private ChromeDriver getChromeWebDriver() {
+        ChromeOptions chromeOptions = new ChromeOptions();
+        chromeOptions.addArguments("--enable-javascript");
+        chromeOptions.addArguments("--ignore-certificate-errors");
+        chromeOptions.addArguments("--remote-allow-origins=*");
+        chromeOptions.setCapability(ChromeOptions.LOGGING_PREFS, getLoggingPreferences());
+
+        // Using environment variable assumes linux
         if (System.getenv(CIProperties.CHROME_DRIVER) != null) {
-            ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.setBinary("/usr/bin/google-chrome-stable");
             chromeOptions.setHeadless(true);
-            chromeOptions.setCapability(SUPPORTS_JAVASCRIPT, true);
-
-            return new ChromeDriver(chromeOptions);
-        } else {
-            return new ChromeDriver();
         }
+
+        return new ChromeDriver(chromeOptions);
+    }
+
+    private LoggingPreferences getLoggingPreferences() {
+        LoggingPreferences logPrefs = new LoggingPreferences();
+        logPrefs.enable(LogType.PERFORMANCE, Level.INFO);
+        logPrefs.enable(LogType.PROFILER, Level.INFO);
+        logPrefs.enable(LogType.BROWSER, Level.INFO);
+        logPrefs.enable(LogType.CLIENT, Level.INFO);
+        logPrefs.enable(LogType.DRIVER, Level.INFO);
+        return logPrefs;
     }
 
     private String getChromeDriverLocation() {

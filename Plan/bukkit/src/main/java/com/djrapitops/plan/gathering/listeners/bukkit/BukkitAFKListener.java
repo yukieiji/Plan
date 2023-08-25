@@ -28,9 +28,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.*;
 
 import javax.inject.Inject;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Listener that keeps track of actions that are not considered being AFK.
@@ -51,7 +51,7 @@ public class BukkitAFKListener implements Listener {
     @Inject
     public BukkitAFKListener(PlanConfig config, ErrorLogger errorLogger) {
         this.errorLogger = errorLogger;
-        this.ignorePermissionInfo = new HashMap<>();
+        this.ignorePermissionInfo = new ConcurrentHashMap<>();
 
         BukkitAFKListener.assignAFKTracker(config);
     }
@@ -60,6 +60,10 @@ public class BukkitAFKListener implements Listener {
         if (afkTracker == null) {
             afkTracker = new AFKTracker(config);
         }
+    }
+
+    public static AFKTracker getAfkTracker() {
+        return afkTracker;
     }
 
     private void event(PlayerEvent event) {

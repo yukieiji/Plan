@@ -17,14 +17,17 @@
 package com.djrapitops.plan.commands;
 
 import com.djrapitops.plan.SubSystem;
-import com.djrapitops.plan.delivery.domain.auth.User;
+import com.djrapitops.plan.gathering.ServerSensor;
 import com.djrapitops.plan.identification.Server;
 import com.djrapitops.plan.identification.ServerUUID;
+import com.djrapitops.plan.processing.Processing;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.queries.objects.ServerQueries;
 import com.djrapitops.plan.storage.database.queries.objects.UserIdentifierQueries;
 import com.djrapitops.plan.storage.database.queries.objects.WebUserQueries;
 import com.djrapitops.plan.storage.file.PlanFiles;
+import com.djrapitops.plan.utilities.dev.Untrusted;
+import org.jetbrains.annotations.NotNull;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -39,38 +42,48 @@ import java.util.stream.Collectors;
 @Singleton
 public class TabCompleteCache implements SubSystem {
 
+    private final Processing processing;
     private final PlanFiles files;
     private final DBSystem dbSystem;
+    private final ServerSensor<?> serverSensor;
 
-    private final List<String> playerIdentifiers;
-    private final List<String> serverIdentifiers;
-    private final List<String> userIdentifiers;
-    private final List<String> backupFileNames;
+    private final Set<String> playerIdentifiers;
+    private final Set<String> serverIdentifiers;
+    private final Set<String> userIdentifiers;
+    private final Set<String> backupFileNames;
+    private final Set<String> webGroupIdentifiers;
 
     @Inject
     public TabCompleteCache(
+            Processing processing,
             PlanFiles files,
-            DBSystem dbSystem
+            DBSystem dbSystem,
+            ServerSensor<?> serverSensor
     ) {
+        this.processing = processing;
         this.files = files;
         this.dbSystem = dbSystem;
-        playerIdentifiers = new ArrayList<>();
-        serverIdentifiers = new ArrayList<>();
-        userIdentifiers = new ArrayList<>();
-        backupFileNames = new ArrayList<>();
+        this.serverSensor = serverSensor;
+        playerIdentifiers = new HashSet<>();
+        serverIdentifiers = new HashSet<>();
+        userIdentifiers = new HashSet<>();
+        backupFileNames = new HashSet<>();
+        webGroupIdentifiers = new HashSet<>();
     }
 
     @Override
     public void enable() {
-        refreshPlayerIdentifiers();
-        refreshServerIdentifiers();
-        refreshUserIdentifiers();
-        refreshBackupFileNames();
+        processing.submitNonCritical(() -> {
+            refreshPlayerIdentifiers();
+            refreshServerIdentifiers();
+            refreshUserIdentifiers();
+            refreshBackupFileNames();
+            refreshWebGroupIdentifiers();
+        });
+    }
 
-        Collections.sort(playerIdentifiers);
-        Collections.sort(serverIdentifiers);
-        Collections.sort(userIdentifiers);
-        Collections.sort(backupFileNames);
+    private void refreshWebGroupIdentifiers() {
+        webGroupIdentifiers.addAll(dbSystem.getDatabase().query(WebUserQueries.fetchGroupNames()));
     }
 
     private void refreshServerIdentifiers() {
@@ -87,13 +100,12 @@ public class TabCompleteCache implements SubSystem {
     }
 
     private void refreshUserIdentifiers() {
-        dbSystem.getDatabase().query(WebUserQueries.fetchAllUsers()).stream()
-                .map(User::getUsername)
-                .forEach(userIdentifiers::add);
+        userIdentifiers.addAll(dbSystem.getDatabase().query(WebUserQueries.fetchAllUsernames()));
     }
 
     private void refreshBackupFileNames() {
-        Arrays.stream(files.getDataFolder().list())
+        Optional.ofNullable(files.getDataFolder().list()).stream()
+                .flatMap(Arrays::stream)
                 .filter(Objects::nonNull)
                 .filter(fileName -> fileName.endsWith(".db")
                         && !fileName.equalsIgnoreCase("database.db"))
@@ -108,23 +120,36 @@ public class TabCompleteCache implements SubSystem {
         backupFileNames.clear();
     }
 
-    public List<String> getMatchingServerIdentifiers(String searchFor) {
-        if (searchFor == null || searchFor.isEmpty()) return serverIdentifiers;
-        return serverIdentifiers.stream().filter(identifier -> identifier.startsWith(searchFor)).collect(Collectors.toList());
+    public List<String> getMatchingServerIdentifiers(@Untrusted String searchFor) {
+        return findMatches(serverIdentifiers, searchFor);
     }
 
-    public List<String> getMatchingPlayerIdentifiers(String searchFor) {
-        if (searchFor == null || searchFor.isEmpty()) return playerIdentifiers;
-        return playerIdentifiers.stream().filter(identifier -> identifier.startsWith(searchFor)).collect(Collectors.toList());
+    public List<String> getMatchingPlayerIdentifiers(@Untrusted String searchFor) {
+        playerIdentifiers.addAll(serverSensor.getOnlinePlayerNames());
+        return findMatches(playerIdentifiers, searchFor);
     }
 
-    public List<String> getMatchingUserIdentifiers(String searchFor) {
-        if (searchFor == null || searchFor.isEmpty()) return userIdentifiers;
-        return userIdentifiers.stream().filter(identifier -> identifier.startsWith(searchFor)).collect(Collectors.toList());
+    public List<String> getMatchingUserIdentifiers(@Untrusted String searchFor) {
+        return findMatches(userIdentifiers, searchFor);
     }
 
-    public List<String> getMatchingBackupFilenames(String searchFor) {
-        if (searchFor == null || searchFor.isEmpty()) return backupFileNames;
-        return backupFileNames.stream().filter(identifier -> identifier.startsWith(searchFor)).collect(Collectors.toList());
+    public List<String> getMatchingBackupFilenames(@Untrusted String searchFor) {
+        return findMatches(backupFileNames, searchFor);
+    }
+
+    public List<String> getMatchingWebGroupNames(@Untrusted String searchFor) {
+        return findMatches(webGroupIdentifiers, searchFor);
+    }
+
+    @NotNull
+    List<String> findMatches(Collection<String> searchList, @Untrusted String searchFor) {
+        List<String> filtered = searchList.stream()
+                .filter(identifier -> searchFor == null || searchFor.isEmpty() || identifier.startsWith(searchFor))
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.toList());
+        if (filtered.size() >= 100) {
+            return Collections.emptyList();
+        }
+        return filtered;
     }
 }

@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.delivery.export;
 
+import com.djrapitops.plan.delivery.domain.container.PlayerContainer;
 import com.djrapitops.plan.delivery.rendering.pages.Page;
 import com.djrapitops.plan.delivery.rendering.pages.PageFactory;
 import com.djrapitops.plan.delivery.web.ResourceService;
@@ -24,11 +25,14 @@ import com.djrapitops.plan.delivery.web.resolver.exception.NotFoundException;
 import com.djrapitops.plan.delivery.web.resolver.request.Request;
 import com.djrapitops.plan.delivery.web.resource.WebResource;
 import com.djrapitops.plan.delivery.webserver.resolver.json.RootJSONResolver;
-import com.djrapitops.plan.exceptions.connection.WebException;
+import com.djrapitops.plan.exceptions.WebUserAuthException;
+import com.djrapitops.plan.settings.config.PlanConfig;
+import com.djrapitops.plan.settings.config.paths.PluginSettings;
 import com.djrapitops.plan.settings.theme.Theme;
 import com.djrapitops.plan.storage.database.DBSystem;
 import com.djrapitops.plan.storage.database.Database;
 import com.djrapitops.plan.storage.database.queries.PlayerFetchQueries;
+import com.djrapitops.plan.storage.database.queries.containers.ContainerFetchQueries;
 import com.djrapitops.plan.storage.file.PlanFiles;
 import com.djrapitops.plan.storage.file.Resource;
 import org.apache.commons.lang3.StringUtils;
@@ -50,6 +54,7 @@ import java.util.UUID;
 public class PlayerPageExporter extends FileExporter {
 
     private final PlanFiles files;
+    private final PlanConfig config;
     private final DBSystem dbSystem;
     private final PageFactory pageFactory;
     private final RootJSONResolver jsonHandler;
@@ -58,16 +63,29 @@ public class PlayerPageExporter extends FileExporter {
     @Inject
     public PlayerPageExporter(
             PlanFiles files,
+            PlanConfig config,
             DBSystem dbSystem,
             PageFactory pageFactory,
             RootJSONResolver jsonHandler,
             Theme theme
     ) {
         this.files = files;
+        this.config = config;
         this.dbSystem = dbSystem;
         this.pageFactory = pageFactory;
         this.jsonHandler = jsonHandler;
         this.theme = theme;
+    }
+
+    public static String[] getRedirections(UUID playerUUID) {
+        String player = "player/";
+        return new String[]{
+                player + playerUUID,
+                player + playerUUID + "/overview",
+                player + playerUUID + "/sessions",
+                player + playerUUID + "/pvppve",
+                player + playerUUID + "/servers",
+        };
     }
 
     /**
@@ -75,11 +93,10 @@ public class PlayerPageExporter extends FileExporter {
      *
      * @param toDirectory Path to Export directory
      * @param playerUUID  UUID of the player
-     * @param playerName  Name of the player
      * @throws IOException       If a template can not be read from jar/disk or the result written
      * @throws NotFoundException If a file or resource that is being exported can not be found
      */
-    public void export(Path toDirectory, UUID playerUUID, String playerName) throws IOException {
+    public void export(Path toDirectory, UUID playerUUID) throws IOException {
         Database.State dbState = dbSystem.getDatabase().getState();
         if (dbState == Database.State.CLOSED || dbState == Database.State.CLOSING) return;
         if (Boolean.FALSE.equals(dbSystem.getDatabase().query(PlayerFetchQueries.isPlayerRegistered(playerUUID)))) {
@@ -94,18 +111,29 @@ public class PlayerPageExporter extends FileExporter {
         Path playerDirectory = toDirectory.resolve("player/" + toFileName(playerUUID.toString()));
         exportJSON(exportPaths, playerDirectory, playerUUID);
         exportHtml(exportPaths, playerDirectory, playerUUID);
+        exportReactRedirects(toDirectory, playerUUID);
         exportPaths.clear();
     }
 
     private void exportHtml(ExportPaths exportPaths, Path playerDirectory, UUID playerUUID) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         Path to = playerDirectory.resolve("index.html");
 
         try {
-            Page page = pageFactory.playerPage(playerUUID);
+            Database db = dbSystem.getDatabase();
+            PlayerContainer player = db.query(ContainerFetchQueries.fetchPlayerContainer(playerUUID));
+            Page page = pageFactory.playerPage(player);
             export(to, exportPaths.resolveExportPaths(page.toHtml()));
         } catch (IllegalStateException notFound) {
             throw new NotFoundException(notFound.getMessage());
         }
+    }
+
+    private void exportReactRedirects(Path toDirectory, UUID playerUUID) throws IOException {
+        if (config.isTrue(PluginSettings.LEGACY_FRONTEND)) return;
+
+        exportReactRedirects(toDirectory, files, config, getRedirections(playerUUID));
     }
 
     private void exportJSON(ExportPaths exportPaths, Path toDirectory, UUID playerUUID) throws IOException {
@@ -113,15 +141,13 @@ public class PlayerPageExporter extends FileExporter {
     }
 
     private void exportJSON(ExportPaths exportPaths, Path toDirectory, String resource) throws IOException {
-        Optional<Response> found = getJSONResponse(resource);
-        if (!found.isPresent()) {
-            throw new NotFoundException(resource + " was not properly exported: no response");
-        }
+        Response response = getJSONResponse(resource)
+                .orElseThrow(() -> new NotFoundException(resource + " was not properly exported: no response"));
 
         String jsonResourceName = toFileName(toJSONResourceName(resource)) + ".json";
 
-        export(toDirectory.resolve(jsonResourceName), found.get().getBytes());
-        exportPaths.put("../v1/player?player=${encodeURIComponent(playerName)}", "./" + jsonResourceName);
+        export(toDirectory.resolve(jsonResourceName), response.getBytes());
+        exportPaths.put("../v1/player?player=${encodeURIComponent(playerUUID)}", "./" + jsonResourceName);
     }
 
     private String toJSONResourceName(String resource) {
@@ -131,26 +157,28 @@ public class PlayerPageExporter extends FileExporter {
     private Optional<Response> getJSONResponse(String resource) {
         try {
             return jsonHandler.getResolver().resolve(new Request("GET", "/v1/" + resource, null, Collections.emptyMap()));
-        } catch (WebException e) {
+        } catch (WebUserAuthException e) {
             // The rest of the exceptions should not be thrown
-            throw new IllegalStateException("Unexpected exception thrown: " + e.toString(), e);
+            throw new IllegalStateException("Unexpected exception thrown: " + e, e);
         }
     }
 
     private void exportRequiredResources(ExportPaths exportPaths, Path toDirectory) throws IOException {
+        if (config.isFalse(PluginSettings.LEGACY_FRONTEND)) return;
+
         // Style
         exportResources(exportPaths, toDirectory,
                 "../img/Flaticon_circle.png",
                 "../css/sb-admin-2.css",
                 "../css/style.css",
+                "../css/noauth.css",
                 "../vendor/datatables/datatables.min.js",
                 "../vendor/datatables/datatables.min.css",
-                "../vendor/highcharts/highstock.js",
-                "../vendor/highcharts/map.js",
-                "../vendor/highcharts/world.js",
-                "../vendor/highcharts/drilldown.js",
-                "../vendor/highcharts/highcharts-more.js",
-                "../vendor/highcharts/no-data-to-display.js",
+                "../vendor/highcharts/modules/map.js",
+                "../vendor/highcharts/mapdata/world.js",
+                "../vendor/highcharts/modules/drilldown.js",
+                "../vendor/highcharts/highcharts.js",
+                "../vendor/highcharts/modules/no-data-to-display.js",
                 "../vendor/fullcalendar/fullcalendar.min.css",
                 "../vendor/momentjs/moment.js",
                 "../vendor/masonry/masonry.pkgd.min.js",

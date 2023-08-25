@@ -1,0 +1,1480 @@
+:root {
+    --color-red: #F44336;
+    --color-pink: #E91E63;
+    --color-purple: #9C27B0;
+    --color-deep-purple: #673AB7;
+    --color-indigo: #3F51B5;
+    --color-blue: #2196F3;
+    --color-light-blue: #03A9F4;
+    --color-cyan: #00BCD4;
+    --color-teal: #009688;
+    --color-green: #4CAF50;
+    --color-light-green: #8BC34A;
+    --color-lime: #CDDC39;
+    --color-yellow: #ffe821;
+    --color-amber: #FFC107;
+    --color-orange: #FF9800;
+    --color-deep-orange: #FF5722;
+    --color-brown: #795548;
+    --color-grey: #9E9E9E;
+    --color-blue-grey: #607D8B;
+    --color-black: #555555;
+    --color-white: #ffffff;
+    --color-plan: #368F17;
+    --color-text-light-bg: #333;
+    --color-text-dark-bg: #fff;
+    --color-text-dark-bg-disabled: #ccc;
+
+    --color-success: #1CC88A;
+    --color-warning: #F6C23E;
+    --color-danger: #e74A3B;
+
+    --color-night-black: #282a36;
+    --color-night-dark-blue: #44475a;
+    --color-night-blue: #6272a4;
+    --color-night-grey-blue: #646e8c;
+    --color-night-dark-grey-blue: #606270;
+    --color-night-text-dark-bg: #eee8d5;
+
+    --color-theme: var(--color-plan);
+    --color-night: var(--color-night-dark-blue);
+}
+
+a {
+    text-decoration: none;
+}
+
+hr {
+    background-color: transparent;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    opacity: 1;
+}
+
+small, .small {
+    font-weight: 400;
+}
+
+
+@media (max-width: 1520px) {
+    html {
+        font-size: 95%;
+    }
+}
+
+.fc-title, .fc-time {
+    color: #eee;
+}
+
+.accordion-striped tbody tr:nth-of-type(4n+1):not(.bg-teal),
+.accordion-striped tbody tr:nth-of-type(4n+2):not(.bg-teal) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.table-dark.accordion-striped tbody tr:nth-of-type(4n+1):not(.bg-teal),
+.table-dark.accordion-striped tbody tr:nth-of-type(4n+2):not(.bg-teal) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.table {
+    --bs-table-striped-color: none;
+}
+
+.table-dark {
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-bg: none;
+}
+
+.table-dark.table-bordered {
+    border: 0;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+}
+
+.card-body p + p {
+    margin-top: 1rem;
+}
+
+.card-body p {
+    margin: 0;
+}
+
+.w-15 {
+    width: 15% !important;
+    height: 50%;
+}
+
+.w-22 {
+    width: 22% !important;
+}
+
+p.collapsing {
+    display: none;
+}
+
+.page-link:not(:disabled):not(.disabled) {
+    cursor: pointer;
+}
+
+.nav-link.sidebar-toggler {
+    padding-top: 0 !important;
+}
+
+.sidebar-toggler {
+    margin-right: 0.5rem;
+    display: inline;
+    cursor: pointer;
+}
+
+.sidebar-close-modal {
+    position: absolute;
+    opacity: 0.7;
+    background-color: #000;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.hidden {
+    width: 0 !important;
+    display: none;
+}
+
+.hidden .sidebar .sidebar-brand img {
+    display: none;
+}
+
+@media (min-width: 1400px) {
+    .sidebar-toggler {
+        display: none !important;
+    }
+}
+
+.page-loader {
+    position: fixed;
+    background: #ddd;
+    width: 100%;
+    z-index: 50;
+    height: 100%;
+    text-align: center;
+}
+
+.loader-container {
+    position: relative;
+    top: 50%;
+    -ms-transform: translateY(-50%);
+    transform: translateY(-50%);
+}
+
+.loader {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border: 4px solid var(--color-theme);
+    background-color: var(--color-theme);
+    border-radius: 5px;
+    animation: loader 2s infinite ease;
+}
+
+.card span.loader {
+    margin-top: 4rem;
+}
+
+.loader-text {
+    margin-top: 0.5rem;
+}
+
+@keyframes loader {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(180deg);
+    }
+
+    50% {
+        transform: rotate(180deg);
+    }
+
+    75% {
+        transform: rotate(360deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+div.scrollbar {
+    overflow: hidden;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.color-chooser {
+    margin-right: 0.15rem;
+    margin-bottom: 0.2rem;
+    border-color: transparent !important;
+}
+
+/* Navbar ====================================== */
+
+.col-red .navbar .nav > li > a:hover,
+.col-red .navbar .nav > li > a:focus,
+.col-red .navbar .nav .open > a,
+.col-red .navbar .nav .open > a:hover,
+.col-red .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-red .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-red .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-red .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-pink .navbar .nav > li > a:hover,
+.col-pink .navbar .nav > li > a:focus,
+.col-pink .navbar .nav .open > a,
+.col-pink .navbar .nav .open > a:hover,
+.col-pink .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-pink .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-pink .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-pink .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-purple .navbar .nav > li > a:hover,
+.col-purple .navbar .nav > li > a:focus,
+.col-purple .navbar .nav .open > a,
+.col-purple .navbar .nav .open > a:hover,
+.col-purple .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-purple .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-purple .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-purple .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-deep-purple .navbar .nav > li > a:hover,
+.col-deep-purple .navbar .nav > li > a:focus,
+.col-deep-purple .navbar .nav .open > a,
+.col-deep-purple .navbar .nav .open > a:hover,
+.col-deep-purple .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-deep-purple .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-deep-purple .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-deep-purple .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-indigo .navbar .nav > li > a:hover,
+.col-indigo .navbar .nav > li > a:focus,
+.col-indigo .navbar .nav .open > a,
+.col-indigo .navbar .nav .open > a:hover,
+.col-indigo .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-indigo .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-indigo .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-indigo .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-blue .navbar .nav > li > a:hover,
+.col-blue .navbar .nav > li > a:focus,
+.col-blue .navbar .nav .open > a,
+.col-blue .navbar .nav .open > a:hover,
+.col-blue .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-blue .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-blue .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-blue .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-light-blue .navbar .nav > li > a:hover,
+.col-light-blue .navbar .nav > li > a:focus,
+.col-light-blue .navbar .nav .open > a,
+.col-light-blue .navbar .nav .open > a:hover,
+.col-light-blue .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-light-blue .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-light-blue .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-light-blue .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-cyan .navbar .nav > li > a:hover,
+.col-cyan .navbar .nav > li > a:focus,
+.col-cyan .navbar .nav .open > a,
+.col-cyan .navbar .nav .open > a:hover,
+.col-cyan .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-cyan .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-cyan .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-cyan .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-teal .navbar .nav > li > a:hover,
+.col-teal .navbar .nav > li > a:focus,
+.col-teal .navbar .nav .open > a,
+.col-teal .navbar .nav .open > a:hover,
+.col-teal .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-teal .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-teal .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-teal .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-green .navbar .nav > li > a:hover,
+.col-green .navbar .nav > li > a:focus,
+.col-green .navbar .nav .open > a,
+.col-green .navbar .nav .open > a:hover,
+.col-green .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-green .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-green .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-green .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-light-green .navbar .nav > li > a:hover,
+.col-light-green .navbar .nav > li > a:focus,
+.col-light-green .navbar .nav .open > a,
+.col-light-green .navbar .nav .open > a:hover,
+.col-light-green .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-light-green .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-light-green .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-light-green .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-lime .navbar .nav > li > a:hover,
+.col-lime .navbar .nav > li > a:focus,
+.col-lime .navbar .nav .open > a,
+.col-lime .navbar .nav .open > a:hover,
+.col-lime .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-lime .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-lime .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-lime .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-yellow .navbar .nav > li > a:hover,
+.col-yellow .navbar .nav > li > a:focus,
+.col-yellow .navbar .nav .open > a,
+.col-yellow .navbar .nav .open > a:hover,
+.col-yellow .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-yellow .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-yellow .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-yellow .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-amber .navbar .nav > li > a:hover,
+.col-amber .navbar .nav > li > a:focus,
+.col-amber .navbar .nav .open > a,
+.col-amber .navbar .nav .open > a:hover,
+.col-amber .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-amber .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-amber .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-amber .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-orange .navbar .nav > li > a:hover,
+.col-orange .navbar .nav > li > a:focus,
+.col-orange .navbar .nav .open > a,
+.col-orange .navbar .nav .open > a:hover,
+.col-orange .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-orange .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-orange .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-orange .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-deep-orange .navbar .nav > li > a:hover,
+.col-deep-orange .navbar .nav > li > a:focus,
+.col-deep-orange .navbar .nav .open > a,
+.col-deep-orange .navbar .nav .open > a:hover,
+.col-deep-orange .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-deep-orange .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-deep-orange .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-deep-orange .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-brown .navbar .nav > li > a:hover,
+.col-brown .navbar .nav > li > a:focus,
+.col-brown .navbar .nav .open > a,
+.col-brown .navbar .nav .open > a:hover,
+.col-brown .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-brown .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-brown .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-brown .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-grey .navbar .nav > li > a:hover,
+.col-grey .navbar .nav > li > a:focus,
+.col-grey .navbar .nav .open > a,
+.col-grey .navbar .nav .open > a:hover,
+.col-grey .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-grey .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-grey .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-grey .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-blue-grey .navbar .nav > li > a:hover,
+.col-blue-grey .navbar .nav > li > a:focus,
+.col-blue-grey .navbar .nav .open > a,
+.col-blue-grey .navbar .nav .open > a:hover,
+.col-blue-grey .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-blue-grey .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-blue-grey .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-blue-grey .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-black .navbar .nav > li > a:hover,
+.col-black .navbar .nav > li > a:focus,
+.col-black .navbar .nav .open > a,
+.col-black .navbar .nav .open > a:hover,
+.col-black .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-black .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-black .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-black .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-white .navbar .nav > li > a:hover,
+.col-white .navbar .nav > li > a:focus,
+.col-white .navbar .nav .open > a,
+.col-white .navbar .nav .open > a:hover,
+.col-white .navbar .nav .open > a:focus {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.col-white .navbar .nav > li > a {
+    color: #fff;
+}
+
+.col-white .navbar .bars {
+    float: left;
+    padding: 10px 20px;
+    font-size: 22px;
+    color: #fff;
+    margin-right: 10px;
+    margin-left: -10px;
+    margin-top: 4px;
+}
+
+.col-white .navbar .bars:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+div#navSrvContainer {
+    overflow-y: auto;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    max-height: 180px;
+}
+
+div#navSrvContainer > a {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+div#navSrvContainer::-webkit-scrollbar {
+    width: 12px;
+}
+
+div#navSrvContainer::-webkit-scrollbar-thumb {
+    border: 4px solid rgba(0, 0, 0, 0);
+    background-clip: padding-box;
+    -webkit-border-radius: 7px;
+    background-color: rgba(0, 0, 0, 0.25);
+    -webkit-box-shadow: inset -1px -1px 0 rgba(0, 0, 0, 0.05), inset 1px 1px 0 rgba(0, 0, 0, 0.05);
+}
+
+.plan-bg-gradient {
+    background: rgba(0, 0, 0, 0) linear-gradient(180deg, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+.bg-transparent-light {
+    background-color: transparent;
+    color: #fff;
+}
+
+.bg-red, body.theme-red .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-red);
+    --bs-btn-disabled-bg: var(--color-red);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-pink, body.theme-pink .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-pink);
+    --bs-btn-disabled-bg: var(--color-pink);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-purple, body.theme-purple .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-purple);
+    --bs-btn-disabled-bg: var(--color-purple);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-deep-purple, body.theme-deep-purple .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-deep-purple);
+    --bs-btn-disabled-bg: var(--color-deep-purple);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-indigo, body.theme-indigo .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-indigo);
+    --bs-btn-disabled-bg: var(--color-indigo);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-blue, body.theme-blue .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-blue);
+    --bs-btn-disabled-bg: var(--color-blue);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-light-blue, body.theme-light-blue .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-light-blue);
+    --bs-btn-disabled-bg: var(--color-light-blue);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-cyan, body.theme-cyan .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-cyan);
+    --bs-btn-disabled-bg: var(--color-cyan);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-teal, body.theme-teal .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-teal);
+    --bs-btn-disabled-bg: var(--color-teal);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-green, body.theme-green .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-green);
+    --bs-btn-disabled-bg: var(--color-green);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-light-green, body.theme-light-green .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-light-green);
+    --bs-btn-disabled-bg: var(--color-light-green);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-lime, body.theme-lime .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-lime);
+    --bs-btn-disabled-bg: var(--color-lime);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-yellow, body.theme-yellow .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-yellow);
+    --bs-btn-disabled-bg: var(--color-yellow);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-amber, body.theme-amber .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-amber);
+    --bs-btn-disabled-bg: var(--color-amber);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-orange, body.theme-orange .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-orange);
+    --bs-btn-disabled-bg: var(--color-orange);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-deep-orange, body.theme-deep-orange .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-deep-orange);
+    --bs-btn-disabled-bg: var(--color-deep-orange);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-brown, body.theme-brown .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-brown);
+    --bs-btn-disabled-bg: var(--color-brown);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-grey, body.theme-grey .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-grey);
+    --bs-btn-disabled-bg: var(--color-grey);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-blue-grey, body.theme-blue-grey .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-blue-grey);
+    --bs-btn-disabled-bg: var(--color-blue-grey);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-black, body.theme-black .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-black);
+    --bs-btn-disabled-bg: var(--color-black);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-white, body.theme-white .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-white);
+    --bs-btn-disabled-bg: var(--color-white);
+    color: var(--color-text-light-bg);
+}
+
+.bg-plan, body.theme-plan .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-plan);
+    --bs-btn-disabled-bg: var(--color-plan);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-theme, body.theme .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-theme);
+    --bs-btn-disabled-bg: var(--color-theme);
+    color: var(--color-text-dark-bg);
+}
+
+.bg-success {
+    background-color: var(--color-success) !important;
+}
+
+.bg-warning {
+    background-color: var(--color-warning) !important;
+}
+
+.bg-danger {
+    background-color: var(--color-danger) !important;
+}
+
+.btn.bg-plan:hover,
+.btn.bg-pink:hover,
+.btn.bg-red:hover,
+.btn.bg-purple:hover,
+.btn.bg-deep-purple:hover,
+.btn.bg-indigo:hover,
+.btn.bg-light-blue:hover,
+.btn.bg-black:hover,
+.btn.bg-blue:hover,
+.btn.bg-cyan:hover,
+.btn.bg-teal:hover,
+.btn.bg-green:hover,
+.btn.bg-light-green:hover,
+.btn.bg-lime:hover,
+.btn.bg-yellow:hover,
+.btn.bg-amber:hover,
+.btn.bg-orange:hover,
+.btn.bg-deep-orange:hover,
+.btn.bg-brown:hover,
+.btn.bg-grey:hover,
+.btn.bg-blue-grey:hover,
+.btn.bg-transparent-light:hover {
+    color: var(--color-text-dark-bg-disabled) !important;
+    background-color: var(--bs-btn-disabled-bg);
+}
+
+.bg-night, body.theme-night .fc-toolbar-chunk .btn.btn-primary {
+    background-color: var(--color-night-dark-blue);
+    --bs-btn-disabled-bg: var(--color-night-dark-blue);
+    color: var(--color-night-text-dark-bg);
+}
+
+.fc-toolbar-chunk .btn.btn-primary {
+    outline: none !important;
+    border: none !important;
+}
+
+.bg-red-outline {
+    border-color: var(--color-red);
+    border-style: solid;
+    outline: var(--color-red) solid 1px;
+}
+
+.bg-pink-outline {
+    border-color: var(--color-pink);
+    border-style: solid;
+    outline: var(--color-pink) solid 1px;
+}
+
+.bg-purple-outline {
+    border-color: var(--color-purple);
+    border-style: solid;
+    outline: var(--color-purple) solid 1px;
+}
+
+.bg-deep-purple-outline {
+    border-color: var(--color-deep-purple);
+    border-style: solid;
+    outline: var(--color-deep-purple) solid 1px;
+}
+
+.bg-indigo-outline {
+    border-color: var(--color-indigo);
+    border-style: solid;
+    outline: var(--color-indigo) solid 1px;
+}
+
+.bg-blue-outline {
+    border-color: var(--color-blue);
+    border-style: solid;
+    outline: var(--color-blue) solid 1px;
+}
+
+.bg-light-blue-outline {
+    border-color: var(--color-light-blue);
+    border-style: solid;
+    outline: var(--color-light-blue) solid 1px;
+}
+
+.bg-cyan-outline {
+    border-color: var(--color-cyan);
+    border-style: solid;
+    outline: var(--color-cyan) solid 1px;
+}
+
+.bg-teal-outline {
+    border-color: var(--color-teal);
+    border-style: solid;
+    border-width: 3px;
+    outline: var(--color-teal) solid 1px;
+}
+
+.bg-green-outline {
+    border-color: var(--color-green);
+    border-style: solid;
+    outline: var(--color-green) solid 1px;
+}
+
+.bg-light-green-outline {
+    border-color: var(--color-light-green);
+    border-style: solid;
+    outline: var(--color-light-green) solid 1px;
+}
+
+.bg-lime-outline {
+    border-color: var(--color-lime);
+    border-style: solid;
+    outline: var(--color-lime) solid 1px;
+}
+
+.bg-yellow-outline {
+    border-color: var(--color-yellow);
+    border-style: solid;
+    outline: var(--color-yellow) solid 1px;
+}
+
+.bg-amber-outline {
+    border-color: var(--color-amber);
+    border-style: solid;
+    outline: var(--color-amber) solid 1px;
+}
+
+.bg-orange-outline {
+    border-color: var(--color-orange);
+    border-style: solid;
+    outline: var(--color-orange) solid 1px;
+}
+
+.bg-deep-orange-outline {
+    border-color: var(--color-deep-orange);
+    border-style: solid;
+    outline: var(--color-deep-orange) solid 1px;
+}
+
+.bg-brown-outline {
+    border-color: var(--color-brown);
+    border-style: solid;
+    outline: var(--color-brown) solid 1px;
+}
+
+.bg-grey-outline {
+    border-color: var(--color-grey);
+    border-style: solid;
+    outline: var(--color-grey) solid 1px;
+}
+
+.bg-blue-grey-outline {
+    border-color: var(--color-blue-grey);
+    border-style: solid;
+    outline: var(--color-blue-grey) solid 1px;
+}
+
+.bg-black-outline {
+    border-color: var(--color-black);
+    border-style: solid;
+    outline: var(--color-black) solid 1px;
+}
+
+.bg-plan-outline {
+    border-color: var(--color-plan);
+    border-style: solid;
+    outline: var(--color-plan) solid 1px;
+}
+
+.col-red {
+    color: var(--color-red);
+}
+
+.col-pink {
+    color: var(--color-pink);
+}
+
+.col-purple {
+    color: var(--color-purple);
+}
+
+.col-deep-purple {
+    color: var(--color-deep-purple);
+}
+
+.col-indigo {
+    color: var(--color-indigo);
+}
+
+.col-blue {
+    color: var(--color-blue);
+}
+
+.col-light-blue {
+    color: var(--color-light-blue);
+}
+
+.col-cyan {
+    color: var(--color-cyan);
+}
+
+.col-teal {
+    color: var(--color-teal);
+}
+
+.col-green {
+    color: var(--color-green);
+}
+
+.col-light-green {
+    color: var(--color-light-green);
+}
+
+.col-lime {
+    color: var(--color-lime);
+}
+
+.col-yellow {
+    color: var(--color-yellow);
+}
+
+.col-amber {
+    color: var(--color-amber);
+}
+
+.col-orange {
+    color: var(--color-orange);
+}
+
+.col-deep-orange {
+    color: var(--color-deep-orange);
+}
+
+.col-brown {
+    color: var(--color-brown);
+}
+
+.col-grey {
+    color: var(--color-grey);
+}
+
+.col-blue-grey {
+    color: var(--color-blue-grey);
+}
+
+.col-black {
+    color: var(--color-black);
+}
+
+.col-white {
+    color: #ffffff;
+}
+
+.col-plan {
+    color: var(--color-plan);
+}
+
+.col-theme {
+    color: var(--color-theme);
+}
+
+/* Minecraft color codes */
+.black {
+    color: #000000;
+}
+
+.darkblue {
+    color: #0000AA;
+}
+
+.darkgreen {
+    color: #00AA00;
+}
+
+.darkaqua {
+    color: #00AAAA;
+}
+
+.darkred {
+    color: #AA0000;
+}
+
+.darkpurple {
+    color: #AA00AA;
+}
+
+.gold {
+    color: #FFAA00;
+}
+
+.gray {
+    color: #AAAAAA;
+}
+
+.darkgray {
+    color: var(--color-black);
+}
+
+.blue {
+    color: #5555FF;
+}
+
+.green {
+    color: #55FF55;
+}
+
+.aqua {
+    color: #55FFFF;
+}
+
+.red {
+    color: #FF5555;
+}
+
+.pink {
+    color: #FF55FF;
+}
+
+.yellow {
+    color: #FFFF55;
+    text-shadow: 0 0 6px #000;
+}
+
+.white {
+    color: #FFFFFF;
+    text-shadow: 0 0 8px #000;
+}
+
+/*
+Fix table colors not applying properly due to bootstrap.
+*/
+.table > :not(caption) > * > * {
+    color: inherit;
+    background-color: inherit;
+}
+
+/*
+Adding a translation, even though it doesn't visually
+impact the page, causes child elements with a
+position of "fixed" to be based on this element
+instead of any other parent elements. For example,
+if a child element to this element had `top: 0`
+and `left: 0`, then it would align with the top
+left of this element instead of another parent or the document body.
+See this StackOverflow answer: https://stackoverflow.com/a/20830413
+
+We use this to properly align the popover when there are more
+than 3 events in one day on the sessions calendar.
+ */
+#sessions-overview {
+    transform: translateX(0);
+}
+
+/*
+When the sidebar is visible, it offsets the popovers by its width.
+ The rules below fix that by applying a negative margin.
+ */
+body .fc-popover {
+    margin-left: -14rem;
+}
+
+body.sidebar-hidden .fc-popover {
+    margin-left: 0 !important;
+}
+
+body.sidebar-hidden .navbar-nav {
+    display: none;
+}
+
+.filter-remover {
+    height: 2.4rem;
+    width: 2.4rem;
+    padding: 0;
+}
+
+.query-buttons {
+    display: none;
+}
+
+.contributors li {
+    padding: 0;
+}
+
+#filter-dropdown {
+    max-height: 18rem;
+    overflow-y: scroll;
+}
+
+.refresh-element {
+    font-size: 1rem;
+}
+
+.refresh-element > i {
+    cursor: pointer;
+}
+
+.sorting, .sorting_desc, .sorting_asc {
+    cursor: pointer;
+}
+
+.dataTables_length {
+    padding-top: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.dataTables_filter {
+    padding-top: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.dataTables_info {
+    padding-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.dataTables_paginate {
+    padding-bottom: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.sidebar .nav-item .collapse {
+    z-index: 2;
+}
+
+.container, .container-fluid, .container-sm, .container-md, .container-lg, .container-xl {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.topbar-divider {
+    width: 0;
+    border-right: 1px solid #e3e6f0;
+    height: calc(4.375rem - 2rem);
+    margin: auto 1rem;
+}
+
+@media (max-width: 660px) {
+    .topbar-divider {
+        display: none;
+    }
+
+    .refresh-element {
+        margin-left: 1rem;
+    }
+}
+
+@media (max-width: 400px) {
+    td, th {
+        font-size: 12px;
+        padding: 0.3rem !important;
+    }
+
+    .card-body p + p {
+        margin-top: 0.75rem;
+    }
+
+    p {
+        font-size: 12px;
+    }
+}
+
+.collapse-item.nav-button {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+button, input[type="submit"], input[type="reset"] {
+    background: none;
+    color: inherit;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    outline: inherit;
+}
+
+.login-username {
+    position: relative;
+    top: 0.1rem;
+}
+
+.dataTables_filter input {
+    /* Fixes datatables search bar going outside cards */
+    width: calc(100% - 3.7rem) !important;
+}
+
+ul.filters {
+    list-style: none;
+    padding: 0;
+}
+
+#wrapper {
+    display: flex;
+    min-height: 100vh;
+    background-image: linear-gradient(to right, var(--color-theme) 0%, var(--color-theme) 14rem, #f8f9fc 14.01rem, #f8f9fc 100%);
+}
+
+.contributor {
+    width: 33%;
+}
+
+.extension-table-header {
+    cursor: pointer;
+}
+
+.opaque-text {
+    opacity: 0.4;
+}
+
+.opaque-text:hover {
+    opacity: 1;
+}
+
+@keyframes alert-timer {
+    from {
+        width: 100%
+    }
+    to {
+        width: 0
+    }
+}
+
+.group-help i {
+    color: var(--color-plan)
+}
