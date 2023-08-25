@@ -43,12 +43,7 @@ public class BukkitSensor implements ServerSensor<World> {
     }
 
     public static boolean isPaperAvailable() {
-        try {
-            Class.forName("co.aikar.timings.Timing");
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return false;
     }
 
     @Override
